@@ -9,7 +9,7 @@ import { styles } from '../styles/homepageStyles.js';
 export default function HomeScreen({ navigation }) {
     const {categorising} = useApp();
 
-    const {dateRangeInfo} = useInitialLoadLogic();
+    const {dateRangeInfo, uploadCount, refetchUploadCount} = useInitialLoadLogic();
 
     const {handleLogout} = useLogout();
 
@@ -23,11 +23,20 @@ export default function HomeScreen({ navigation }) {
 
     const {processFiles,loading} = useFileProcessor(setStatus,setError,selectedFiles)
 
+    // Wraps processFiles so the displayed "past files uploaded" count
+    // catches up immediately after a successful upload, instead of
+    // sitting stale until the app is fully restarted.
+    async function handleCategorisePress() {
+        await processFiles();
+        refetchUploadCount();
+    }
+
     return (
     <View style={styles.container}>
 
         <HomepageInfo
             dateRangeInfo={dateRangeInfo}
+            uploadCount={uploadCount}
         >
         </HomepageInfo>
 
@@ -38,6 +47,9 @@ export default function HomeScreen({ navigation }) {
 
         {selectedFiles.length > 0 && (
             <View style={styles.fileInfo}>
+                <Text style={styles.fileInfoText}>
+                    Current file{selectedFiles.length > 1 ? 's' : ''}:
+                </Text>
                 {selectedFiles.map(f => (
                     <Text key={f.uri} style={styles.fileInfoText}>
                         {f.name} ({(f.size / 1024).toFixed(1)} KB)
@@ -53,7 +65,7 @@ export default function HomeScreen({ navigation }) {
         <TouchableOpacity
             style={[styles.button, styles.secondaryButton,
                 (loading || selectedFiles.length === 0) && styles.buttonDisabled]}
-            onPress={processFiles}
+            onPress={handleCategorisePress}
             disabled={loading || selectedFiles.length === 0 || categorising}
         >
             {loading
@@ -85,4 +97,3 @@ export default function HomeScreen({ navigation }) {
     </View>
     );
 }
-

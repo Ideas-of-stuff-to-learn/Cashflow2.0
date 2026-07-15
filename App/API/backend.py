@@ -58,11 +58,11 @@ def get_categories():
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT name, color FROM categories ORDER BY display_order"
+                "SELECT name, color, default_color FROM categories ORDER BY display_order"
             )
             rows = cur.fetchall()
 
-        categories = [{'name': row[0], 'color': row[1]} for row in rows]
+        categories = [{'name': row[0], 'color': row[1], 'defaultColor': row[2]} for row in rows]
         return jsonify({'categories': categories}), 200
     except Exception as e:
         app.logger.error(f'Fetching categories failed: {e}')
@@ -148,6 +148,102 @@ def update_category():
         return jsonify({'error': 'Category update failed - please try again'}), 500
     finally:
         release_connection(conn)
+
+@app.route('/categories/reset-defaults', methods=['POST'])
+@jwt_required()
+@limiter.limit("20 per day")
+def reset_category_defaults():
+    """Resets color back to default_color, scoped to whichever category
+    names are given - same scoping convention as update_category's
+    recolour action (applies to a selected set, not the whole table
+    unconditionally), so this button lives inside the same
+    select-some-categories flow the picker already uses.
+
+    Admin-only, same reasoning as recolouring itself: this is global,
+    shared structure, not a personal action.
+    """
+    data = request.get_json() or {}
+    names = data.get('names')
+
+    if not names or not isinstance(names, list):
+        return jsonify({'error': 'names must be a non-empty list'}), 400
+
+    current_user = int(get_jwt_identity())
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT username FROM users WHERE id = %s", (current_user,))
+            row = cur.fetchone()
+            if not row or row[0] != "admin":
+                return jsonify({'error': 'Not authorized'}), 403
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE categories SET color = default_color WHERE name = ANY(%s)",
+                (names,),
+            )
+
+        conn.commit()
+
+        with conn.cursor() as cur:
+            cur.execute("SELECT name, color, default_color FROM categories ORDER BY display_order")
+            rows = cur.fetchall()
+        categories = [{'name': row[0], 'color': row[1], 'defaultColor': row[2]} for row in rows]
+        return jsonify({'categories': categories}), 200
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Reset category defaults failed: {e}')
+        return jsonify({'error': 'Reset failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/categories/default-color', methods=['PATCH'])
+@jwt_required()
+@limiter.limit("20 per day")
+def update_default_color():
+    """Admin-only: redefines what a category's DEFAULT colour is - i.e.
+    what "reset to defaults" resets TO - as distinct from update_category,
+    which changes the CURRENT live colour. current_name travels in the
+    body, same convention as update_category, for the same reason (some
+    category names contain characters that don't play well as URL path
+    segments).
+    """
+    data = request.get_json() or {}
+    category_name = data.get('current_name')
+    new_default_color = data.get('default_color')
+
+    if not category_name or not new_default_color:
+        return jsonify({'error': 'current_name and default_color are required'}), 400
+
+    current_user = int(get_jwt_identity())
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT username FROM users WHERE id = %s", (current_user,))
+            row = cur.fetchone()
+            if not row or row[0] != "admin":
+                return jsonify({'error': 'Not authorized'}), 403
+
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM categories WHERE name = %s", (category_name,))
+            if not cur.fetchone():
+                return jsonify({'error': f'Category "{category_name}" not found'}), 404
+
+            cur.execute(
+                "UPDATE categories SET default_color = %s WHERE name = %s",
+                (new_default_color, category_name),
+            )
+
+        conn.commit()
+        return jsonify({'status': 'ok', 'name': category_name, 'default_color': new_default_color}), 200
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Default colour update failed: {e}')
+        return jsonify({'error': 'Default colour update failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
 
 def get_user_by_username(conn, username):
     """Returns (id, password_hash) for a username, or None if not found."""
@@ -282,6 +378,7 @@ def parse_csv():
     uploaded_files = request.files.getlist('files')
     parsed_rows = []
     seen_lines = set()
+    accepted_filenames = []
 
     for file in uploaded_files:
         if not file.filename.lower().endswith('.csv'):
@@ -296,6 +393,7 @@ def parse_csv():
             app.logger.warning(f"User {current_user} uploaded non-UTF-8 file: {file.filename}")
             continue
 
+        accepted_filenames.append(file.filename)
         reader = csv.reader(file_stream)
 
         for row in reader:
@@ -371,6 +469,18 @@ def parse_csv():
                         "amount": r["amount"],
                         "category": existing_category,
                     })
+
+            # One row per accepted file, in the SAME transaction as the
+            # rest of the upload - if the request fails and rolls back,
+            # these don't get recorded either, keeping the count
+            # consistent with whether the upload actually succeeded.
+            if accepted_filenames:
+                execute_values(
+                    cur,
+                    "INSERT INTO uploaded_files (user_id, filename) VALUES %s",
+                    [(current_user, filename) for filename in accepted_filenames],
+                    template="(%s, %s)",
+                )
 
         conn.commit()
     except Exception as e:
@@ -623,6 +733,29 @@ def charts_summary():
     except Exception as e:
         app.logger.error(f'Fetching chart summary failed for user {current_user}: {e}')
         return jsonify({'error': 'Failed to fetch chart summary'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/uploads/count', methods=['GET'])
+@jwt_required()
+@limiter.limit("100 per day")
+def get_upload_count():
+    """Total number of accepted CSV files this user has ever uploaded -
+    powers the "you've uploaded N files" summary on the home screen.
+    Counts upload EVENTS (re-uploading the same file adds to this),
+    not distinct filenames.
+    """
+    current_user = int(get_jwt_identity())
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM uploaded_files WHERE user_id = %s", (current_user,))
+            count = cur.fetchone()[0]
+        return jsonify({'count': count}), 200
+    except Exception as e:
+        app.logger.error(f'Fetching upload count failed for user {current_user}: {e}')
+        return jsonify({'error': 'Failed to fetch upload count'}), 500
     finally:
         release_connection(conn)
 

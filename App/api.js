@@ -25,7 +25,20 @@ async function parseJsonResponse(response, fallbackMessage) {
     if (!response.ok) throw new Error(data.error || fallbackMessage);
     return data;
 }
-
+// Total number of CSV files this user has ever uploaded - powers the
+// "you've uploaded N files" summary on the home screen.
+export async function getUploadCount() {
+    const token = await getToken();
+    if (!token) throw new Error('Not logged in');
+ 
+    const response = await fetch(`${BASE_URL}/uploads/count`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+ 
+    const data = await parseJsonResponse(response, 'Failed to fetch upload count');
+    return data.count;
+}
 export async function getCategories() {
     const token = await getToken();
     if (!token) throw new Error('Not logged in');

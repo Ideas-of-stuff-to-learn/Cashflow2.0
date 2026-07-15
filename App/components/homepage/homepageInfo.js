@@ -1,12 +1,15 @@
 import {Text } from 'react-native';
 import { styles } from '../../styles/homepageStyles.js';
 
-export default function HomepageInfo({ dateRangeInfo }) {
+export default function HomepageInfo({ dateRangeInfo, uploadCount }) {
     return (
         <>
             <Text style={styles.title}>Transaction Categorizer</Text>
             <Text style={styles.importantMsg}>This app does NOT connect to banks, it is strictly CSV upload only</Text>
             <Text style={styles.subtitle}>Upload a CSV to get started</Text>
+            <Text style={styles.rangeText}>
+                Number of past files uploaded : {uploadCount}
+            </Text>
             {dateRangeInfo && (
                 <Text style={styles.rangeText}>
                     You've uploaded transactions from {dateRangeInfo.rangeText} so far

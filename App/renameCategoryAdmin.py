@@ -12,7 +12,6 @@ Requires: pip install requests
 """
 
 import getpass
-from urllib.parse import quote
 
 import requests
 
@@ -31,15 +30,17 @@ def login(username, password):
 
 
 def rename_category(token, old_name, new_name):
-    # URL-encode the old name, since category names can contain spaces
-    # and commas (e.g. "Households, medicines and stationary") that
-    # aren't valid raw characters in a URL path segment.
-    encoded_old_name = quote(old_name, safe="")
-
+    # current_name travels in the request BODY now, not the URL path -
+    # some category names contain a literal "/" (e.g. "Sports/Fitness"),
+    # and a URL-encoded slash (%2F) is handled specially by a lot of web
+    # infrastructure for security reasons, which meant it could get
+    # rejected or mismatched before Flask's own routing ever saw it -
+    # regardless of URL-encoding it correctly on this end. Request
+    # bodies have no such restriction on any character.
     response = requests.patch(
-        f"{BASE_URL}/categories/{encoded_old_name}",
+        f"{BASE_URL}/categories",
         headers={"Authorization": f"Bearer {token}"},
-        json={"new_name": new_name},
+        json={"current_name": old_name, "new_name": new_name},
     )
     data = response.json()
     if not response.ok:
@@ -55,7 +56,7 @@ def main():
  
     # Local safety net only - this does NOT restrict who the backend
     # itself will accept. Any valid login still works against the
-    # actual PATCH /categories/<name> endpoint; this just stops this
+    # actual PATCH /categories endpoint; this just stops this
     # particular script from running against the wrong account by
     # accident (e.g. a typo, or muscle-memory logging into a test user).
     if username != "admin":

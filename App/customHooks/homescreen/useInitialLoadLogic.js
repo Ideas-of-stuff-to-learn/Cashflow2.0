@@ -1,7 +1,7 @@
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { getDateRangeInfo } from '../../utils/homescreen/homescreenUtils.js';
-import {getTransactionHistory, getCategories } from '../../api.js';
+import { getTransactionHistory, getCategories, getUploadCount } from '../../api.js';
 import { useApp } from '../../AppContext.js';
-import {useMemo, useEffect } from 'react';
 
 export function useInitialLoadLogic(){
     const {
@@ -11,7 +11,20 @@ export function useInitialLoadLogic(){
         setInitialLoading,
     } = useApp();
 
-   const dateRangeInfo = useMemo(() => getDateRangeInfo(transactions), [transactions]);
+    const [uploadCount, setUploadCount] = useState(0);
+
+    const dateRangeInfo = useMemo(() => getDateRangeInfo(transactions), [transactions]);
+
+    // Exposed so HomeScreen can call this right after a fresh upload
+    // finishes - the initial fetch below only runs once on mount, so
+    // without this, the displayed count would sit stale (showing
+    // whatever it was when the app opened) until the app was fully
+    // restarted, even though a new upload just changed the real number.
+    const refetchUploadCount = useCallback(() => {
+        getUploadCount()
+            .then(setUploadCount)
+            .catch(e => console.warn('Failed to load upload count:', e.message));
+    }, []);
 
     useEffect(() => {
         let cancelled = false;
@@ -19,13 +32,15 @@ export function useInitialLoadLogic(){
             try {
                 // Fetch in parallel - unrelated data, no reason to wait
                 // on one before starting the other
-                const [history, cats] = await Promise.all([
+                const [history, cats, count] = await Promise.all([
                     getTransactionHistory(),
                     getCategories(),
+                    getUploadCount(),
                 ]);
                 if (!cancelled) {
                     setTransactions(history);
                     setCategories(cats);
+                    setUploadCount(count);
                 }
             } catch (e) {
                 // Not fatal - user can still upload fresh, just starts
@@ -40,7 +55,10 @@ export function useInitialLoadLogic(){
         loadInitialData();
         return () => { cancelled = true; };
     }, []);
+
     return {
-        dateRangeInfo
-    }
+        dateRangeInfo,
+        uploadCount,
+        refetchUploadCount,
+    };
 }
