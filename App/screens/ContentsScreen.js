@@ -1,10 +1,10 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, TextInput, FlatList, Modal, Pressable } from 'react-native';
+import {Text, View, TouchableOpacity, ScrollView, TextInput, FlatList, Modal, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../AppContext.js';
 import { resolveCategories, getCategories, getTransactionHistory } from '../api.js';
 import { NEEDS_MANUAL_REVIEW } from '../checkingName.js';
-
+import { styles } from '../styles/contentsStyles.js';
 // A transaction's category is stale if it holds a real, non-empty value
 // that isn't the pending state and isn't the manual-review sentinel, but
 // also doesn't appear anywhere in the current valid category list -
@@ -540,80 +540,3 @@ export default function ContentsScreen({ navigation, route }) {
     );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff'},
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 8 },
-  scrollArea: { flex: 1, backgroundColor: '#F0F4F8', borderRadius: 8, padding: 12, marginBottom: 16 },
-  csvText: { fontSize: 12, fontFamily: 'monospace', color: '#333'},
-  subtitle: { fontSize: 16, color: '#555', marginBottom: 24 },
-  button: { backgroundColor: '#2E5C8A', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, marginBottom: 24 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-    search: {
-        margin: 12,
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 8,
-        padding: 10,
-        fontSize: 14,
-        color: '#333',
-    },
-    chipRow: { paddingHorizontal: 12, marginBottom: 8, flexGrow: 0 },
-    chip: { borderWidth: 1, borderColor: '#2E5C8A', borderRadius: 16, paddingVertical: 4, paddingHorizontal: 12, marginRight: 6 },
-    chipActive: { backgroundColor: '#2E5C8A' },
-    chipText: { fontSize: 12, color: '#2E5C8A' },
-    chipTextActive: { color: '#fff' },
-    banner: { backgroundColor: '#FFF3CD', padding: 8, marginHorizontal: 12, borderRadius: 6, marginBottom: 6 },
-    bannerText: { color: '#856404', fontSize: 13, textAlign: 'center' },
-    outOfSyncBanner: { backgroundColor: '#FDE2E1', padding: 8, marginHorizontal: 12, borderRadius: 6, marginBottom: 6 },
-    outOfSyncBannerText: { color: '#A93226', fontSize: 13, textAlign: 'center', fontWeight: '600' },
-    rowCountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 12, marginBottom: 4 },
-    rowCount: { fontSize: 12, color: '#888' },
-    selectEntryText: { fontSize: 12, color: '#2E5C8A', fontWeight: '600' },
-    tableHeader: { flexDirection: 'row', backgroundColor: '#2E5C8A', paddingVertical: 8, paddingHorizontal: 4 },
-    headerCell: { flex: 1, paddingHorizontal: 4 },
-    headerText: { color: '#fff', fontSize: 11, fontWeight: '600' },
-    headerTextActive: { color: '#FFD700' },
-    table: { flex: 1 },
-    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: '#eee' },
-    rowAlt: { backgroundColor: '#F8F9FA' },
-    rowManual: { backgroundColor: '#FFF3CD' },
-    rowSelected: { backgroundColor: '#DCE8F5' },
-    cell: { flex: 1, fontSize: 11, color: '#333', paddingHorizontal: 4 },
-    cellDate: { flex: 1.2 },
-    cellDesc: { flex: 2.5 },
-    cellAmount: { flex: 1, textAlign: 'right' },
-    cellCat: { flex: 1.5 },
-    cellManual: { color: '#856404', fontWeight: '600' },
-    cellPending: { color: '#999', fontStyle: 'italic' },
-    checkboxCell: { width: 28, alignItems: 'center', justifyContent: 'center' },
-    checkboxHeaderSpacer: { width: 28 },
-    checkbox: {
-        width: 18, height: 18, borderRadius: 4,
-        borderWidth: 1.5, borderColor: '#2E5C8A',
-        alignItems: 'center', justifyContent: 'center',
-        backgroundColor: '#fff',
-    },
-    checkboxChecked: { backgroundColor: '#2E5C8A' },
-    checkboxMark: { color: '#fff', fontSize: 12, fontWeight: '700' },
-    selectionBar: {
-        backgroundColor: '#2E5C8A', paddingVertical: 8, paddingHorizontal: 12,
-        marginHorizontal: 12, marginBottom: 6, borderRadius: 8,
-    },
-    selectionText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-    selectionTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    selectionBottomRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 8 },
-    selectionButtonSmall: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, margin: 3, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center' },    selectionButtonTextSmall: { color: '#fff', fontSize: 11, fontWeight: '600' },
-    selectionButton: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, marginLeft: 6, backgroundColor: 'rgba(255,255,255,0.15)' },
-    selectionButtonPrimary: { backgroundColor: '#FFD700' },
-    selectionButtonDisabled: { opacity: 0.5 },
-    selectionButtonText: { color: '#fff', fontSize: 12, fontWeight: '600' },
-    selectionButtonTextPrimary: { color: '#2E5C8A', fontSize: 12, fontWeight: '700' },
-    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
-    modalCard: { backgroundColor: '#fff', borderRadius: 12, padding: 16, maxHeight: '70%' },
-    modalTitle: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
-    modalDesc: { fontSize: 14, color: '#333', marginBottom: 2 },
-    modalAmount: { fontSize: 13, color: '#888', marginBottom: 12 },
-    modalList: { marginTop: 4 },
-    modalOption: { paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: '#eee' },
-    modalOptionText: { fontSize: 14, color: '#2E5C8A' },
-});

@@ -12,7 +12,7 @@ import { useCategoryRecolor } from '../customHooks/charts/useCategoryRecolor.js'
 import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartReveal.js';
 import { styles } from '../styles/chartStyes.js';
 
-export default function ChartsScreen({ navigation, route }) {
+export default function ChartsScreen({ navigation }) {
     const {
         categorising,
         categoryColors,
