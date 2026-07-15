@@ -1,0 +1,53 @@
+# Creating / Resetting the Admin Account
+
+`createAdmin.py` has been removed. Storing a script that creates
+users — even one meant to prompt for a password — is one accidental
+`git add .` away from a real password (or a stale test one) ending up
+in the repo. This is a two-step manual process instead: generate a
+hash locally, paste it into Supabase. Nothing ever touches a file.
+
+## 1. Generate a bcrypt hash locally
+
+Requires `bcrypt` installed locally (`pip install bcrypt --break-system-packages`
+if you don't already have it — the backend's `requirements.txt` pins
+`bcrypt==5.0.0`, so match that if you want to be exact).
+
+Run this directly in your terminal — it prompts interactively, so the
+password is never typed into a command, never saved to a file, and
+never appears in shell history:
+
+```bash
+python -c "import bcrypt, getpass; p = getpass.getpass('Password: '); print(bcrypt.hashpw(p.encode(), bcrypt.gensalt(rounds=12)).decode())"
+```
+
+It prints one line — a hash starting with `$2b$12$...`. Copy it.
+
+## 2. Insert or update the user in Supabase
+
+Supabase dashboard → SQL Editor → paste (swap in your hash):
+
+```sql
+INSERT INTO users (username, password_hash)
+VALUES ('admin', '$2b$12$paste_your_hash_here')
+ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash;
+```
+
+- First time: creates the `admin` user.
+- Any time after: the `ON CONFLICT` clause overwrites the existing
+  hash, so re-running steps 1–2 is exactly how you rotate the admin
+  password later.
+- To bootstrap a different account (not `admin`), just change the
+  username in the `VALUES` line — same process works for any user.
+
+## Deleting a user
+
+Both `category_records` and `transactions` reference `users.id` with
+`ON DELETE CASCADE`, so deleting the row in `users` cleans up
+everything scoped to that user automatically. `merchants` and
+`categories` are global tables, unaffected either way.
+
+```sql
+DELETE FROM users WHERE username = 'admin';
+```
+
+Then repeat steps 1–2 above to recreate it properly.

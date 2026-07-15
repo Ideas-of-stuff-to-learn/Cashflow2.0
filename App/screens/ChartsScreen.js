@@ -1,0 +1,120 @@
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView, TouchableOpacity, Text } from 'react-native';
+import { useApp } from '../AppContext';
+import SpendingOverview from '../components/charts/SpendingOverview.js';
+import YearlyChartSection from '../components/charts/Yearlychartsection.js';
+import CategoryRecolor from '../components/categoryRecolor.js';
+import CategorySlicer from '../components/charts/categorySlicer.js';
+import DetailedChartSection from '../components/charts/DetailedChartSection.js';
+import StatusBanners from '../components/charts/StatusBanners.js';
+import { useChartData } from '../customHooks/charts/useChartData.js';
+import { useCategoryRecolor } from '../customHooks/charts/useCategoryRecolor.js';
+import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartReveal.js';
+import { styles } from '../styles/chartStyes.js';
+
+export default function ChartsScreen({ navigation, route }) {
+    const {
+        categorising,
+        categoryColors,
+        initialLoading,
+        processingStage,
+    } = useApp();
+    const insets = useSafeAreaInsets();
+
+    const {
+        showingDummyData,
+        hasData,
+        yearChartData,
+        yearIncomeLineData,
+        allTimeChartData2,
+        selectedBar,
+        selectedYear,
+        selectedYearSegment,
+        selectedYearTotal,
+        monthChartData,
+        monthIncomeLineData,
+        selectedSegment,
+        availableCategories,
+        selectedCategories,
+        setSelectedCategories,
+        toggleItem,
+        selectAll,
+        closeDrilldown,
+    } = useChartData();
+
+    const {
+        recolorSelected,
+        colorPickerOpen, setColorPickerOpen,
+        applyingColor,
+        toggleRecolorCategory,
+        recolorSelectAll,
+        recolorDeselectAll,
+        applyColor,
+    } = useCategoryRecolor(availableCategories);
+
+    const showYearChart = useDetailedChartReveal();
+
+    return (
+      <ScrollView style={styles.container}
+    contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}>
+
+        <Text style={styles.title}>Spending by Category</Text>
+        <StatusBanners initialLoading={initialLoading} processingStage={processingStage} />
+
+        <SpendingOverview
+            hasData={hasData}
+            filteredChartData2={allTimeChartData2}
+            categorising={categorising}
+            initialLoading={initialLoading}
+            selectedBar={selectedBar}
+        />
+
+        <CategorySlicer
+            availableCategories={availableCategories}
+            selectedCategories={selectedCategories}
+            setSelectedCategories={setSelectedCategories}
+            toggleItem={toggleItem}
+            selectAll={selectAll}
+        />
+
+        <YearlyChartSection
+            ready={showYearChart}
+            hasData={hasData}
+            showingDummyData={showingDummyData}
+            yearChartData={yearChartData}
+            yearIncomeLineData={yearIncomeLineData}
+            selectedYear={selectedYear}
+            selectedYearSegment={selectedYearSegment}
+            selectedYearTotal={selectedYearTotal}
+        />
+
+        <DetailedChartSection
+            selectedYear={selectedYear}
+            monthChartData={monthChartData}
+            monthIncomeLineData={monthIncomeLineData}
+            selectedSegment={selectedSegment}
+            closeDrilldown={closeDrilldown}
+        />
+
+          {/* Category colour customisation - inline, not a modal */}
+            <CategoryRecolor
+                availableCategories={availableCategories}
+                recolorSelected={recolorSelected}
+                categoryColors={categoryColors}
+                toggleRecolorCategory={toggleRecolorCategory}
+                recolorSelectAll={recolorSelectAll}
+                recolorDeselectAll={recolorDeselectAll}
+                colorPickerOpen={colorPickerOpen}
+                setColorPickerOpen={setColorPickerOpen}
+                applyingColor={applyingColor}
+                applyColor={applyColor}
+            />
+          <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.goBack()}
+          >
+          <Text style={styles.buttonText}>Back to Home</Text>
+          </TouchableOpacity>
+      </ScrollView>
+    );
+}

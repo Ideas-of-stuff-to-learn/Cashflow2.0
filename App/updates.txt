@@ -1,0 +1,146 @@
+=========================================================================================================
+FEATURE / CHANGE REQUESTS
+=========================================================================================================
+
++----+--------------------------------------+------------------------------------------------------------+----------------------------------------------+
+| #  | Feature                              | Implementation                                             | Notes                                        |
++----+--------------------------------------+------------------------------------------------------------+----------------------------------------------+
+| 1  | Dummy chart data                     | Display placeholder chart data while checking the cache.   | ONLY shown while cache lookup is running.    |
+|    |                                      | Clearly label charts as "Dummy Data".                      |                                              |
+|    |                                      | As soon as cache results return, replace dummy data.       |                                              |
+|    |                                      | If no cache exists, keep dummy data until LLM completes.   |                                              |
+|    |                                      | Charts update: Dummy → Cache → LLM                         |                                              |
++----+--------------------------------------+------------------------------------------------------------+----------------------------------------------+
+| 2  | Pagination                           | Add pagination to Transactions table.                      | Improves frontend performance.               |
+|    |                                      | Add pagination to Categories page.                         |                                              |
+|    |                                      | Add pagination to Merchants page.                          |                                              |
+|    |                                      | Add pagination to Manual Cache page.                       |                                              |
+|    |                                      | Add pagination to Global Cache page.                       |                                              |
+|    |                                      | Add pagination to Upload History page.                     |                                              |
++----+--------------------------------------+------------------------------------------------------------+----------------------------------------------+
+| 3  | Categorisation Speed Improvements    | Keep current Cache → LLM flow.                             | LLM latency is still the main bottleneck.    |
+|    |                                      | Deduplicate merchants before sending to the LLM.           | Reduces number of LLM calls.                 |
+|    |                                      | Bulk insert cache updates.                                 | Faster database writes.                      |
+|    |                                      | Run multiple LLM batches in parallel.                      | Up to API rate limits.                       |
+|    |                                      | Stream completed batches back to the frontend.             | UI progressively updates.                    |
+|    |                                      | Normalize merchant names before cache lookup.              | Improves cache hit rate.                     |
+|    |                                      | Cache updates UI immediately before LLM finishes.          | Already implemented.                         |
++----+--------------------------------------+------------------------------------------------------------+----------------------------------------------+
+| 4  | Upload History                       | Create uploaded_files database table.                      | Tracks every uploaded CSV.                   |
+|    |                                      | Store filename.                                            |                                              |
+|    |                                      | Store upload date.                                         |                                              |
+|    |                                      | Store transaction count.                                   |                                              |
+|    |                                      | Store transaction date range.                              |                                              |
+|    |                                      | Store CSV hash.                                            |                                              |
+|    |                                      | Update dashboard summary.                                  |                                              |
+|    |                                      | Old: "Uploaded transactions from..."                       |                                              |
+|    |                                      | New: "Uploaded 4 files from Feb 2026 to Jun 2026."         |                                              |
++----+--------------------------------------+------------------------------------------------------------+----------------------------------------------+
+| 5  | Delete User Improvements             | Before deleting a user's cache, fetch all manual           | Preserves user corrections.                  |
+|    |                                      | categorisations.                                           |                                              |
+|    |                                      | Bulk UPSERT into Global Cache.                             | Efficient operation.                         |
+|    |                                      | Status should be set to Pending.                           | Ready for review.                            |
+|    |                                      | If merchant already exists, update existing record.        | No duplicates.                               |
+|    |                                      | Delete user cache afterwards.                              |                                              |
++----+--------------------------------------+------------------------------------------------------------+----------------------------------------------+
+
+=========================================================================================================
+LOADING FLOW
+=========================================================================================================
+
+CSV Uploaded
+      │
+      ▼
+Parse CSV
+      │
+      ▼
+Display Dummy Charts
+("Dummy Data - Checking Cache...")
+      │
+      ▼
+Search Cache
+      │
+      ├──────── Cache Hits Found ────────► Update UI Immediately
+      │                                      (Real Cache Data)
+      │
+      ▼
+Send Remaining Transactions to LLM
+      │
+      ▼
+LLM Returns Categories
+      │
+      ▼
+Update UI Again
+(Final Categorisation)
+
+If NO cache exists:
+
+Dummy Charts
+      │
+      ▼
+LLM
+      │
+      ▼
+Final Charts
+
+=========================================================================================================
+DATABASE CHANGES
+=========================================================================================================
+
+NEW TABLE
+
+uploaded_files
+
+Columns
+
+- id
+- user_id
+- filename
+- upload_date
+- transaction_count
+- start_transaction_date
+- end_transaction_date
+- bank_name
+- csv_hash
+- created_at
+
+=========================================================================================================
+FILES TO MODIFY
+=========================================================================================================
+
++----------------------------------------+-------------------------------------------------------------+
+| File / Area                            | Changes                                                     |
++----------------------------------------+-------------------------------------------------------------+
+| Dashboard/Home                         | Dummy charts, upload summary, loading states                |
+| Charts Component                       | Dummy → Cache → LLM progressive updates                     |
+| Transactions Table                     | Pagination                                                  |
+| Categories Page                        | Pagination                                                  |
+| Merchants Page                         | Pagination                                                  |
+| Manual Cache Page                      | Pagination                                                  |
+| Global Cache Page                      | Pagination                                                  |
+| Upload Service                         | Save uploaded_files records                                 |
+| Database Schema                        | Add uploaded_files table                                    |
+| Delete User Service                    | Bulk UPSERT manual cache into global cache                  |
+| Cache Service                          | Bulk UPSERT optimisations                                   |
+| Categorisation Service                 | Dedupe merchants, parallel batches, streaming updates       |
+| Dashboard Summary Component            | "Uploaded X files from ... to ..."                          |
++----------------------------------------+-------------------------------------------------------------+
+
+=========================================================================================================
+OPTIONAL UX IMPROVEMENT (RECOMMENDED)
+=========================================================================================================
+
+Display a live progress card during categorisation.
+
+Example:
+
+✓ Checking previous categorisations...
+
+Cache hits found:              3,284
+Remaining to categorise:         427
+Categorised so far:            3,912
+Status:                       Processing...
+
+This makes the application feel significantly faster even though the LLM latency itself is unchanged.
+
+=========================================================================================================
