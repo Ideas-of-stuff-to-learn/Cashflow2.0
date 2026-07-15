@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, ScrollView, Pressable, Text, StyleSheet } from 'react-native';
 import Svg, { Polyline } from 'react-native-svg';
-
+import { styles } from '../../styles/stackedChartStyles';
 // Replaces react-native-gifted-charts' BarChart(stackData=...) for this
 // one job. After extensive digging through the library's compiled
 // internals (see conversation history), its per-segment onPress
@@ -28,6 +28,14 @@ const LEFT_PADDING = 10;
 const LABEL_ROW_HEIGHT = 24;
 const Y_AXIS_LABEL_WIDTH = 46;
 const Y_AXIS_SECTIONS = 4;
+// Reserved space ABOVE the plotting area, purely so the topmost y-axis
+// label (whose gridline sits at y=0, the very top of the chart) has
+// room to vertically center itself without being pushed above the
+// container's own top edge and getting cut off. Bars are anchored to
+// the bottom, so adding height only at the top doesn't disturb them -
+// everything else (gridlines, axis lines, bar labels) just needs to
+// shift down by this same amount to stay aligned with the bars.
+const TOP_PADDING = 10;
 
 function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
     if (!stackData || stackData.length === 0) {
@@ -52,15 +60,17 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
     // own y-position - shared by both the fixed label column and the
     // gridlines drawn inside the scrollable bars area, so they always
     // line up with each other regardless of horizontal scroll position.
+    // Shifted down by TOP_PADDING so the top one (y=TOP_PADDING here,
+    // was y=0 before) has headroom to render its label fully.
     const yAxisLabels = Array.from({ length: Y_AXIS_SECTIONS + 1 }, (_, i) => {
         const value = (maxValue / Y_AXIS_SECTIONS) * i;
-        return { value, y: chartHeight - (value / maxValue) * chartHeight };
+        return { value, y: TOP_PADDING + chartHeight - (value / maxValue) * chartHeight };
     });
 
     const incomePoints = (incomeData || [])
         .map((d, i) => {
             const x = LEFT_PADDING + i * columnWidth + BAR_WIDTH / 2;
-            const y = chartHeight - ((d.value || 0) / maxValue) * chartHeight;
+            const y = TOP_PADDING + chartHeight - ((d.value || 0) / maxValue) * chartHeight;
             return `${x},${y}`;
         })
         .join(' ');
@@ -72,7 +82,7 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
         <ScrollView style={{ height: 300 }} nestedScrollEnabled scrollEnabled>
             <View style={{ flexDirection: 'row' }}>
                 {/* Fixed y-axis label column - does NOT scroll horizontally */}
-                <View style={{ width: Y_AXIS_LABEL_WIDTH, height: chartHeight }}>
+                <View style={{ width: Y_AXIS_LABEL_WIDTH, height: TOP_PADDING + chartHeight }}>
                     {yAxisLabels.map((label, i) => (
                         <Text
                             key={i}
@@ -88,7 +98,7 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
                 </View>
 
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={{ width: totalWidth, height: chartHeight + LABEL_ROW_HEIGHT }}>
+                    <View style={{ width: totalWidth, height: TOP_PADDING + chartHeight + LABEL_ROW_HEIGHT }}>
                         {/* Horizontal gridlines, one per y-axis label */}
                         {yAxisLabels.map((label, i) => (
                             <View
@@ -96,10 +106,12 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
                                 style={[styles.gridLine, { top: label.y, width: totalWidth }]}
                             />
                         ))}
-                        {/* X axis line */}
-                        <View style={[styles.xAxisLine, { top: chartHeight, width: totalWidth }]} />
+                        {/* X axis line - sits at the bottom of the plot area,
+                            i.e. TOP_PADDING + chartHeight down from the top,
+                            not at the old unpadded chartHeight position */}
+                        <View style={[styles.xAxisLine, { top: TOP_PADDING + chartHeight, width: totalWidth }]} />
 
-                        <View style={{ position: 'absolute', top: 0, left: 0, width: totalWidth, height: chartHeight }}>
+                        <View style={{ position: 'absolute', top: TOP_PADDING, left: 0, width: totalWidth, height: chartHeight }}>
                             {stackData.map((bar, barIndex) => {
                                 let cumulativeBottom = 0;
                                 const visibleSegments = bar.stacks.filter(s => s.value > 0);
@@ -157,9 +169,9 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
 
                         {incomeData && incomeData.length > 1 && (
                             <Svg
-                                style={StyleSheet.absoluteFillObject}
+                                style={{ position: 'absolute', top: 0, left: 0 }}
                                 width={totalWidth}
-                                height={chartHeight}
+                                height={TOP_PADDING + chartHeight}
                                 pointerEvents="none"
                             >
                                 <Polyline
@@ -171,7 +183,7 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
                             </Svg>
                         )}
 
-                        <View style={{ position: 'absolute', top: chartHeight + 2, left: 0, width: totalWidth, height: LABEL_ROW_HEIGHT }}>
+                        <View style={{ position: 'absolute', top: TOP_PADDING + chartHeight + 2, left: 0, width: totalWidth, height: LABEL_ROW_HEIGHT }}>
                             {stackData.map((bar, i) => (
                                 <Text
                                     key={i}
@@ -192,11 +204,6 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
     );
 }
 
-const styles = StyleSheet.create({
-    xAxisLine: { position: 'absolute', left: 0, height: 1, backgroundColor: '#ccc' },
-    gridLine: { position: 'absolute', left: 0, height: 1, backgroundColor: '#eee' },
-    yAxisLabel: { fontSize: 10, color: '#777', textAlign: 'right' },
-    barLabel: { fontSize: 11, color: '#555', textAlign: 'center' },
-});
+
 
 export default React.memo(SpendingStackChart);
