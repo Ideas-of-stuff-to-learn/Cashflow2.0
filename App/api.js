@@ -41,12 +41,19 @@ export async function getCategories() {
 export async function updateCategory(categoryName, { newName, color } = {}) {
     const token = await getToken();
     if (!token) throw new Error('Not logged in');
-
-    const body = {};
+ 
+    const body = { current_name: categoryName };
     if (newName) body.new_name = newName;
     if (color) body.color = color;
-
-    const response = await fetch(`${BASE_URL}/categories/${encodeURIComponent(categoryName)}`, {
+ 
+    // current_name now travels in the body, not the URL - some category
+    // names contain a literal "/" (e.g. "Sports/Fitness"), and a
+    // URL-encoded slash gets handled specially by a lot of web
+    // infrastructure for security reasons, which meant it could get
+    // rejected before Flask's own routing ever saw it - regardless of
+    // encodeURIComponent on this end. Request bodies have no such
+    // restriction on any character.
+    const response = await fetch(`${BASE_URL}/categories`, {
         method: 'PATCH',
         headers: {
             'Content-Type': 'application/json',
@@ -54,7 +61,7 @@ export async function updateCategory(categoryName, { newName, color } = {}) {
         },
         body: JSON.stringify(body),
     });
-
+ 
     return await parseJsonResponse(response, 'Failed to update category');
 }
 export async function getTransactionHistory() {

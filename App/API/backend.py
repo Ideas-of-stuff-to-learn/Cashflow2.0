@@ -70,12 +70,22 @@ def get_categories():
     finally:
         release_connection(conn)
 
-# updated
-@app.route('/categories/<path:category_name>', methods=['PATCH'])
+@app.route('/categories', methods=['PATCH'])
 @jwt_required()
 @limiter.limit("20 per day")
-def update_category(category_name):
+def update_category():
     """Renames a category and/or changes its colour.
+
+    The category being changed (current_name) travels in the JSON body
+    now, not the URL path - some category names contain a literal "/"
+    (e.g. "Sports/Fitness"), and a URL-encoded slash (%2F) is handled
+    specially by a lot of web infrastructure for security reasons
+    (ambiguous-path attacks), which meant it could get rejected or
+    mismatched before Flask's own routing ever got a chance to look at
+    it - regardless of using <path:...> in the route. Request bodies
+    have no such restriction on any character, so this sidesteps the
+    problem entirely rather than continuing to fight framework/web
+    server internals we don't have full visibility into.
 
     Renaming cascades everywhere the OLD name currently appears -
     category_records (both scopes), merchants, and every stored
@@ -90,9 +100,12 @@ def update_category(category_name):
     so there is nothing to cascade.
     """
     data = request.get_json() or {}
+    category_name = data.get('current_name')
     new_name = data.get('new_name')
     new_color = data.get('color')
 
+    if not category_name:
+        return jsonify({'error': 'current_name is required'}), 400
     if not new_name and not new_color:
         return jsonify({'error': 'Provide new_name and/or color'}), 400
 
@@ -267,7 +280,7 @@ def parse_csv():
         return jsonify({"error": "No files provided"}), 400
 
     uploaded_files = request.files.getlist('files')
-    parsed_rows = []  # (date, description, amount, dedup_key) before DB insert
+    parsed_rows = []
     seen_lines = set()
 
     for file in uploaded_files:
@@ -320,18 +333,6 @@ def parse_csv():
             resolved_by_dedup_key = {}
 
             if parsed_rows:
-                # One bulk INSERT for the whole file instead of one INSERT
-                # per row - execute_values sends this in a handful of
-                # round trips (internally paginated, default 100 rows per
-                # page) instead of one round trip per transaction. A
-                # multi-year bank export with a few thousand rows used to
-                # mean a few thousand queries here; now it's a small
-                # constant number regardless of file size.
-                #
-                # ON CONFLICT DO NOTHING means RETURNING only gives back
-                # rows that were ACTUALLY inserted (brand new) - anything
-                # already existing (a re-upload) is silently skipped here
-                # and picked up by the bulk lookup below instead.
                 inserted = execute_values(
                     cur,
                     """INSERT INTO transactions (user_id, txn_date, description, amount, category, dedup_key)
@@ -348,10 +349,6 @@ def parse_csv():
                 for txn_id, category, dedup_key in inserted:
                     resolved_by_dedup_key[dedup_key] = (txn_id, category)
 
-                # Anything not in resolved_by_dedup_key yet conflicted on
-                # insert - i.e. it already existed from a previous upload.
-                # One bulk SELECT for all of those at once, instead of one
-                # SELECT per conflicting row.
                 missing_dedup_keys = [
                     r["dedup_key"] for r in parsed_rows
                     if r["dedup_key"] not in resolved_by_dedup_key
@@ -506,12 +503,6 @@ def resolve_manual():
         valid_categories = set(load_categories(conn))
         personal_cache = CategoryCache(conn, scope='personal', user_id=current_user)
         global_cache = CategoryCache(conn, scope='global')
-        # Without this, every write method below silently operates on an
-        # empty in-memory cache - resolve_record() can never find the
-        # existing pending record, remove_record() can never find anything
-        # to delete, and combined_status() further down would only see
-        # whatever got written earlier in THIS request, not what already
-        # existed in the database.
         personal_cache.preload()
         global_cache.preload()
 
@@ -541,9 +532,6 @@ def resolve_manual():
                     global_cache.remove_record(desc, date, amount_str, category=None)
                 personal_cache.add_record(desc, date, amount_str, category)
 
-            # Always update the exact transaction row the user just
-            # resolved - this always happens, regardless of what the
-            # description's overall status turns out to be.
             with conn.cursor() as cur:
                 cur.execute(
                     """UPDATE transactions SET category = %s
@@ -552,11 +540,6 @@ def resolve_manual():
                     (category, current_user, desc, date, amount),
                 )
 
-            # Check status AFTER writing the above - resolving this one
-            # row is itself what can flip the description's status. Only
-            # backfill other transactions sharing this description if
-            # every record now agrees (no disagreement anywhere) - if
-            # it's ambiguous, every other row still needs its own answer.
             status_after = combined_status(desc, personal_cache, global_cache)
             if status_after['status'] == 'resolved':
                 with conn.cursor() as cur:
@@ -568,11 +551,6 @@ def resolve_manual():
 
             updated.append({'description': desc, 'date': date, 'amount': amount, 'category': category})
 
-        # Every add_record/resolve_record/remove_record call above only
-        # queues a change in RAM - nothing reaches Postgres until save()
-        # runs its executemany() calls. Guarded by .dirty so a request
-        # with nothing to persist for one scope doesn't run a pointless
-        # empty write.
         if personal_cache.dirty:
             personal_cache.save()
         if global_cache.dirty:
@@ -596,17 +574,7 @@ def charts_summary():
     per (year, category) and, separately, one row per (year, month,
     category). Sums are computed INSIDE Postgres via GROUP BY/SUM - the
     response size is bounded by (years x months x categories), not by
-    how many actual transactions produced those totals. Even 20 years
-    of history is at most a few thousand rows back to the app, instead
-    of shipping every raw transaction over the network and summing them
-    on the phone.
-
-    txn_date is free-form text (whatever format the source bank CSV
-    used), not a real DATE column - the regex filter below only
-    aggregates rows shaped like the DD/MM/YYYY format the rest of the
-    app assumes (see HomeScreen's date-range parsing). A malformed date
-    silently drops out of the chart instead of corrupting a year/month
-    bucket or crashing the cast to INTEGER.
+    how many actual transactions produced those totals.
     """
     current_user = int(get_jwt_identity())
     excluded_categories = list(TRANSIENT_CATEGORY_VALUES | {NEEDS_MANUAL_REVIEW})
