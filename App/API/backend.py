@@ -70,6 +70,7 @@ def get_categories():
     finally:
         release_connection(conn)
 
+# updated
 @app.route('/categories/<path:category_name>', methods=['PATCH'])
 @jwt_required()
 @limiter.limit("20 per day")
