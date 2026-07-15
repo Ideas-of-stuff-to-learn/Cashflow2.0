@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 
-const BASE_URL = "https://cashflowbackend-1era.onrender.com";
+const BASE_URL = "https://cashflow2-0.onrender.com";
 
 // Every endpoint below used to do `const data = await response.json()`
 // directly. That's fine when the Flask app answers - but if the backend
