@@ -24,6 +24,7 @@ export default function CategoryRecolor({
     setColorPickerOpen,
     applyingColor,
     applyColor,
+    resetToDefaults,
 }) {
     // Seed the wheel with whichever colour the first selected category
     // already has, so opening the picker doesn't always reset to some
@@ -97,6 +98,13 @@ export default function CategoryRecolor({
                         <Panel1 style={{ height: 200 }} />
                         <HueCircular style={{ marginTop: 12 }} />
                     </ColorPicker>
+                    <TouchableOpacity
+                        style={styles.chip}
+                        onPress={resetToDefaults}
+                        disabled={applyingColor}
+                    >
+                        <Text style={styles.chipText}>Reset to default colours</Text>
+                    </TouchableOpacity>
                     {applyingColor && (
                         <Text style={styles.chipText}>Saving…</Text>
                     )}

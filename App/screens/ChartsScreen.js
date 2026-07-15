@@ -50,6 +50,7 @@ export default function ChartsScreen({ navigation }) {
         recolorSelectAll,
         recolorDeselectAll,
         applyColor,
+        resetToDefaults,
     } = useCategoryRecolor(availableCategories);
 
     const showYearChart = useDetailedChartReveal();
@@ -108,6 +109,7 @@ export default function ChartsScreen({ navigation }) {
                 setColorPickerOpen={setColorPickerOpen}
                 applyingColor={applyingColor}
                 applyColor={applyColor}
+                resetToDefaults={resetToDefaults}
             />
           <TouchableOpacity
           style={styles.button}

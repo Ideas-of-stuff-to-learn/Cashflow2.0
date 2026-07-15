@@ -25,6 +25,25 @@ async function parseJsonResponse(response, fallbackMessage) {
     if (!response.ok) throw new Error(data.error || fallbackMessage);
     return data;
 }
+// Resets `color` back to `default_color` for the given category names -
+// admin-only, same scoping convention as updateCategory (applies to a
+// selected set, not the whole table). Returns the full refreshed
+// category list, same shape as getCategories().
+export async function resetCategoryDefaults(names) {
+    const token = await getToken();
+    if (!token) throw new Error('Not logged in');
+ 
+    const response = await fetch(`${BASE_URL}/categories/reset-defaults`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ names }),
+    });
+ 
+    return await parseJsonResponse(response, 'Reset to defaults failed');
+}
 // Total number of CSV files this user has ever uploaded - powers the
 // "you've uploaded N files" summary on the home screen.
 export async function getUploadCount() {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../../AppContext.js';
-import { updateCategory } from '../../api.js';
+import { updateCategory, resetCategoryDefaults } from '../../api.js';
 import {toggleItem} from '../../utils/charts/chartUtils.js'
 
 export function useCategoryRecolor(availableCategories) {
@@ -43,6 +43,28 @@ export function useCategoryRecolor(availableCategories) {
         }
     }
 
+    // Resets the selected categories back to their own default_color -
+    // same scoping as applyColor (only the currently-selected
+    // categories), just going to each one's own original colour instead
+    // of one shared new colour. Backend returns the full refreshed list
+    // directly, so this just replaces categories wholesale rather than
+    // patching client-side like applyColor does.
+    async function resetToDefaults() {
+        if (recolorSelected.size === 0) return;
+        setApplyingColor(true);
+        try {
+            const names = [...recolorSelected];
+            const data = await resetCategoryDefaults(names);
+            setCategories(data.categories);
+            setRecolorSelected(new Set());
+            setColorPickerOpen(false);
+        } catch (e) {
+            console.warn('Reset to defaults failed:', e.message);
+        } finally {
+            setApplyingColor(false);
+        }
+    }
+
     return {
         recolorSelected,
         colorPickerOpen, setColorPickerOpen,
@@ -51,5 +73,6 @@ export function useCategoryRecolor(availableCategories) {
         recolorSelectAll,
         recolorDeselectAll,
         applyColor,
+        resetToDefaults,
     };
 }
