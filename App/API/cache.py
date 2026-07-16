@@ -124,6 +124,21 @@ class CategoryCache:
 
         self._preloaded = True
 
+    @staticmethod
+    def patch_global_category_rename(old_name, new_name):
+        """Live-update every cached global record's category string in
+        place, instead of throwing the whole shared cache away and
+        paying for a full Postgres reload on the next request that
+        needs it. Used right after a category rename has already been
+        committed to the DB via raw SQL (see update_category() in
+        backend.py) - this just brings the in-memory copy in sync with
+        that same change, cheaply, without a round trip.
+        """
+        for records in _global_records_cache.values():
+            for record in records:
+                if record["category"] == old_name:
+                    record["category"] = new_name
+
     def records_for(self, description):
         """
         Return all records for a description.

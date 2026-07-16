@@ -100,6 +100,23 @@ def add_merchant(conn, normalized_name: str, category: str) -> None:
     global _global_merchants_cache
     if _global_merchants_cache is not None:
         _global_merchants_cache[normalized_name] = category
+
+
+def patch_merchants_category_rename(old_name, new_name):
+    """Live-update every cached merchant's category string in place,
+    instead of discarding the whole cache and paying for a full
+    Postgres reload on the next request that needs it. Used right
+    after a category rename has already been committed to the DB via
+    raw SQL (see update_category() in backend.py) - this brings the
+    in-memory copy in sync with that same change, cheaply, without a
+    round trip.
+    """
+    global _global_merchants_cache
+    if _global_merchants_cache is None:
+        return
+    for merchant_name, category in _global_merchants_cache.items():
+        if category == old_name:
+            _global_merchants_cache[merchant_name] = new_name
         
 def find_similar_cached_description(
     description,

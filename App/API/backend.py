@@ -17,7 +17,7 @@ from cache import CategoryCache
 from database import get_connection, release_connection
 from categoriseAPI2 import run_cache_tiers, run_llm_tier, combined_status
 from checkingName import NEEDS_MANUAL_REVIEW
-from categoriseAugDB import load_categories
+from categoriseAugDB import load_categories, patch_merchants_category_rename
 
 
 load_dotenv()
@@ -126,7 +126,10 @@ def update_category():
             if not cur.fetchone():
                 return jsonify({'error': f'Category "{category_name}" not found'}), 404
 
-            if new_name and new_name != category_name:
+            original_category_name = category_name
+            renamed = bool(new_name and new_name != category_name)
+
+            if renamed:
                 cur.execute("SELECT 1 FROM categories WHERE name = %s", (new_name,))
                 if cur.fetchone():
                     return jsonify({'error': f'Category "{new_name}" already exists'}), 409
@@ -141,6 +144,20 @@ def update_category():
                 cur.execute("UPDATE categories SET color = %s WHERE name = %s", (new_color, category_name))
 
         conn.commit()
+
+        if renamed:
+            # The UPDATEs above change category_records/merchants
+            # directly in Postgres, bypassing CategoryCache entirely -
+            # the process-level global caches (cache.py, categoriseAugDB.py)
+            # have no way to know this happened on their own, and would
+            # otherwise keep serving the OLD category name from memory
+            # for the rest of this process's lifetime. Patch both caches
+            # in place with the same rename, cheaply, instead of
+            # discarding them and paying for a full reload on the next
+            # request.
+            CategoryCache.patch_global_category_rename(original_category_name, new_name)
+            patch_merchants_category_rename(original_category_name, new_name)
+
         return jsonify({'status': 'ok', 'name': category_name, 'color': new_color}), 200
     except Exception as e:
         conn.rollback()
