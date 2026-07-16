@@ -1,13 +1,12 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useApp } from '../../AppContext.js';
-import { getChartSummary } from '../../api.js';
 import { buildDummyTotals, toggleItem, selectAll } from '../../utils/charts/chartUtils.js';
 import { buildYearStackData, buildMonthStackData } from '../../utils/charts/yearlyChartUtils.js';
 
 export function useChartData() {
-    const { categoryNames, categoryColors, processingStage, categorizationTick } = useApp();
+    const { categoryNames, categoryColors, processingStage, chartSummary } = useApp();
 
-    const [summary, setSummary] = useState({ yearly: [], monthly: [] });
+    const summary = chartSummary;
     const [selectedBar, setSelectedBar] = useState(null);
     const [selectedSegment, setSelectedSegment] = useState(null);
     const [selectedYear, setSelectedYear] = useState(null);
@@ -24,24 +23,10 @@ export function useChartData() {
     const showingDummyData = summary.yearly.length === 0
         && (processingStage === 'parsing' || processingStage === 'checkingCache' || processingStage === 'waitingForLLM');
 
-    // Fetched once on mount (picks up existing history), and refetched
-    // on every categorizationTick - that ticks up once per chunk
-    // (cache OR LLM), not just on the handful of stage transitions
-    // processingStage goes through for an entire run. Each chunk
-    // commits its own results to the DB the moment it finishes (see
-    // /categorize/cached and /categorize/llm in backend.py), so by the
-    // time a tick fires there's genuinely new data worth asking for -
-    // no need to wait for the whole stage (or the whole run) to finish.
-    useEffect(() => {
-        let cancelled = false;
-        getChartSummary()
-            .then(data => {
-                if (!cancelled) setSummary(data);
-            })
-            .catch(e => console.warn('Failed to load chart summary:', e.message));
-
-        return () => { cancelled = true; };
-    }, [categorizationTick]);
+    // chartSummary itself now lives in AppContext (see the effect
+    // there, keyed on categorizationTick) - it stays fresh in the
+    // background regardless of whether this screen is even mounted,
+    // so there's nothing left to fetch here. This hook just reads it.
 
     const dummyTotals = useMemo(() => buildDummyTotals(categoryNames), [categoryNames]);
 
