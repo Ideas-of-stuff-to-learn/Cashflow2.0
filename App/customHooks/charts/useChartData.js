@@ -5,7 +5,7 @@ import { buildDummyTotals, toggleItem, selectAll } from '../../utils/charts/char
 import { buildYearStackData, buildMonthStackData } from '../../utils/charts/yearlyChartUtils.js';
 
 export function useChartData() {
-    const { categoryNames, categoryColors, processingStage } = useApp();
+    const { categoryNames, categoryColors, processingStage, categorizationTick } = useApp();
 
     const [summary, setSummary] = useState({ yearly: [], monthly: [] });
     const [selectedBar, setSelectedBar] = useState(null);
@@ -14,20 +14,25 @@ export function useChartData() {
     const [selectedYearSegment, setSelectedYearSegment] = useState(null);
     const [selectedCategories, setSelectedCategories] = useState(new Set());
 
-    // Same convention as before: dummy data is shown specifically while
-    // checking the cache, nothing more subtle than that.
-    const showingDummyData = processingStage === 'checkingCache';
+    // Dummy data is shown only while we have genuinely nothing real to
+    // show yet AND something is actively in progress - NOT for the
+    // entire duration of a processing stage. A stage like checkingCache
+    // can span many separate chunks (see useFileProcessor.js), each of
+    // which commits real rows to the DB as it finishes - once
+    // summary.yearly has anything in it, that's real data and should
+    // be shown immediately, even if the stage hasn't moved on yet.
+    const showingDummyData = summary.yearly.length === 0
+        && (processingStage === 'parsing' || processingStage === 'checkingCache' || processingStage === 'waitingForLLM');
 
     // Fetched once on mount (picks up existing history), and refetched
-    // any time processing moves PAST the "checking cache" stage - that's
-    // when freshly categorised rows actually land in the transactions
-    // table, so the aggregate is worth asking for again. Deliberately
-    // does NOT fetch while still checkingCache, since nothing new has
-    // been committed to the database yet at that point - fetching then
-    // would just return the same stale numbers.
+    // on every categorizationTick - that ticks up once per chunk
+    // (cache OR LLM), not just on the handful of stage transitions
+    // processingStage goes through for an entire run. Each chunk
+    // commits its own results to the DB the moment it finishes (see
+    // /categorize/cached and /categorize/llm in backend.py), so by the
+    // time a tick fires there's genuinely new data worth asking for -
+    // no need to wait for the whole stage (or the whole run) to finish.
     useEffect(() => {
-        if (processingStage === 'checkingCache') return;
-
         let cancelled = false;
         getChartSummary()
             .then(data => {
@@ -36,7 +41,7 @@ export function useChartData() {
             .catch(e => console.warn('Failed to load chart summary:', e.message));
 
         return () => { cancelled = true; };
-    }, [processingStage]);
+    }, [categorizationTick]);
 
     const dummyTotals = useMemo(() => buildDummyTotals(categoryNames), [categoryNames]);
 

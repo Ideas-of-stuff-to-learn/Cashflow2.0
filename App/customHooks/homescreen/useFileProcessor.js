@@ -133,7 +133,8 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
         transactions,
         setTransactions,
         setCategorising,
-        setProcessingStage
+        setProcessingStage,
+        bumpCategorizationTick
     } = useApp();
 
     // Runs the full cache-tier -> LLM-tier categorisation pipeline over
@@ -198,6 +199,12 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
             // away rather than waiting for every chunk to finish.
             phase1 = phase1.concat(chunkResult);
             setTransactions(prev => mergeById(prev, chunkResult));
+            // This chunk's results are already committed to the DB
+            // (see /categorize/cached in backend.py) - bump the tick so
+            // anything watching for fresh data (useChartData.js) knows
+            // to refetch, instead of waiting for the whole checkingCache
+            // stage to finish.
+            bumpCategorizationTick();
         }
 
         setProcessingStage('waitingForLLM');
@@ -285,6 +292,10 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
                 });
 
                 setTransactions(prev => mergeById(prev, workingPhase1));
+                // Same reasoning as the cache-tier tick above - this
+                // chunk's results are already committed via
+                // /categorize/llm's update_transaction_categories call.
+                bumpCategorizationTick();
             }
 
             setProcessingStage('done');
