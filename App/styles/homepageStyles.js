@@ -2,6 +2,8 @@ import { StyleSheet} from 'react-native';
 
 export const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', padding: 20 },
+    scrollView: { flex: 1, backgroundColor: '#fff' },
+    scrollContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
     title: { fontSize: 24, fontWeight: 'bold', marginBottom: 8 },
     subtitle: { fontSize: 16, color: '#555', marginBottom: 24 },
     rangeText: { fontSize: 13, color: '#777', marginBottom: 20, textAlign: 'center' },
@@ -13,8 +15,6 @@ export const styles = StyleSheet.create({
     fileInfoText: { fontSize: 14, color: '#333', marginBottom: 4 },
     status: { fontSize: 14, color: '#2E5C8A', marginBottom: 8, fontStyle: 'italic' },
     error: { color: '#D94F4F', marginBottom: 12, fontSize: 14 },
-    progressLog: { backgroundColor: '#F0F4F8', padding: 12, borderRadius: 8, marginBottom: 12, width: '100%', maxHeight: 160 },
-    progressLogText: { fontSize: 12, color: '#555', marginBottom: 2 },
     logoutButton: { backgroundColor: '#D94F4F', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, marginTop: 12, width: '100%', alignItems: 'center' },
     logoutText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });
