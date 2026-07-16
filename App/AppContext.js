@@ -43,11 +43,34 @@ export function AppProvider({ children }) {
 
     useEffect(() => {
         let cancelled = false;
-        getChartSummary()
-            .then(data => {
+
+        // A failed fetch here used to just warn and give up - fine
+        // most of the time, since the NEXT tick would fetch again
+        // anyway. But if the failure happens on the LAST tick of a
+        // run (nothing left to trigger another attempt), the chart is
+        // silently stuck one batch stale with no way to recover short
+        // of another upload or an app restart. A short retry-with-
+        // backoff covers exactly that case, for whatever transient
+        // reason the fetch failed (seen once after a dev bundle
+        // reload landed mid-flight and the very next SecureStore read
+        // came back empty for a moment - but this guards against any
+        // one-off blip, not just that specific cause).
+        async function fetchWithRetry(attempt = 1) {
+            try {
+                const data = await getChartSummary();
                 if (!cancelled) setChartSummary(data);
-            })
-            .catch(e => console.warn('Failed to load chart summary:', e.message));
+            } catch (e) {
+                if (attempt >= 3) {
+                    console.warn(`Failed to load chart summary after ${attempt} attempts:`, e.message);
+                    return;
+                }
+                const delayMs = 1000 * attempt;
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+                if (!cancelled) await fetchWithRetry(attempt + 1);
+            }
+        }
+
+        fetchWithRetry();
 
         return () => { cancelled = true; };
     }, [categorizationTick]);
