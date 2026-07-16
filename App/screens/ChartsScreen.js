@@ -96,8 +96,9 @@ export default function ChartsScreen({ navigation }) {
             selectedSegment={selectedSegment}
             closeDrilldown={closeDrilldown}
         />
-
-          {/* Category colour customisation - inline, not a modal */}
+        {/* 
+           Category colour customisation - inline, not a modal 
+           
             <CategoryRecolor
                 availableCategories={availableCategories}
                 recolorSelected={recolorSelected}
@@ -111,6 +112,7 @@ export default function ChartsScreen({ navigation }) {
                 applyColor={applyColor}
                 resetToDefaults={resetToDefaults}
             />
+        */}
           <TouchableOpacity
           style={styles.button}
           onPress={() => navigation.goBack()}
