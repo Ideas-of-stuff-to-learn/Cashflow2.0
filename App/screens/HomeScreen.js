@@ -1,4 +1,4 @@
-import { Text, View, TouchableOpacity, Alert, ActivityIndicator} from 'react-native';
+import { Text, View, TouchableOpacity, Alert, ActivityIndicator, ScrollView} from 'react-native';
 import { useApp } from '../AppContext.js';
 import { useInitialLoadLogic } from '../customHooks/homescreen/useInitialLoadLogic.js';
 import { useLogout } from '../customHooks/homescreen/useLogout.js';
@@ -22,7 +22,7 @@ export default function HomeScreen({ navigation }) {
         error,
         setError} = useFilePicker();
 
-    const {processFiles, retryNotYetCategorized, loading} = useFileProcessor(setStatus,setError,selectedFiles)
+    const {processFiles, retryNotYetCategorized, loading, progressLog} = useFileProcessor(setStatus,setError,selectedFiles)
 
     const notYetCategorisedCount = transactions.filter(t => t.category === NOT_YET_CATEGORISED).length;
 
@@ -62,6 +62,20 @@ export default function HomeScreen({ navigation }) {
         )}
         {status && <Text style={styles.status}>{status}</Text>}
         {error && <Text style={styles.error}>{error}</Text>}
+
+        {/* Batch-by-batch progress, same info as the console logs but
+            visible in-app - tagged per line with whether it came from
+            Categorise or Retry, so it's clear which run produced it. */}
+        {progressLog.length > 0 && (
+            <ScrollView
+                style={styles.progressLog}
+                ref={ref => ref?.scrollToEnd({ animated: true })}
+            >
+                {progressLog.map((line, idx) => (
+                    <Text key={idx} style={styles.progressLogText}>{line}</Text>
+                ))}
+            </ScrollView>
+        )}
 
         {/* Categorise */}
 

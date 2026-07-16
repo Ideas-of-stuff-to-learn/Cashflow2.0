@@ -87,6 +87,7 @@ const CLIENT_TIMEOUT_MS = Math.max(1, WORKER_TIMEOUT_SECONDS - TIMEOUT_SAFETY_BU
 
 export function useFileProcessor(setStatus, setError,selectedFiles){
     const [loading, setLoading] = useState(false);
+    const [progressLog, setProgressLog] = useState([]);
     const {
         transactions,
         setTransactions,
@@ -94,12 +95,23 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
         setProcessingStage
     } = useApp();
 
+    // Writes a line to both the console (for you, in dev tools) and
+    // in-app state (for the user, rendered under the buttons) - one
+    // call site instead of duplicating console.log everywhere below.
+    function logProgress(label, message) {
+        const line = `[${label}] ${message}`;
+        console.log(line);
+        setProgressLog(prev => [...prev, line]);
+    }
+
     // Runs the full cache-tier -> LLM-tier categorisation pipeline over
     // whatever list it's given. Shared by processFiles() (for freshly
     // parsed rows) and retryNotYetCategorized() (for rows previously
     // left as NOT_YET_CATEGORISED after a timeout) - same chunking,
     // same timeout handling, same progressive state updates either way.
-    async function categorizeTransactions(itemsNeedingCategorization) {
+    // runLabel just tags each log line so it's clear in the UI whether
+    // it came from a normal upload or a manual retry.
+    async function categorizeTransactions(itemsNeedingCategorization, runLabel = 'Categorise') {
         setProcessingStage('checkingCache');
         setCategorising(true);
 
@@ -121,12 +133,12 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
                 chunkResult = await categorizeCached(cacheChunks[i], {
                     timeoutMs: CLIENT_TIMEOUT_MS,
                     onTiming: (elapsedMs) => {
-                        console.log(`[categorizeCached] batch ${i + 1}/${cacheChunks.length}, ${cacheChunks[i].length} txns, ${(elapsedMs / 1000).toFixed(1)}s`);
+                        logProgress(runLabel, `Cache batch ${i + 1}/${cacheChunks.length} done - ${cacheChunks[i].length} txns, ${(elapsedMs / 1000).toFixed(1)}s`);
                     },
                 });
             } catch (err) {
                 if (err.isTimeout) {
-                    console.warn(`[categorizeCached] batch ${i + 1}/${cacheChunks.length} timed out after ${(err.elapsedMs / 1000).toFixed(1)}s`);
+                    logProgress(runLabel, `Cache batch ${i + 1}/${cacheChunks.length} TIMED OUT after ${(err.elapsedMs / 1000).toFixed(1)}s - marked not yet categorised`);
                     // This chunk, plus every chunk we hadn't
                     // gotten to yet, get marked NOT_YET_CATEGORISED
                     // - deliberately NOT NEEDS_MANUAL_REVIEW, since
@@ -184,12 +196,12 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
                         timeoutMs: CLIENT_TIMEOUT_MS,
                         batchSize: LLM_CHUNK_SIZE,
                         onTiming: (elapsedMs) => {
-                            console.log(`[categorizeLLM] batch ${i + 1}/${chunks.length}, ${chunks[i].length} txns, batch_size=${LLM_CHUNK_SIZE}, ${(elapsedMs / 1000).toFixed(1)}s`);
+                            logProgress(runLabel, `LLM batch ${i + 1}/${chunks.length} done - ${chunks[i].length} txns, batch_size=${LLM_CHUNK_SIZE}, ${(elapsedMs / 1000).toFixed(1)}s`);
                         },
                     });
                 } catch (err) {
                     if (err.isTimeout) {
-                        console.warn(`[categorizeLLM] batch ${i + 1}/${chunks.length} timed out after ${(err.elapsedMs / 1000).toFixed(1)}s`);
+                        logProgress(runLabel, `LLM batch ${i + 1}/${chunks.length} TIMED OUT after ${(err.elapsedMs / 1000).toFixed(1)}s - marked not yet categorised`);
                         // Same reasoning as the cache-tier catch
                         // above: mark this chunk and every
                         // not-yet-attempted chunk as
@@ -242,6 +254,7 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
 
         setLoading(true);
         setError(null);
+        setProgressLog([]);
         setProcessingStage('parsing');
 
         try {
@@ -265,7 +278,7 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
             const needsCategorization = parsed.filter(t => t.category == null);
 
             if (needsCategorization.length > 0) {
-                await categorizeTransactions(needsCategorization);
+                await categorizeTransactions(needsCategorization, 'Categorise');
             }
 
         } catch (e) {
@@ -295,9 +308,10 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
 
         setLoading(true);
         setError(null);
+        setProgressLog([]);
 
         try {
-            await categorizeTransactions(toRetry);
+            await categorizeTransactions(toRetry, 'Retry');
         } catch (e) {
             setError(e.message);
         } finally {
@@ -315,5 +329,6 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
         retryNotYetCategorized,
         loading,
         setLoading,
+        progressLog,
     }
 }
