@@ -166,6 +166,111 @@ def update_category():
     finally:
         release_connection(conn)
 
+@app.route('/categories/combine', methods=['PATCH'])
+@jwt_required()
+@limiter.limit("20 per day")
+def combine_categories():
+    """Merges 2+ existing categories into one, under new_name.
+
+    new_name can be a brand new name, or it can match one of the
+    categories already being merged (e.g. combining "Travel" and
+    "Trips" into "Travel" - keeping that name rather than picking
+    something new). It canNOT match some OTHER, unrelated category
+    that isn't part of this merge - that would silently fold this
+    merge's data into an unrelated category no one asked to touch.
+
+    Implementation-wise this reuses one EXISTING row from `names`
+    (whichever one ends up being new_name, or the first one given if
+    new_name is genuinely new - renamed in place) rather than
+    inserting a fresh categories row, so there's no need to invent a
+    display_order or colour for a brand new row: the survivor just
+    keeps whatever it already had. Every other selected category's
+    data is folded into that survivor, then its own categories row is
+    deleted.
+
+    Same cascade as a rename (category_records, merchants,
+    transactions), just done once per category being folded in rather
+    than once overall. Admin-only, same reasoning as rename/recolour -
+    this is global, shared structure.
+    """
+    data = request.get_json() or {}
+    names = data.get('names')
+    new_name = (data.get('new_name') or '').strip()
+
+    if not names or not isinstance(names, list) or len(names) < 2:
+        return jsonify({'error': 'names must be a list of at least 2 categories'}), 400
+    if len(set(names)) != len(names):
+        return jsonify({'error': 'names contains duplicates'}), 400
+    if not new_name:
+        return jsonify({'error': 'new_name is required'}), 400
+
+    current_user = int(get_jwt_identity())
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT username FROM users WHERE id = %s", (current_user,))
+            row = cur.fetchone()
+            if not row or row[0] != "admin":
+                return jsonify({'error': 'Not authorized'}), 403
+
+        with conn.cursor() as cur:
+            cur.execute("SELECT name FROM categories WHERE name = ANY(%s)", (names,))
+            found = {r[0] for r in cur.fetchall()}
+            missing = [n for n in names if n not in found]
+            if missing:
+                return jsonify({'error': f'Categor{"y" if len(missing) == 1 else "ies"} not found: {", ".join(missing)}'}), 404
+
+            # new_name is only a conflict if it belongs to some category
+            # OUTSIDE this merge - matching one of the categories already
+            # being merged is fine (that's the "keep this existing name"
+            # case), that's just not treated as a NEW conflicting row.
+            cur.execute("SELECT 1 FROM categories WHERE name = %s", (new_name,))
+            new_name_exists_elsewhere = bool(cur.fetchone()) and new_name not in names
+            if new_name_exists_elsewhere:
+                return jsonify({'error': f'Category "{new_name}" already exists and is not part of this merge'}), 409
+
+            # Pick which existing row survives:
+            # - if new_name matches one of the selected categories,
+            #   THAT row survives unchanged (no rename needed) - the
+            #   "keep this existing name" case.
+            # - otherwise new_name is genuinely new, so the FIRST
+            #   selected category's row survives, renamed to new_name.
+            new_name_is_new = new_name not in names
+            base_name = names[0] if new_name_is_new else new_name
+            others = [n for n in names if n != base_name]
+
+            if new_name_is_new:
+                cur.execute("UPDATE categories SET name = %s WHERE name = %s", (new_name, base_name))
+                # base_name's own data still says the OLD name string
+                # everywhere else (categories.name isn't a foreign key
+                # anywhere) - cascade it the same as a plain rename.
+                cur.execute("UPDATE category_records SET category = %s WHERE category = %s", (new_name, base_name))
+                cur.execute("UPDATE merchants SET category = %s WHERE category = %s", (new_name, base_name))
+                cur.execute("UPDATE transactions SET category = %s WHERE category = %s", (new_name, base_name))
+
+            for old_name in others:
+                cur.execute("UPDATE category_records SET category = %s WHERE category = %s", (new_name, old_name))
+                cur.execute("UPDATE merchants SET category = %s WHERE category = %s", (new_name, old_name))
+                cur.execute("UPDATE transactions SET category = %s WHERE category = %s", (new_name, old_name))
+                cur.execute("DELETE FROM categories WHERE name = %s", (old_name,))
+
+        conn.commit()
+
+        # Same in-memory cache patching as a plain rename, just once
+        # per folded-in name instead of once overall.
+        renamed_away = [n for n in names if n != new_name]
+        for old_name in renamed_away:
+            CategoryCache.patch_global_category_rename(old_name, new_name)
+            patch_merchants_category_rename(old_name, new_name)
+
+        return jsonify({'status': 'ok', 'name': new_name, 'merged_from': renamed_away}), 200
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Category combine failed: {e}')
+        return jsonify({'error': 'Category combine failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
 @app.route('/categories/reset-defaults', methods=['POST'])
 @jwt_required()
 @limiter.limit("20 per day")
