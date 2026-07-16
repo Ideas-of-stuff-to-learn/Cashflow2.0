@@ -55,7 +55,7 @@ const CACHE_CHUNK_SIZE = 200;
 //
 // Both numbers are yours to adjust. Backend also caps whatever's sent
 // to between 1 and 2000 - see the /categorize/llm route.
-const LLM_BATCH_SIZE = 200;
+const LLM_BATCH_SIZE = 400;
 const MIN_LLM_BATCH_SIZE = 200;
 const LLM_CHUNK_SIZE = Math.max(MIN_LLM_BATCH_SIZE, LLM_BATCH_SIZE);
 
