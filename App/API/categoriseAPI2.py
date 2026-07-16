@@ -198,7 +198,7 @@ def run_cache_tiers(transactions: list, user_id: str, conn) -> list:
     return result
 
 
-def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int = 200) -> list:
+def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int = 1000) -> list:
     """Tier 5 only - LLM categorisation for transactions that couldn't
     be resolved by cache tiers. Accepts only the PENDING_LLM transactions
     from run_cache_tiers(), never re-runs the cache checks.
