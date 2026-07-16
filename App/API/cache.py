@@ -15,6 +15,28 @@ queries during cache checking.
 
 from checkingName import NEEDS_MANUAL_REVIEW
 
+# Shared across every request handled by this worker process - NOT
+# per-request, NOT per-user. The 'global' scope of category_records is
+# the same data no matter who's asking or what they're uploading; a
+# fresh CategoryCache is constructed on every single call to
+# run_cache_tiers()/run_llm_tier(), and preload() used to re-fetch and
+# re-build this from Postgres every single time even though the data
+# it returns almost never differs from the previous request's. This is
+# what makes that a load-once-per-process cache instead: every
+# CategoryCache(scope='global') below points its _records_cache at this
+# same dict, and write methods (add_record etc.) already mutate
+# self._records_cache in place - so once it's loaded, new records
+# written during normal use land straight into this shared dict with no
+# separate sync step needed, and every subsequent request in this
+# process just reuses it instead of round-tripping to Postgres.
+#
+# The one thing this can't see is the global table being edited
+# directly in the database outside the app (e.g. an admin script) -
+# that requires a process restart to pick up, which is an acceptable
+# tradeoff for cutting a full-table reload out of every request.
+_global_records_cache = {}
+_global_cache_loaded = False
+
 
 class CategoryCache:
     def __init__(self, conn, scope, user_id=None):
@@ -28,8 +50,16 @@ class CategoryCache:
         self.scope = scope
         self.user_id = user_id if scope == "personal" else None
 
-        # description -> list of records
-        self._records_cache = {}
+        # 'global' points every instance at the SAME shared dict across
+        # every request in this process (see comment above). 'personal'
+        # keeps a fresh dict every time, same as before - personal
+        # history is small and specific to one user, nothing to gain by
+        # sharing it.
+        if scope == "global":
+            self._records_cache = _global_records_cache
+        else:
+            self._records_cache = {}
+
         self._preloaded = False
         self.dirty = False
         self._pending_inserts = []
@@ -44,11 +74,17 @@ class CategoryCache:
 
     def preload(self):
         """
-        Load all records for this cache scope into RAM once.
+        Load all records for this cache scope into RAM.
 
-        After this, records_for() is normally database-free.
+        scope='personal': queries fresh every time, same as before.
+
+        scope='global': queries Postgres ONCE PER WORKER PROCESS. Every
+        subsequent request in this process reuses the same in-memory
+        dict (see the module-level comment above) instead of
+        re-fetching and re-normalizing the entire shared table again.
         """
-        self._records_cache.clear()
+        global _global_cache_loaded
+
         self._pending_inserts.clear()
         self._pending_insert_keys.clear()
         self._pending_resolves.clear()
@@ -56,7 +92,13 @@ class CategoryCache:
         self._pending_bulk_updates.clear()
         self._pending_deletes.clear()
         self.dirty = False
-        
+
+        if self.scope == "global" and _global_cache_loaded:
+            self._preloaded = True
+            return
+
+        self._records_cache.clear()
+
         with self.conn.cursor() as cur:
             cur.execute(
                 """
@@ -76,6 +118,9 @@ class CategoryCache:
                         "category": category,
                     }
                 )
+
+        if self.scope == "global":
+            _global_cache_loaded = True
 
         self._preloaded = True
 

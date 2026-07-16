@@ -39,10 +39,30 @@ load_dotenv()
  
 MODEL_NAME = "gemini-2.5-flash"
 SIMILARITY_THRESHOLD = 85
+
+# Shared across every request in this worker process, same reasoning as
+# _global_records_cache in cache.py: the merchants table is the same
+# data no matter who's asking, and used to be reloaded and
+# re-normalized from scratch on every single request. None is the
+# "never loaded yet" sentinel (a real empty dict is a valid loaded
+# state, so it can't double as that signal).
+_global_merchants_cache = None
+
+
 def load_merchants(conn) -> dict:
     """Load the full merchant dictionary from the merchants table.
     Returns an empty dict if the table has no rows yet.
+
+    Cached at the process level (see _global_merchants_cache above) -
+    only actually queries Postgres and re-normalizes every name once
+    per worker process; every call after that reuses the same dict.
+    add_merchant() keeps this in sync when new merchants are learned,
+    so it never goes stale during normal operation.
     """
+    global _global_merchants_cache
+    if _global_merchants_cache is not None:
+        return _global_merchants_cache
+
     with conn.cursor() as cur:
         cur.execute("SELECT normalized_name, category FROM merchants")
         merchants =  dict(cur.fetchall())
@@ -50,7 +70,8 @@ def load_merchants(conn) -> dict:
             normalize_for_matching(name): category
             for name, category in merchants.items()
         }
-        return normalized_merchants
+    _global_merchants_cache = normalized_merchants
+    return _global_merchants_cache
 def load_categories(conn) -> list:
     """Returns every user-facing category name, in display order.
     Deliberately does NOT include the MANUALLY CATEGORISE sentinel..."""
@@ -62,6 +83,10 @@ def add_merchant(conn, normalized_name: str, category: str) -> None:
     Merchant-learning is a small, standalone write - not worth batching
     into the same transaction as the surrounding categorization work,
     since it should persist even if something later in the request fails.
+
+    Also updates the process-level cache (see load_merchants above) in
+    place, so the newly learned merchant is usable immediately by this
+    same process without waiting for a reload.
     """
     with conn.cursor() as cur:
         cur.execute(
@@ -71,6 +96,10 @@ def add_merchant(conn, normalized_name: str, category: str) -> None:
             (normalized_name, category),
         )
     conn.commit()
+
+    global _global_merchants_cache
+    if _global_merchants_cache is not None:
+        _global_merchants_cache[normalized_name] = category
         
 def find_similar_cached_description(
     description,
