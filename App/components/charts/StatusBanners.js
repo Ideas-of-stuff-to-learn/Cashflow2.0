@@ -1,7 +1,7 @@
 import { View, Text } from 'react-native';
 import { styles } from '../../styles/chartStyes.js';
 
-export default function StatusBanners({ initialLoading, processingStage }) {
+export default function StatusBanners({ initialLoading, processingStage, showingDummyData }) {
     return (
         <>
             {initialLoading && (
@@ -9,7 +9,7 @@ export default function StatusBanners({ initialLoading, processingStage }) {
                     <Text style={styles.bannerText}>⏳ Loading your data...</Text>
                 </View>
             )}
-            {processingStage === 'checkingCache' && (
+            {showingDummyData && (
                 <View style={styles.banner}>
                     <Text style={styles.bannerText}>
                         📊 Dummy data - checking previous categorisations...

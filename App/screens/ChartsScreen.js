@@ -60,7 +60,7 @@ export default function ChartsScreen({ navigation }) {
     contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}>
 
         <Text style={styles.title}>Spending by Category</Text>
-        <StatusBanners initialLoading={initialLoading} processingStage={processingStage} />
+        <StatusBanners initialLoading={initialLoading} processingStage={processingStage} showingDummyData={showingDummyData} />
 
         <SpendingOverview
             hasData={hasData}
