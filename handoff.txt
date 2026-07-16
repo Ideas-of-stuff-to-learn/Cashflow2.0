@@ -1,0 +1,117 @@
+# Handoff — Upload Counting & Categorization Performance
+
+**Scope of this doc:** `App/API/backend.py`, `App/API/cache.py`, `App/API/categoriseAugDB.py`, `App/API/schema.sql`
+
+---
+
+## READ THIS FIRST
+
+**The repo is the source of truth. This document can be, and eventually will be, stale.**
+
+Treat this as a starting reference point, not a spec. Before making any change in the area this doc covers:
+
+1. Pull the current version of the files mentioned above directly from the repo (`main` branch) — don't rely on this doc's code snippets being current.
+2. If what you find in the repo contradicts what this doc says, **the repo wins.** Assume the doc just hasn't been updated yet.
+3. Don't make large or structural changes to this area without first explaining, to whoever you're working with, the impact and logic of what you're about to do — this codebase belongs to someone who wants to understand *why*, not just receive a diff.
+4. **After you make a major change in this area, update this doc.** Add a new dated section rather than editing history away — future readers benefit from seeing how the reasoning evolved, not just the latest state.
+
+---
+
+## Previous State (before this round of changes)
+
+### Upload counting
+`App/API/backend.py`'s `/api/parse-csv` endpoint inserted one row into `uploaded_files` for **every accepted filename**, unconditionally. "Accepted" only meant: filename ends in `.csv` and decodes as UTF-8. This meant:
+- Re-uploading the exact same file incremented the counter again.
+- A file that produced zero usable rows (garbage, wrong format, header-only) still counted.
+- There was no per-file safety validation beyond the UTF-8 decode check — no size cap, and an unparseable transaction amount silently became a fabricated `0.0` instead of being rejected.
+
+The `schema.sql` comment on `uploaded_files` explicitly documented this as intentional: *"a re-upload of the exact same file still adds a new row here."*
+
+### Categorization performance
+`CategoryCache.preload()` (`cache.py`) and `load_merchants()` (`categoriseAugDB.py`) both did a **full, unfiltered table read** — `category_records` (global scope) and `merchants` respectively — on **every single API request**, regardless of which user was uploading or how much personal history they had. Both tables are shared/global (not scoped to one user), so this work was almost entirely redundant between requests: the data barely changes request-to-request, but was being fully re-fetched and (for merchants) re-normalized from scratch every time anyway.
+
+This is why a fresh account with **zero personal transaction history** was still slow to categorize on first upload — the bottleneck was never about the user's own data size, it was about re-loading the same shared global data over and over.
+
+---
+
+## Problems Identified
+
+1. **Upload count didn't reflect reality.** A user re-uploading the same monthly statement, or uploading a multi-month file where some months were already stored, would see the "files uploaded" counter increment even though nothing new was actually added.
+2. **No basic file-level safety checks.** Oversized files, malformed rows, and rows with unparseable amounts were either silently accepted or silently corrupted (fake `£0.0` transactions).
+3. **Categorization was slow for everyone, worst on fresh accounts**, because the *shared* global cache/merchant data was being reloaded from Postgres on every request instead of once per running process.
+4. **A latent bug, exposed by fixing #3:** `PATCH /categories` (the category-rename endpoint) renames a category via **raw SQL directly against the tables**, completely bypassing the `CategoryCache` class. There's a method called `rename_category_everywhere()` in `cache.py` that exists for exactly this purpose — but it is **dead code, never called from anywhere in the repo.**
+   - Before the caching fix, this bug was mostly invisible: the whole global cache reloaded from Postgres every request anyway, so a rename would "self-heal" almost instantly.
+   - After the caching fix (which makes the global cache persist in memory for the life of the process), this became a *real, lasting* bug: a renamed category would keep showing its old name from memory indefinitely, until the process happened to restart, even though the DB itself was correctly updated.
+
+---
+
+## Solutions Implemented
+
+### 1. Upload count now gated on genuine novelty (`backend.py`, `/api/parse-csv`)
+
+Per file, per request:
+- Track which `dedup_key`s each individual file contributes (still deduplicated **within the request** across multiple files combined in one upload, same as before — this behavior wasn't broken and wasn't touched).
+- After the DB insert (`INSERT ... ON CONFLICT (user_id, dedup_key) DO NOTHING ... RETURNING dedup_key`), we know exactly which keys were **genuinely new to the database**, not just new-within-this-request.
+- A file only gets a row in `uploaded_files` if **at least one** of its keys ended up in that genuinely-new set. An exact re-upload → zero new keys → doesn't count. A multi-month file where some months are new → counts, because it contributed something.
+- This all happens inside the same DB transaction as the `transactions` insert, so a rolled-back request can't desync the counter from what was actually stored.
+
+The `dedup_key` construction itself (raw stripped columns 0–2, joined by `|`) is **untouched** — kept byte-identical so it still matches every `dedup_key` already sitting in the database from before this change. No backfill/migration needed.
+
+### 2. Basic safety checks added, same endpoint
+- **Size cap:** 5MB per file (`MAX_CSV_FILE_SIZE_BYTES`).
+- **No more fabricated amounts:** a row whose amount can't be parsed is now skipped entirely, instead of silently stored as `0.0`.
+- **Empty/garbage files rejected:** a file producing zero usable rows never enters `uploaded_files` consideration at all.
+- **CSV/formula-injection defense:** `_sanitize_cell()` strips a leading `=`, `+`, `-`, `@`, tab, or carriage return from stored `date`/`description` text — protects against formula injection if this data is ever opened in Excel/Sheets. Only applied to the *stored/displayed* values, never to the `dedup_key` itself, so history-matching is unaffected.
+
+### 3. Process-level caching for shared global data (`cache.py`, `categoriseAugDB.py`)
+
+Two module-level variables now hold the shared state for the life of the running worker process:
+- `cache.py`: `_global_records_cache` (dict) + `_global_cache_loaded` (bool flag)
+- `categoriseAugDB.py`: `_global_merchants_cache` (dict, `None` = not yet loaded)
+
+`CategoryCache(scope='global')` instances all point `self._records_cache` at the same shared dict. `preload()` only actually queries Postgres the *first* time in a given process; every call after that is a no-op reuse. Same pattern for `load_merchants()`. Because all the existing write methods (`add_record`, `resolve_record`, etc.) already mutate `self._records_cache` in place, they automatically keep the shared dict correct with **no separate sync step** — this only required changing what `preload()`/`load_merchants()` do at the *start* of a request, not anything about how writes happen.
+
+**`scope='personal'` is completely unchanged** — still queried fresh every request. It's small and user-specific; there's nothing to gain by sharing it, and sharing it would be actively wrong (it's not global data).
+
+**Important limitation to know about:** this cache is per **worker process**, not per deployment. If gunicorn runs multiple workers, each has its own independent copy — you'd see one cold load per worker, not one per request, which is still the win, but check the Render service's Start Command (Settings tab) to know how many workers are actually in play if this ever needs to scale further. If a single shared cache across workers becomes necessary, the next step would be an external cache (Redis), not more of this pattern.
+
+**Diagnostic logging added** (plain `print(..., flush=True)`, deliberately not routed through any logging framework, so it's guaranteed visible in Render's Logs tab regardless of how logging is configured elsewhere):
+- `[CategoryCache] COLD LOAD: ...` / `[CategoryCache] WARM: ...`
+- `[load_merchants] COLD LOAD: ...` / `[load_merchants] WARM: ...`
+
+Confirmed working in production: repeated delete-recreate-admin-and-reupload test cycles (via Supabase SQL editor, which cascade-deletes `transactions`/personal `category_records`/`uploaded_files` for a user but does **not** touch global-scope `category_records` or `merchants`) show exactly one `COLD LOAD` pair after a deploy, then `WARM` on every cycle after, without a redeploy in between.
+
+### 4. Fixed the rename bug exposed by #3
+
+Rather than invalidating the caches on rename (which would just reintroduce a full reload on the very next request — undoing the point of #3), both caches are **live-patched in place**:
+- `cache.py`: `CategoryCache.patch_global_category_rename(old_name, new_name)` — walks the shared dict once, flips `record["category"]` wherever it matches `old_name`.
+- `categoriseAugDB.py`: `patch_merchants_category_rename(old_name, new_name)` — same idea for the merchants dict.
+
+`backend.py`'s `update_category()` now captures the original category name before it gets reassigned, tracks whether an actual rename happened (guards the no-op case where `new_name == category_name`), and calls both patch functions right after the raw SQL commits. Net result: a rename stays correctly reflected in memory permanently, with **zero extra DB reads** — not even a delayed one.
+
+**Still true and worth knowing:** `rename_category_everywhere()` in `cache.py` remains dead code — untouched, not deleted, not wired up. It's a pre-existing method that was presumably meant for this exact purpose but was never connected to the endpoint. Nothing currently calls it. Whether to delete it, or actually wire it into a different flow, wasn't decided — see Roadmap.
+
+---
+
+## Key Discussion / Decisions Made Along the Way
+
+- **Invalidate vs. live-patch, for the rename fix:** first pass invalidated the caches (force a flag-flip so the next `preload()`/`load_merchants()` call reloads from Postgres). This was flagged as the lazier option — it reintroduces exactly the "reload the world on the next request" cost that the whole caching effort was trying to eliminate. Switched to live-patching in place instead, which is correct for a rename specifically because it's a simple, well-defined string substitution — not every kind of external DB mutation would be this easy to patch instead of invalidate, so this pattern shouldn't be assumed to generalize automatically to some future change; each case should be reasoned through the same way.
+- **Why `dedup_key` construction was deliberately left untouched:** any change to how the key is built would break matching against transactions already stored under the old format, effectively "forgetting" real dedup history for every existing user. Sanitization (formula-injection stripping) was applied only to what gets *stored/displayed*, specifically to avoid this trap.
+- **Why personal-scope caching wasn't touched:** it's already cheap (small, user-specific), and sharing it across requests/users would be a correctness bug, not an optimization — personal category resolutions must never leak between users.
+
+---
+
+## Architecture Notes / Things the Next Person Should Know
+
+- The categorization pipeline has two phases, hit by two different frontend calls in sequence: `/categorize/cached` (cache tiers 1–4: personal cache, global exact match, merchant substring/fuzzy match, similarity match — all in `run_cache_tiers`, `categoriseAPI2.py`) and `/categorize/llm` (tier 5, the Gemini call — in `run_llm_tier`). The LLM tier's latency is a call to an external API and is considered out of scope for backend-side optimization.
+- The frontend does **not** block on this: `useFileProcessor.js` explicitly navigates away and continues processing in the background (see the comment *"Navigation has already happened, this continues running"*), so a user can leave the Home screen while categorization is still running and come back to updated results. This is deliberate, not a bug.
+- `run_cache_tiers`'s remaining cost for a genuinely novel description (never resolved by anyone, ever) is `O(merchant_count + globally_resolved_description_count)` — that part wasn't optimized in this round. The caching fix removed the *redundant reload* cost, not the *inherent fuzzy-matching* cost for brand-new merchants/descriptions.
+
+---
+
+## Future Plans / Roadmap (not yet done, not yet decided)
+
+- **Fuzzy-matching cost itself** (`match_known_merchant`, `find_similar_cached_description` in `categoriseAugDB.py`) is still `O(n)` per unrecognized description, scanning the full merchant/global-description list in Python via `rapidfuzz`. If this becomes the new bottleneck (likely, as merchants/global descriptions grow over months of real use), look at `rapidfuzz.process.cdist` for batch/vectorized scoring, or a proper indexed text-search approach, instead of one `extractOne` call per description.
+- **Multi-worker cache sharing** — current caching is per gunicorn worker process. If the backend ever scales to multiple workers/instances and this becomes a visible inconsistency (or if the memory footprint of duplicated global caches per worker becomes a concern), the next step is an external shared cache (Redis) rather than extending this in-process pattern further.
+- **`rename_category_everywhere()` dead code** — decide whether to delete it (it's now genuinely superseded by the live-patch approach) or find out if it was meant to be used somewhere else that just never got wired up.
+- **No automated tests exist yet for any of this.** Manual testing so far: delete-recreate-admin cycles via Supabase SQL editor to verify cache warm/cold behavior, and a rename-then-reupload check to verify the patch functions work. Worth writing actual test coverage for: (a) the three dedup/increment scenarios (exact re-upload, multi-file combine with overlap, partial-overlap multi-month file), (b) the rename-then-categorize-new-transaction path, before this area gets touched again by someone unfamiliar with it.
