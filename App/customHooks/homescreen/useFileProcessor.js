@@ -21,7 +21,7 @@ import { NOT_YET_CATEGORISED } from '../../checkingName.js';
 // There's no backend-side "batch" concept here like there is for the
 // LLM tier - this is just a flat, directly-tunable request size.
 // Change this if crashes persist / to trade off request count.
-const CACHE_CHUNK_SIZE = 500;
+const CACHE_CHUNK_SIZE = 200;
 
 // --- Chunking config for /categorize/llm ---
 //
@@ -55,8 +55,8 @@ const CACHE_CHUNK_SIZE = 500;
 //
 // Both numbers are yours to adjust. Backend also caps whatever's sent
 // to between 1 and 2000 - see the /categorize/llm route.
-const LLM_BATCH_SIZE = 600;
-const MIN_LLM_BATCH_SIZE = 400;
+const LLM_BATCH_SIZE = 200;
+const MIN_LLM_BATCH_SIZE = 200;
 const LLM_CHUNK_SIZE = Math.max(MIN_LLM_BATCH_SIZE, LLM_BATCH_SIZE);
 
 // --- Worker timeout / request timing ---
@@ -308,7 +308,6 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
 
         setLoading(true);
         setError(null);
-        setProgressLog([]);
         setProcessingStage('parsing');
 
         try {
@@ -362,7 +361,6 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
 
         setLoading(true);
         setError(null);
-        setProgressLog([]);
 
         try {
             await categorizeTransactions(toRetry, 'Retry');
