@@ -61,6 +61,11 @@ def load_merchants(conn) -> dict:
     """
     global _global_merchants_cache
     if _global_merchants_cache is not None:
+        print(
+            f"[load_merchants] WARM: reusing in-memory merchants cache "
+            f"({len(_global_merchants_cache)} merchants) - no DB reload",
+            flush=True,
+        )
         return _global_merchants_cache
 
     with conn.cursor() as cur:
@@ -71,6 +76,11 @@ def load_merchants(conn) -> dict:
             for name, category in merchants.items()
         }
     _global_merchants_cache = normalized_merchants
+    print(
+        f"[load_merchants] COLD LOAD: fetched merchants table from "
+        f"Postgres ({len(normalized_merchants)} merchants)",
+        flush=True,
+    )
     return _global_merchants_cache
 def load_categories(conn) -> list:
     """Returns every user-facing category name, in display order.

@@ -94,6 +94,11 @@ class CategoryCache:
         self.dirty = False
 
         if self.scope == "global" and _global_cache_loaded:
+            print(
+                f"[CategoryCache] WARM: reusing in-memory global cache "
+                f"({len(self._records_cache)} descriptions) - no DB reload",
+                flush=True,
+            )
             self._preloaded = True
             return
 
@@ -121,6 +126,11 @@ class CategoryCache:
 
         if self.scope == "global":
             _global_cache_loaded = True
+            print(
+                f"[CategoryCache] COLD LOAD: fetched global category_records "
+                f"from Postgres ({len(self._records_cache)} descriptions)",
+                flush=True,
+            )
 
         self._preloaded = True
 
