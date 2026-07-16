@@ -1,6 +1,6 @@
 /*
 
-Combination of groceries, households and medicines and stationary
+Combination of groceries, households and medicines and stationary DONE
 Remove transfers
 Add others
 Fix the upload files counter for non same files DONE
