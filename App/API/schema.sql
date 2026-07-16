@@ -94,11 +94,13 @@ CREATE TABLE IF NOT EXISTS transactions (
 CREATE INDEX IF NOT EXISTS idx_transactions_user_id
     ON transactions (user_id);
 
--- One row per accepted CSV FILE (not per transaction row inside it) -
--- powers the "you've uploaded N files" summary on the home screen. A
--- re-upload of the exact same file still adds a new row here (this
--- tracks upload EVENTS, not distinct files), matching what a user would
--- intuitively expect "how many times have I uploaded a file" to mean.
+-- One row per CSV file that actually contributed at least one
+-- genuinely new transaction (not per transaction row inside it, and
+-- not per file merely accepted) - powers the "you've uploaded N files"
+-- summary on the home screen. An exact re-upload of a file already on
+-- record, or a multi-month file whose rows turn out to already exist,
+-- contributes nothing new and does NOT add a row here - see the
+-- post-dedup novelty check in /api/parse-csv (backend.py).
 CREATE TABLE IF NOT EXISTS uploaded_files (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

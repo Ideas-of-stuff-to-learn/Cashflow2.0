@@ -366,6 +366,29 @@ def signup():
         release_connection(conn)
 
 
+MAX_CSV_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB - a bank export has no
+# business being bigger than this; a basic safety cap against
+# accidental or malicious oversized uploads.
+
+CSV_FORMULA_TRIGGER_CHARS = ('=', '+', '-', '@', '\t', '\r')
+
+
+def _sanitize_cell(value):
+    """Strip a leading formula-injection trigger character from a cell
+    before it's stored/displayed. A description or date field starting
+    with '=', '+', '-', or '@' can be interpreted as a formula by
+    spreadsheet software (Excel, Sheets) if this data is ever exported
+    or opened there - legitimate bank transaction text never starts
+    with these, so stripping is safe. Only applied to the values we
+    store/display, never to the dedup key, so matching against
+    previously-stored transactions is unaffected.
+    """
+    v = value
+    while v and v[0] in CSV_FORMULA_TRIGGER_CHARS:
+        v = v[1:].strip()
+    return v
+
+
 @app.route('/api/parse-csv', methods=['POST'])
 @jwt_required()
 @limiter.limit("50 per day")
@@ -378,57 +401,88 @@ def parse_csv():
     uploaded_files = request.files.getlist('files')
     parsed_rows = []
     seen_lines = set()
-    accepted_filenames = []
+    # Which dedup_keys each filename first introduced within this
+    # request. Used after the DB insert to work out which files (if
+    # any) actually contributed brand-new data, vs. ones that turned
+    # out to be pure re-uploads/subsets of what's already stored.
+    file_dedup_keys = {}
 
     for file in uploaded_files:
         if not file.filename.lower().endswith('.csv'):
             continue
 
+        raw_bytes = file.stream.read()
+
+        if len(raw_bytes) > MAX_CSV_FILE_SIZE_BYTES:
+            app.logger.warning(f"User {current_user} uploaded oversized file: {file.filename} ({len(raw_bytes)} bytes)")
+            continue
+
         try:
-            file_stream = io.StringIO(
-                file.stream.read().decode("utf-8"),
-                newline=None
-            )
+            file_stream = io.StringIO(raw_bytes.decode("utf-8"), newline=None)
         except UnicodeDecodeError:
             app.logger.warning(f"User {current_user} uploaded non-UTF-8 file: {file.filename}")
             continue
 
-        accepted_filenames.append(file.filename)
         reader = csv.reader(file_stream)
+        this_file_keys = []
 
         for row in reader:
             if not row or len(row) < 3:
                 continue
 
-            normalized_line = "|".join([item.strip() for item in row[:3]])
+            raw_date = row[0].strip()
+            raw_description = row[1].strip()
+            raw_amount = row[2].strip()
+
+            if not raw_date or not raw_description:
+                continue
+
+            try:
+                amount = float(
+                    raw_amount
+                    .replace(',', '')
+                    .replace('£', '')
+                    .replace('$', '')
+                    .replace('"', '')
+                )
+            except ValueError:
+                # Basic safety check: a row whose amount can't be
+                # parsed at all is malformed, not a legitimate
+                # zero-value transaction - skip it rather than
+                # silently fabricating a 0.0 amount.
+                continue
+
+            # Same construction as before (raw stripped columns 0-2),
+            # kept byte-identical so it still matches dedup_keys
+            # already stored in the DB from before this change.
+            normalized_line = f"{raw_date}|{raw_description}|{raw_amount}"
 
             if normalized_line not in seen_lines:
                 seen_lines.add(normalized_line)
-
-                raw_amount = row[2].strip()
-                try:
-                    amount = float(
-                        raw_amount
-                        .replace(',', '')
-                        .replace('£', '')
-                        .replace('$', '')
-                        .replace('"', '')
-                    )
-                except ValueError:
-                    amount = 0.0
+                this_file_keys.append(normalized_line)
 
                 parsed_rows.append({
-                    "date": row[0].strip(),
-                    "description": row[1].strip(),
+                    "date": _sanitize_cell(raw_date),
+                    "description": _sanitize_cell(raw_description),
                     "amount": amount,
                     "dedup_key": normalized_line,
                 })
+
+        # Basic CSV check: a file that yielded no usable rows at all
+        # (wrong format, empty, header-only, garbage) was never really
+        # "processed" - it shouldn't be recorded as an accepted upload.
+        if not this_file_keys:
+            app.logger.warning(f"User {current_user} uploaded file with no valid rows: {file.filename}")
+            continue
+
+        file_dedup_keys[file.filename] = this_file_keys
 
     all_parsed_rows = []
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             resolved_by_dedup_key = {}
+            newly_inserted_keys = set()
 
             if parsed_rows:
                 inserted = execute_values(
@@ -446,6 +500,7 @@ def parse_csv():
                 )
                 for txn_id, category, dedup_key in inserted:
                     resolved_by_dedup_key[dedup_key] = (txn_id, category)
+                    newly_inserted_keys.add(dedup_key)
 
                 missing_dedup_keys = [
                     r["dedup_key"] for r in parsed_rows
@@ -470,15 +525,25 @@ def parse_csv():
                         "category": existing_category,
                     })
 
-            # One row per accepted file, in the SAME transaction as the
-            # rest of the upload - if the request fails and rolls back,
-            # these don't get recorded either, keeping the count
-            # consistent with whether the upload actually succeeded.
-            if accepted_filenames:
+            # A file only counts toward the upload total if it actually
+            # contributed at least one dedup_key that was genuinely new
+            # to the DB (i.e. survived ON CONFLICT DO NOTHING above).
+            # An exact re-upload of a file already on record - or a
+            # multi-month file where every row turns out to already
+            # exist - contributes nothing new, so it doesn't increment.
+            # This runs in the SAME transaction as the transaction
+            # insert, so if the request rolls back, the count doesn't
+            # move either.
+            files_with_new_data = [
+                filename for filename, keys in file_dedup_keys.items()
+                if any(k in newly_inserted_keys for k in keys)
+            ]
+
+            if files_with_new_data:
                 execute_values(
                     cur,
                     "INSERT INTO uploaded_files (user_id, filename) VALUES %s",
-                    [(current_user, filename) for filename in accepted_filenames],
+                    [(current_user, filename) for filename in files_with_new_data],
                     template="(%s, %s)",
                 )
 
