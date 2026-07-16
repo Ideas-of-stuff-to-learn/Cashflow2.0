@@ -13,8 +13,8 @@ export const styles = StyleSheet.create({
     buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
     fileInfo: { backgroundColor: '#F0F4F8', padding: 16, borderRadius: 8, marginBottom: 12, width: '100%' },
     fileInfoText: { fontSize: 14, color: '#333', marginBottom: 4 },
-    status: { fontSize: 14, color: '#2E5C8A', marginBottom: 8, fontStyle: 'italic' },
-    error: { color: '#D94F4F', marginBottom: 12, fontSize: 14 },
+    status: { fontSize: 14, color: '#2E5C8A', marginBottom: 8, fontStyle: 'italic', alignSelf: 'stretch' },
+    error: { color: '#D94F4F', marginBottom: 12, fontSize: 14, alignSelf: 'stretch' },
     logoutButton: { backgroundColor: '#D94F4F', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, marginTop: 12, width: '100%', alignItems: 'center' },
     logoutText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });
