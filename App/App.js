@@ -1,14 +1,18 @@
 /*
 
-Tasks to be done next
-Wrap app in wrapper for desktop app
-More charts
-Add pagination to transaction extraction
-Fix icon issue DONE
-Got to add a select all and deselect all to the current multi select recategorization one DONE
-Got to add category rename DONE
-Got to add small description drawn from database saying how many files uploaded and what range on the homepage DONE
-Optimise backend db calls and backend in general DONE
+Combination of groceries, households and medicines and stationary
+Remove transfers
+Add others
+Fix the upload files counter for non same files
+Permission system
+Road map accurate to deployed to play store and app store
+Make into windows app wrapped
+Able to move the stakes around
+Show a colour scheme and make aj admin colour changer. No user colour picker 
+The extra stuff appears just in my login like category rename and colour picker or an admin concept in backend  concept decide
+Dummy files for many years
+Scroll horizontal view on month chart
+If month chart doesn't have 12 months of data it' backfill remaining months data from previous yr
 
 
 */
