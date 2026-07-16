@@ -204,7 +204,7 @@ export async function categorizeCached(transactions, { timeoutMs, onTiming } = {
     return data.transactions;
 }
 
-export async function categorizeLLM(transactions, { timeoutMs, onTiming, batchSize } = {}) {
+export async function categorizeLLM(transactions, { timeoutMs, onTiming, batchSize, geminiTimeoutMs } = {}) {
     const token = await getToken();
     if (!token) throw new Error('Not logged in');
 
@@ -215,6 +215,12 @@ export async function categorizeLLM(transactions, { timeoutMs, onTiming, batchSi
     // if the caller specifies it; backend falls back to its own
     // default otherwise.
     if (batchSize != null) body.batch_size = batchSize;
+    // Real, server-side per-call Gemini timeout (milliseconds) - how
+    // long the BACKEND waits on its own outbound call to Gemini before
+    // giving up. Not the same thing as this function's own `timeoutMs`
+    // (that's how long THIS APP waits for a response from our
+    // backend). See GEMINI_REQUEST_TIMEOUT_MS in useFileProcessor.js.
+    if (geminiTimeoutMs != null) body.gemini_timeout_ms = geminiTimeoutMs;
 
     const response = await fetchWithTimeout(`${BASE_URL}/categorize/llm`, {
         method: 'POST',

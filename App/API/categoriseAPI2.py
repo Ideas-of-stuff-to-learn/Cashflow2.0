@@ -16,6 +16,7 @@ from categoriseAugDB import (
     load_merchants,
     add_merchant,
     load_categories,
+    DEFAULT_GEMINI_REQUEST_TIMEOUT_MS,
 )
 
 load_dotenv()
@@ -198,13 +199,19 @@ def run_cache_tiers(transactions: list, user_id: str, conn) -> list:
     return result
 
 
-def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int = 1000) -> list:
+def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int = 200, gemini_timeout_ms: int = None) -> list:
     """Tier 5 only - LLM categorisation for transactions that couldn't
     be resolved by cache tiers. Accepts only the PENDING_LLM transactions
     from run_cache_tiers(), never re-runs the cache checks.
     """
     if not pending_transactions:
         return []
+
+    # Frontend controls this via gemini_timeout_ms on the request (see
+    # GEMINI_REQUEST_TIMEOUT_MS in useFileProcessor.js) - fall back to
+    # the safe default if it wasn't sent (e.g. called directly, not via
+    # the /categorize/llm route).
+    effective_gemini_timeout_ms = gemini_timeout_ms if gemini_timeout_ms is not None else DEFAULT_GEMINI_REQUEST_TIMEOUT_MS
 
     api_key = os.environ.get('GEMINI_API_KEY')
     if not api_key:
@@ -231,7 +238,7 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
     pseudo_transactions = [{'description': d} for d in unique_descriptions]
 
     for batch in chunked(pseudo_transactions, batch_size):
-        cats = categorize_batch(client, batch, DEFAULT_CATEGORIES)
+        cats = categorize_batch(client, batch, DEFAULT_CATEGORIES, gemini_timeout_ms=effective_gemini_timeout_ms)
         for item, result in zip(batch, cats):
             desc = item['description']
 

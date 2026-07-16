@@ -676,9 +676,27 @@ def categorize_llm():
             return jsonify({'error': 'batch_size must be between 1 and 2000'}), 400
         batch_size_kwargs['batch_size'] = batch_size
 
+    # Optional client-controlled per-call Gemini timeout in milliseconds
+    # (see GEMINI_REQUEST_TIMEOUT_MS in useFileProcessor.js - that's the
+    # actual number to change, this just carries it through). Falls
+    # back to categoriseAugDB.py's DEFAULT_GEMINI_REQUEST_TIMEOUT_MS if
+    # not provided. Bounded well under the gunicorn worker timeout so a
+    # client can't accidentally (or deliberately) request a timeout long
+    # enough to recreate the exact SIGKILL scenario this exists to
+    # prevent.
+    gemini_timeout_kwargs = {}
+    if 'gemini_timeout_ms' in data:
+        try:
+            gemini_timeout_ms = int(data['gemini_timeout_ms'])
+        except (TypeError, ValueError):
+            return jsonify({'error': 'gemini_timeout_ms must be an integer'}), 400
+        if not (1000 <= gemini_timeout_ms <= 90000):
+            return jsonify({'error': 'gemini_timeout_ms must be between 1000 and 90000'}), 400
+        gemini_timeout_kwargs['gemini_timeout_ms'] = gemini_timeout_ms
+
     conn = get_connection()
     try:
-        result = run_llm_tier(transactions, current_user, conn, **batch_size_kwargs)
+        result = run_llm_tier(transactions, current_user, conn, **batch_size_kwargs, **gemini_timeout_kwargs)
         update_transaction_categories(conn, current_user, result)
         conn.commit()
         return jsonify({'transactions': result}), 200

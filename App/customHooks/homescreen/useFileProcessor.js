@@ -85,9 +85,50 @@ const WORKER_TIMEOUT_SECONDS = 120;
 const TIMEOUT_SAFETY_BUFFER_SECONDS = 10;
 const CLIENT_TIMEOUT_MS = Math.max(1, WORKER_TIMEOUT_SECONDS - TIMEOUT_SAFETY_BUFFER_SECONDS) * 1000;
 
+// --- Gemini call timeout (backend-side, controlled from here) ---
+//
+// Different network hop from CLIENT_TIMEOUT_MS above: that one is how
+// long THIS APP waits for a response from OUR backend. This one is how
+// long OUR BACKEND waits for a response from GEMINI, on its own
+// outbound call - a completely separate connection this app never
+// touches directly. It has to be enforced server-side (see
+// categorize_batch in categoriseAugDB.py, which applies it via
+// google-genai's http_options), but the actual NUMBER lives here and
+// gets sent on every /categorize/llm request as gemini_timeout_ms (see
+// categorizeLLM in api.js) - kept alongside the rest of the adjustable
+// config instead of buried in a backend file.
+//
+// Why it matters: the genai SDK sets NO timeout on its HTTP calls by
+// default - a slow/hanging Gemini response just blocks the backend
+// worker indefinitely. Previously the ONLY thing that ever stopped
+// that was gunicorn's own worker timeout (WORKER_TIMEOUT_SECONDS above)
+// - killing the whole worker with SIGKILL, which is far worse than a
+// normal caught exception: it can corrupt the DB connection pool (seen
+// as "SSL error: decryption failed or bad record mac" on the very next
+// request) and Flask never gets a chance to roll back or return a
+// proper error at all.
+//
+// GEMINI_REQUEST_TIMEOUT_MS gives that call its own deadline instead,
+// comfortably under WORKER_TIMEOUT_SECONDS, so a slow call raises a
+// normal, catchable exception well before gunicorn would ever need to
+// step in. The backend can retry a batch up to 3 times for OTHER
+// reasons (invalid category, rate limiting - see max_retries in
+// categorize_batch), each retried attempt getting this same per-call
+// timeout, so worst case is roughly (GEMINI_REQUEST_TIMEOUT_MS * 3) +
+// backoff sleeps, which needs to stay safely under
+// WORKER_TIMEOUT_SECONDS * 1000 with margin. At 30000ms that's
+// (30000 * 3) + ~6000ms backoff = ~96s, comfortably under 120s.
+//
+// Adjust this if WORKER_TIMEOUT_SECONDS changes, or if legitimate
+// large-batch responses are being cut off (raise it, but keep the math
+// above in mind), or if you're seeing timeouts on batches that should
+// be fast (lower it, or lower LLM_BATCH_SIZE above instead). Backend
+// also caps whatever's sent to between 1000 and 90000 - see the
+// /categorize/llm route in backend.py.
+const GEMINI_REQUEST_TIMEOUT_MS = 30000;
+
 export function useFileProcessor(setStatus, setError,selectedFiles){
     const [loading, setLoading] = useState(false);
-    const [progressLog, setProgressLog] = useState([]);
     const {
         transactions,
         setTransactions,
@@ -95,22 +136,13 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
         setProcessingStage
     } = useApp();
 
-    // Writes a line to both the console (for you, in dev tools) and
-    // in-app state (for the user, rendered under the buttons) - one
-    // call site instead of duplicating console.log everywhere below.
-    function logProgress(label, message) {
-        const line = `[${label}] ${message}`;
-        console.log(line);
-        setProgressLog(prev => [...prev, line]);
-    }
-
     // Runs the full cache-tier -> LLM-tier categorisation pipeline over
     // whatever list it's given. Shared by processFiles() (for freshly
     // parsed rows) and retryNotYetCategorized() (for rows previously
     // left as NOT_YET_CATEGORISED after a timeout) - same chunking,
     // same timeout handling, same progressive state updates either way.
-    // runLabel just tags each log line so it's clear in the UI whether
-    // it came from a normal upload or a manual retry.
+    // runLabel just tags console log lines so it's clear in dev tools
+    // whether a given line came from a normal upload or a manual retry.
     async function categorizeTransactions(itemsNeedingCategorization, runLabel = 'Categorise') {
         setProcessingStage('checkingCache');
         setCategorising(true);
@@ -133,26 +165,33 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
                 chunkResult = await categorizeCached(cacheChunks[i], {
                     timeoutMs: CLIENT_TIMEOUT_MS,
                     onTiming: (elapsedMs) => {
-                        logProgress(runLabel, `Cache batch ${i + 1}/${cacheChunks.length} done - ${cacheChunks[i].length} txns, ${(elapsedMs / 1000).toFixed(1)}s`);
+                        console.log(`[${runLabel}] Cache batch ${i + 1}/${cacheChunks.length} done - ${cacheChunks[i].length} txns, ${(elapsedMs / 1000).toFixed(1)}s`);
                     },
                 });
             } catch (err) {
+                // Treat ANY chunk failure this way, not just a client-side
+                // timeout - a backend error (e.g. the server itself hit a
+                // problem, or was too slow and got killed server-side)
+                // deserves the exact same graceful handling: keep whatever
+                // already succeeded, mark what didn't as NOT_YET_CATEGORISED
+                // (not NEEDS_MANUAL_REVIEW - nothing actually looked at
+                // these), and stop this run rather than losing all the
+                // chunking progress to one uncaught error.
                 if (err.isTimeout) {
-                    logProgress(runLabel, `Cache batch ${i + 1}/${cacheChunks.length} TIMED OUT after ${(err.elapsedMs / 1000).toFixed(1)}s - marked not yet categorised`);
-                    // This chunk, plus every chunk we hadn't
-                    // gotten to yet, get marked NOT_YET_CATEGORISED
-                    // - deliberately NOT NEEDS_MANUAL_REVIEW, since
-                    // nothing actually looked at these, they just
-                    // ran out of time. Retry later, don't ask the
-                    // user to manually pick a category for them.
-                    const remaining = cacheChunks.slice(i).flat()
-                        .map(t => ({ ...t, category: NOT_YET_CATEGORISED }));
-                    phase1 = phase1.concat(remaining);
-                    setTransactions(prev => mergeById(prev, remaining));
-                    setError('Some transactions took too long to check against the cache and were left as "not yet categorised" - you can retry later.');
-                    break;
+                    console.warn(`[${runLabel}] Cache batch ${i + 1}/${cacheChunks.length} TIMED OUT after ${(err.elapsedMs / 1000).toFixed(1)}s`);
+                } else {
+                    console.warn(`[${runLabel}] Cache batch ${i + 1}/${cacheChunks.length} FAILED: ${err.message}`);
                 }
-                throw err;
+                const remaining = cacheChunks.slice(i).flat()
+                    .map(t => ({ ...t, category: NOT_YET_CATEGORISED }));
+                phase1 = phase1.concat(remaining);
+                setTransactions(prev => mergeById(prev, remaining));
+                setError(
+                    err.isTimeout
+                        ? 'Some transactions took too long to check against the cache and were left as "not yet categorised" - you can retry later.'
+                        : 'Checking the cache failed partway through - remaining transactions were left as "not yet categorised", you can retry later.'
+                );
+                break;
             }
 
             // Push this chunk's resolved rows into state right
@@ -195,33 +234,41 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
                     chunkResult = await categorizeLLM(chunks[i], {
                         timeoutMs: CLIENT_TIMEOUT_MS,
                         batchSize: LLM_CHUNK_SIZE,
+                        geminiTimeoutMs: GEMINI_REQUEST_TIMEOUT_MS,
                         onTiming: (elapsedMs) => {
-                            logProgress(runLabel, `LLM batch ${i + 1}/${chunks.length} done - ${chunks[i].length} txns, batch_size=${LLM_CHUNK_SIZE}, ${(elapsedMs / 1000).toFixed(1)}s`);
+                            console.log(`[${runLabel}] LLM batch ${i + 1}/${chunks.length} done - ${chunks[i].length} txns, batch_size=${LLM_CHUNK_SIZE}, ${(elapsedMs / 1000).toFixed(1)}s`);
                         },
                     });
                 } catch (err) {
+                    // Same broadened handling as the cache-tier catch above:
+                    // a backend failure (e.g. the exact "worker got
+                    // SIGKILLed mid Gemini-call" scenario this whole thing
+                    // was built to survive) gets treated the same as a
+                    // client-side timeout, not left to blow up the run.
                     if (err.isTimeout) {
-                        logProgress(runLabel, `LLM batch ${i + 1}/${chunks.length} TIMED OUT after ${(err.elapsedMs / 1000).toFixed(1)}s - marked not yet categorised`);
-                        // Same reasoning as the cache-tier catch
-                        // above: mark this chunk and every
-                        // not-yet-attempted chunk as
-                        // NOT_YET_CATEGORISED, not
-                        // NEEDS_MANUAL_REVIEW - these transactions
-                        // never got a real answer, they just ran
-                        // out of time.
-                        const remainingDescriptions = new Set(
-                            chunks.slice(i).flat().map(t => t.description)
-                        );
-                        workingPhase1 = workingPhase1.map(t =>
-                            (remainingDescriptions.has(t.description) && t.category === 'PENDING_LLM')
-                                ? { ...t, category: NOT_YET_CATEGORISED }
-                                : t
-                        );
-                        setTransactions(prev => mergeById(prev, workingPhase1));
-                        setError('Some transactions took too long to categorise and were left as "not yet categorised" - you can retry later.');
-                        break;
+                        console.warn(`[${runLabel}] LLM batch ${i + 1}/${chunks.length} TIMED OUT after ${(err.elapsedMs / 1000).toFixed(1)}s`);
+                    } else {
+                        console.warn(`[${runLabel}] LLM batch ${i + 1}/${chunks.length} FAILED: ${err.message}`);
                     }
-                    throw err;
+                    // Mark this chunk and every not-yet-attempted chunk as
+                    // NOT_YET_CATEGORISED, not NEEDS_MANUAL_REVIEW - these
+                    // transactions never got a real answer, they just
+                    // failed or ran out of time.
+                    const remainingDescriptions = new Set(
+                        chunks.slice(i).flat().map(t => t.description)
+                    );
+                    workingPhase1 = workingPhase1.map(t =>
+                        (remainingDescriptions.has(t.description) && t.category === 'PENDING_LLM')
+                            ? { ...t, category: NOT_YET_CATEGORISED }
+                            : t
+                    );
+                    setTransactions(prev => mergeById(prev, workingPhase1));
+                    setError(
+                        err.isTimeout
+                            ? 'Some transactions took too long to categorise and were left as "not yet categorised" - you can retry later.'
+                            : 'Categorising failed partway through - remaining transactions were left as "not yet categorised", you can retry later.'
+                    );
+                    break;
                 }
 
                 // Match by description since same description = same category
@@ -242,6 +289,13 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
 
             setProcessingStage('done');
         } else {
+            // Nothing reached the LLM tier at all - every item was
+            // already resolved by the cache tier (exact/global match,
+            // known merchant, or similarity match). This is the normal,
+            // good outcome, not a bug - it's WHY no "Categorising
+            // batch..." line ever showed up. Say so explicitly so it
+            // doesn't look like the LLM step silently got skipped.
+            setStatus('All transactions resolved via cache - no LLM step needed.');
             setProcessingStage('done');
         }
     }
@@ -329,6 +383,5 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
         retryNotYetCategorized,
         loading,
         setLoading,
-        progressLog,
     }
 }

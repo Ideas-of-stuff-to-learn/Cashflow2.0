@@ -40,6 +40,28 @@ load_dotenv()
 MODEL_NAME = "gemini-2.5-flash"
 SIMILARITY_THRESHOLD = 85
 
+# The genai SDK does NOT set any timeout on its HTTP calls by default -
+# a slow/hanging Gemini response just blocks the request indefinitely.
+# The only thing that ever stopped that before was gunicorn's own
+# worker timeout (120s, set via Render's Start Command) - killing the
+# whole worker with SIGKILL, which is a much worse failure than a
+# normal caught exception: it can leave the DB connection pool in a
+# bad state (we've seen "SSL error: decryption failed or bad record
+# mac" on the very next request right after one of these), and Flask
+# never gets a chance to roll back the transaction or return a proper
+# error response at all.
+#
+# This deadline is now controlled from the frontend - see
+# GEMINI_REQUEST_TIMEOUT_MS in useFileProcessor.js, sent as
+# gemini_timeout_ms on the /categorize/llm request, threaded through
+# categorize_llm (backend.py) -> run_llm_tier -> here. That's the
+# number to actually change. DEFAULT_GEMINI_REQUEST_TIMEOUT_MS below is
+# only a fallback for anything that calls categorize_batch() without
+# specifying one (e.g. running categoriseAugDB.py directly as a
+# script) - keep it in the same safe ballpark as whatever the frontend
+# is set to.
+DEFAULT_GEMINI_REQUEST_TIMEOUT_MS = 30000
+
 # Shared across every request in this worker process, same reasoning as
 # _global_records_cache in cache.py: the merchants table is the same
 # data no matter who's asking, and used to be reloaded and
@@ -265,7 +287,7 @@ def build_prompt(transactions, categories):
             """
     return prompt
  
-def categorize_batch(client, transactions, categories, max_retries=3):
+def categorize_batch(client, transactions, categories, max_retries=3, gemini_timeout_ms=DEFAULT_GEMINI_REQUEST_TIMEOUT_MS):
     """Send a batch to Gemini and parse the JSON response. Retries ONLY the
     specific items that failed validation or parsing - not the whole batch -
     so a single bad/mangled category from the model doesn't force re-asking
@@ -333,6 +355,7 @@ def categorize_batch(client, transactions, categories, max_retries=3):
                 config={
                     "temperature": 0,
                     "response_mime_type": "application/json",
+                    "http_options": {"timeout": gemini_timeout_ms},
                 },
             )
             text = response.text.strip()
