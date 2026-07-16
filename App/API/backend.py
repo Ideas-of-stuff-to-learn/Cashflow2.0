@@ -661,9 +661,24 @@ def categorize_llm():
     if not isinstance(transactions, list) or not transactions:
         return jsonify({'error': 'transactions must be a non-empty list'}), 400
 
+    # Optional client-controlled Gemini batch size (unique descriptions
+    # per LLM call inside run_llm_tier). Falls back to that function's
+    # own default (200) if not provided. Bounded to keep someone from
+    # sending something pathological (0, negative, or huge enough to
+    # risk truncated Gemini responses).
+    batch_size_kwargs = {}
+    if 'batch_size' in data:
+        try:
+            batch_size = int(data['batch_size'])
+        except (TypeError, ValueError):
+            return jsonify({'error': 'batch_size must be an integer'}), 400
+        if not (1 <= batch_size <= 2000):
+            return jsonify({'error': 'batch_size must be between 1 and 2000'}), 400
+        batch_size_kwargs['batch_size'] = batch_size
+
     conn = get_connection()
     try:
-        result = run_llm_tier(transactions, current_user, conn)
+        result = run_llm_tier(transactions, current_user, conn, **batch_size_kwargs)
         update_transaction_categories(conn, current_user, result)
         conn.commit()
         return jsonify({'transactions': result}), 200

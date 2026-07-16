@@ -54,3 +54,16 @@ export function mergeById(prev, incoming) {
     }
     return Array.from(byId.values());
 }
+
+// Splits `items` into consecutive slices of at most `size` each.
+// Used to break one big pending-categorization list into several
+// smaller /categorize/llm requests instead of one giant one - see
+// the comment above CHUNK_SIZE in useFileProcessor.js for why.
+export function chunkArray(items, size) {
+    if (size <= 0) return [items];
+    const chunks = [];
+    for (let i = 0; i < items.length; i += size) {
+        chunks.push(items.slice(i, i + size));
+    }
+    return chunks;
+}

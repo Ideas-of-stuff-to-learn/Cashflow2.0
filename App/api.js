@@ -2,6 +2,54 @@ import * as SecureStore from 'expo-secure-store';
 
 const BASE_URL = "https://cashflow2-0.onrender.com";
 
+// Fallback timeout if a caller doesn't specify one. Callers that care
+// (useFileProcessor.js) pass their own timeoutMs tied to the backend's
+// actual worker timeout - this is just a safety net for anything that
+// doesn't.
+const DEFAULT_REQUEST_TIMEOUT_MS = 110000;
+
+function now() {
+    return (typeof performance !== 'undefined' && performance.now)
+        ? performance.now()
+        : Date.now();
+}
+
+// Wraps fetch with a client-side timeout (AbortController) and reports
+// how long the request actually took via onTiming, regardless of
+// whether it succeeded, failed, or timed out.
+//
+// Why this exists: the backend's worker has its own hard timeout (see
+// WORKER_TIMEOUT_SECONDS in useFileProcessor.js) - if it's exceeded,
+// the worker gets killed mid-request with no graceful response at all,
+// which just looks like a hung/dropped connection to us. Aborting
+// client-side slightly BEFORE that happens means we get a clear,
+// catchable timeout error instead of an ambiguous network failure, and
+// callers can react to it deliberately (see useFileProcessor.js).
+async function fetchWithTimeout(url, options, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, onTiming) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const startedAt = now();
+
+    try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        return response;
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            const elapsedMs = now() - startedAt;
+            const timeoutError = new Error(
+                `Request to ${url} timed out after ${Math.round(elapsedMs)}ms (limit ${timeoutMs}ms)`
+            );
+            timeoutError.isTimeout = true;
+            timeoutError.elapsedMs = elapsedMs;
+            throw timeoutError;
+        }
+        throw err;
+    } finally {
+        clearTimeout(timeoutId);
+        if (onTiming) onTiming(now() - startedAt);
+    }
+}
+
 // Every endpoint below used to do `const data = await response.json()`
 // directly. That's fine when the Flask app answers - but if the backend
 // worker has crashed, is mid-restart, or the request hit a proxy-level
@@ -139,35 +187,43 @@ export async function logout() {
     await SecureStore.deleteItemAsync('jwt_token');
 }
 
-export async function categorizeCached(transactions) {
+export async function categorizeCached(transactions, { timeoutMs, onTiming } = {}) {
     const token = await getToken();
     if (!token) throw new Error('Not logged in');
 
-    const response = await fetch(`${BASE_URL}/categorize/cached`, {
+    const response = await fetchWithTimeout(`${BASE_URL}/categorize/cached`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ transactions }),
-    });
+    }, timeoutMs, onTiming);
 
     const data = await parseJsonResponse(response, 'Cache lookup failed');
     return data.transactions;
 }
 
-export async function categorizeLLM(transactions) {
+export async function categorizeLLM(transactions, { timeoutMs, onTiming, batchSize } = {}) {
     const token = await getToken();
     if (!token) throw new Error('Not logged in');
 
-    const response = await fetch(`${BASE_URL}/categorize/llm`, {
+    const body = { transactions };
+    // Real, server-side Gemini batch size (unique descriptions per LLM
+    // call inside run_llm_tier) - this is the actual thing that used
+    // to be a fixed default of 200 on the backend. Passed through only
+    // if the caller specifies it; backend falls back to its own
+    // default otherwise.
+    if (batchSize != null) body.batch_size = batchSize;
+
+    const response = await fetchWithTimeout(`${BASE_URL}/categorize/llm`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ transactions }),
-    });
+        body: JSON.stringify(body),
+    }, timeoutMs, onTiming);
 
     const data = await parseJsonResponse(response, 'LLM categorisation failed');
     return data.transactions;

@@ -3,7 +3,7 @@ import {Text, View, TouchableOpacity, ScrollView, TextInput, FlatList, Modal, Pr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../AppContext.js';
 import { resolveCategories, getCategories, getTransactionHistory } from '../api.js';
-import { NEEDS_MANUAL_REVIEW } from '../checkingName.js';
+import { NEEDS_MANUAL_REVIEW, NOT_YET_CATEGORISED } from '../checkingName.js';
 import { styles } from '../styles/contentsStyles.js';
 // A transaction's category is stale if it holds a real, non-empty value
 // that isn't the pending state and isn't the manual-review sentinel, but
@@ -14,6 +14,7 @@ import { styles } from '../styles/contentsStyles.js';
 function isStale(transaction, categoryNames) {
     if (!transaction.category) return false;                          // pending, not stale
     if (transaction.category === NEEDS_MANUAL_REVIEW) return false;    // sentinel, expected absent from categoryNames
+    if (transaction.category === NOT_YET_CATEGORISED) return false;    // sentinel, expected absent from categoryNames
     return !categoryNames.includes(transaction.category);
 }
 
@@ -310,7 +311,13 @@ export default function ContentsScreen({ navigation, route }) {
 
     const renderRow = useCallback(({ item, index }) => {
         const isManual = item.category === NEEDS_MANUAL_REVIEW;
-        const isPending = !item.category;
+        // Reuses the existing "pending" treatment (not tappable, shown
+        // as waiting) for NOT_YET_CATEGORISED too - it's not a real
+        // category any more than an empty one is, it's just a
+        // transaction that hasn't been acted on yet (this time because
+        // a categorisation request ran out of time, see
+        // useFileProcessor.js). No separate UI state needed for it.
+        const isPending = !item.category || item.category === NOT_YET_CATEGORISED;
         const isSelected = selectedIds.has(item.id);
 
         function handlePress() {
@@ -539,4 +546,3 @@ export default function ContentsScreen({ navigation, route }) {
     </View>
     );
 }
-
