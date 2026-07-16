@@ -431,10 +431,22 @@ def categorize_batch(client, transactions, categories, max_retries=3, gemini_tim
         except (genai_errors.ClientError, genai_errors.ServerError) as e:
             # 429 = rate limited (too many requests).
             # 503 = server temporarily overloaded on Google's end.
-            # Both are transient - back off and retry rather than crashing.
-            # These affect the WHOLE request (it never reached the model),
-            # so everything currently pending stays pending for the retry.
-            is_retryable = "429" in str(e) or "503" in str(e) or "UNAVAILABLE" in str(e)
+            # 504 = Gemini's own gateway gave up before finishing (this
+            # is DIFFERENT from GEMINI_REQUEST_TIMEOUT_MS/CLIENT_TIMEOUT_MS
+            # in useFileProcessor.js - those are timeouts WE impose;
+            # this is Google's own infrastructure timing itself out and
+            # telling us so with an actual error response).
+            # All three are transient - back off and retry rather than
+            # treating them as a hard failure. These affect the WHOLE
+            # request (it never reached the model), so everything
+            # currently pending stays pending for the retry.
+            is_retryable = (
+                "429" in str(e)
+                or "503" in str(e)
+                or "504" in str(e)
+                or "UNAVAILABLE" in str(e)
+                or "DEADLINE_EXCEEDED" in str(e)
+            )
             if is_retryable and attempt < max_retries - 1:
                 wait = 2 ** (attempt + 1)
                 print(f"  API temporarily unavailable ({e.__class__.__name__}), waiting {wait}s before retry...", file=sys.stderr)
