@@ -356,6 +356,16 @@ def categorize_batch(client, transactions, categories, max_retries=3, gemini_tim
                     "temperature": 0,
                     "response_mime_type": "application/json",
                     "http_options": {"timeout": gemini_timeout_ms},
+                    # Categorising a transaction description is plain
+                    # classification, not something that benefits from
+                    # extended reasoning - here that's pure overhead, not
+                    # accuracy. Every observed failure has taken roughly
+                    # the same ~27-30s regardless of whether the batch
+                    # was 600 items or 200 - that flat, size-independent
+                    # cost is the signature of thinking overhead, not
+                    # genuine per-item work. thinking_budget=0 disables
+                    # it, which should recover most of that latency.
+                    "thinking_config": {"thinking_budget": 0},
                 },
             )
             text = response.text.strip()
