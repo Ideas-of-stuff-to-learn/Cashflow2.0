@@ -9,7 +9,6 @@ Road map accurate to deployed to play store and app store
 Make into windows app wrapped
 Able to move the stakes around
 Show a colour scheme and make aj admin colour changer. No user colour picker 
-The extra stuff appears just in my login like category rename and colour picker or an admin concept in backend  concept decide
 Dummy files for many years DONE
 Scroll horizontal view on month chart DONE
 If month chart doesn't have 12 months of data it' backfill remaining months data from previous yr

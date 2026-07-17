@@ -2,11 +2,13 @@
 adminCliCommon.py
 
 Shared helpers for the Cashflow category admin CLI tools - login,
-fetching the category list, and the standard "pick one from a numbered
-list" prompt. Every admin*.py script imports these instead of keeping
-its own copy, so there's exactly one implementation of each to
-maintain (previously login() and fetch_categories() were duplicated,
-identically, in every single one of these scripts).
+fetching the category list (name-only or full detail), the standard
+"pick one from a numbered list" prompt, the shared colour palette +
+picker (with real terminal colour swatches), and hex/RGB conversion.
+Every admin*.py script imports these instead of keeping its own copy,
+so there's exactly one implementation of each to maintain (previously
+login(), fetch_categories(), and the colour palette/picker were all
+duplicated across multiple scripts).
 
 Not a script itself - nothing here has a __main__ block, it's only
 meant to be imported.
@@ -37,6 +39,297 @@ def fetch_categories(token):
     if not response.ok:
         raise RuntimeError(data.get("error", "Failed to fetch categories"))
     return [c["name"] for c in data["categories"]]
+
+
+def fetch_categories_full(token):
+    """Like fetch_categories() but keeps color and defaultColor too,
+    not just the name. Used anywhere a script needs to SHOW a
+    category's current colour(s), not just pick it by name -
+    listCategoriesAdmin.py and the colour-changing tools all need
+    this; the plain numbered pickers (rename, delete, combine) only
+    ever needed names, hence the two separate functions."""
+    response = requests.get(
+        f"{BASE_URL}/categories",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    data = response.json()
+    if not response.ok:
+        raise RuntimeError(data.get("error", "Failed to fetch categories"))
+    return data["categories"]
+
+
+def hex_to_rgb(hex_color):
+    hex_color = hex_color.lstrip('#')
+    return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def color_swatch(hex_color, width=4):
+    """Returns a small block of that actual colour, rendered via 24-bit
+    ANSI escape codes - supported by basically every modern terminal
+    (iTerm2, Windows Terminal, VS Code's integrated terminal, GNOME
+    Terminal, macOS Terminal.app). Degrades harmlessly on anything that
+    doesn't support it - worst case it just shows as blank space, the
+    hex text printed alongside it is unaffected either way."""
+    try:
+        r, g, b = hex_to_rgb(hex_color)
+        return f"\033[48;2;{r};{g};{b}m{' ' * width}\033[0m"
+    except (ValueError, IndexError):
+        return ' ' * width
+
+
+# Same palette as COLOR_PALETTE in App/utils/charts/chartUtils.js - kept
+# in sync manually since these are standalone scripts, not a shared
+# import with the app itself. If that palette changes, update this too.
+COLOR_PALETTE = [
+    '#2E5C8A', '#E07A3E', '#3D8B5F', '#9B3D8A', '#C4A227',
+    '#D94F4F', '#4FA8D9', '#7A5C3D', '#5C8A2E', '#D97AB8',
+    '#3D5C8A', '#8A3D3D', '#4DBFBF', '#A67C52',
+]
+
+
+def color_distance(hex1, hex2):
+    """Simple Euclidean distance in RGB space (0 = identical,
+    ~441 = furthest apart, black vs white). Not a true perceptual
+    colour-distance model, but good enough to tell "basically the same
+    colour" apart from "clearly different" for generation purposes."""
+    r1, g1, b1 = hex_to_rgb(hex1)
+    r2, g2, b2 = hex_to_rgb(hex2)
+    return ((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2) ** 0.5
+
+
+def generate_random_colors(count, avoid=None, min_distance=45):
+    """Generates `count` random hex colours, mutually distinct from
+    each other and (if given) from everything in `avoid`, by at least
+    `min_distance` in RGB space.
+
+    Deliberately NOT pure random RGB (random.randint 3 times) - that
+    produces a lot of muddy, near-grey, or unreadably dark/light
+    results. Random HUE with constrained saturation/lightness ranges
+    gives vibrant, legible swatches every time, which is what you
+    actually want for chart segment colours.
+    """
+    import colorsys
+    import random
+
+    avoid = list(avoid or [])
+    results = []
+
+    for _ in range(count):
+        candidate = None
+        # Capped attempts so a huge/impossible avoid list can't hang
+        # forever - falls back to the last candidate tried rather than
+        # silently returning fewer colours than asked for.
+        for _attempt in range(200):
+            h = random.random()
+            s = random.uniform(0.55, 0.85)
+            l = random.uniform(0.40, 0.62)
+            r, g, b = colorsys.hls_to_rgb(h, l, s)
+            candidate = '#{:02X}{:02X}{:02X}'.format(
+                round(r * 255), round(g * 255), round(b * 255)
+            )
+            too_close = any(
+                color_distance(candidate, other) < min_distance
+                for other in avoid + results
+            )
+            if not too_close:
+                break
+        results.append(candidate)
+
+    return results
+
+
+def _confirm_pick(candidate, existing=None, old_color=None):
+    """Shared confirmation step for EVERY colour-picking path (palette,
+    custom hex, random batch) - shows the full stack of colours
+    currently in use, what the specific thing being changed USED to
+    be, and what it's ABOUT to become, then asks to confirm. Returns
+    True/False; nothing is applied here, this is purely display +
+    confirmation, the actual API call happens in the calling script
+    only if this returns True.
+
+    `existing` (list of category dicts) and `old_color` (hex string)
+    are both optional and independent of each other - `existing` is
+    "everything currently in use, across all categories" (the general
+    reference stack); `old_color` is specifically "what THIS ONE
+    category was before this change" (there's no such thing when
+    adding a brand new category, which is why auto_generate_unique_color()
+    doesn't use this - a new category doesn't have an "old" colour)."""
+    if existing:
+        print("\nCurrently in use:")
+        for c in existing:
+            print(f"  {color_swatch(c['color'])} {c['color']} - {c['name']}")
+
+    print()
+    if old_color:
+        print(f"  Old: {color_swatch(old_color)} {old_color}")
+    print(f"  New: {color_swatch(candidate)} {candidate}")
+    print()
+
+    return input("Use this colour? (y/n): ").strip().lower() == "y"
+
+
+def _choose_from_random_batch(existing, old_color=None):
+    """The random-generation sub-flow: ask whether to avoid colours
+    already in use, ask how many to generate (defaulting to the
+    category count), then show a fresh batch every time (including on
+    regenerate). Picking one runs it through the same _confirm_pick()
+    every other path uses - stack, old colour, new colour, confirm -
+    rather than its own separate confirmation step. Lets the admin
+    regenerate, pick one, or cancel back to the main colour menu
+    (returns None).
+
+    `existing` is the full list of category dicts (name + color) from
+    fetch_categories_full() - not just a flat list of hex strings -
+    specifically so the comparison display can show which category
+    each existing colour belongs to, not just an unlabelled swatch."""
+    existing = existing or []
+    existing_colors = [c["color"] for c in existing]
+
+    avoid = []
+    if existing_colors:
+        ans = input(
+            f"Avoid the {len(existing_colors)} colour(s) already used by "
+            f"your categories? (y/n): "
+        ).strip().lower()
+        if ans == "y":
+            avoid = existing_colors
+
+    default_count = len(existing_colors) if existing_colors else 15
+    while True:
+        raw = input(f"How many random options? (Enter for {default_count}): ").strip()
+        if not raw:
+            count = default_count
+            break
+        if raw.isdigit() and int(raw) > 0:
+            count = int(raw)
+            break
+        print("Enter a positive number, or leave blank for the default.\n")
+
+    while True:
+        batch = generate_random_colors(count, avoid=avoid)
+
+        print("\nNew options:")
+        for i, color in enumerate(batch, start=1):
+            print(f"  {i}. {color_swatch(color)} {color}")
+        print(f"  R. Regenerate a fresh batch of {count}")
+        print(f"  Q. Cancel, back to the colour menu")
+        print()
+
+        pick = input("Pick a colour (number), R, or Q: ").strip().lower()
+        if pick == "q":
+            return None
+        if pick == "r":
+            continue
+        if pick.isdigit() and 1 <= int(pick) <= len(batch):
+            chosen = batch[int(pick) - 1]
+            if _confirm_pick(chosen, existing=existing, old_color=old_color):
+                return chosen
+            print("OK, back to this batch.\n")
+            continue
+        print(f"Enter a number from 1 to {len(batch)}, R, or Q.\n")
+
+
+def auto_generate_unique_color(existing_colors):
+    """No menu, no palette, no "would you like to avoid existing
+    colours" question - just generates one random colour that's
+    already guaranteed distinct from everything in `existing_colors`,
+    shows it, and asks to confirm. Says no and it just generates
+    another one - loops until you accept.
+
+    Deliberately separate from choose_color(): that function is the
+    full picker (palette / custom hex / random-with-options) used by
+    the tools that are RECOLOURING an existing category, where you
+    might genuinely want a specific known colour. Adding a brand new
+    category doesn't have that same need - a fresh, non-clashing
+    colour picked for you IS the point, not one option among many."""
+    while True:
+        color = generate_random_colors(1, avoid=existing_colors)[0]
+        print(f"  {color_swatch(color)} {color}")
+        confirm = input("Use this colour? (y/n): ").strip().lower()
+        if confirm == "y":
+            return color
+        print("Generating another...\n")
+
+
+def choose_color(existing=None, old_color=None):
+    """Prints the standard palette (with swatches), plus a "type a
+    custom hex" option and a "generate random colours" option, and
+    returns whichever hex string was chosen. Shared by every tool that
+    needs to pick a new colour for something - set-color,
+    set-default-color, set-both (add-category has its own, simpler,
+    no-menu auto_generate_unique_color() instead - see that function's
+    docstring for why).
+
+    Every path through this function - palette, custom hex, random
+    batch - ends at the SAME confirmation step (_confirm_pick): shows
+    the full stack of colours currently in use, what this specific
+    thing used to be, and what it's about to become, before anything
+    is actually returned. Saying no just brings you back to wherever
+    you were picking from, nothing is ever applied without an explicit
+    yes.
+
+    `existing`, if given, is the full list of category dicts (as
+    returned by fetch_categories_full() - name + color) currently in
+    the app - shown as the comparison stack. `old_color`, if given, is
+    specifically what the thing being changed used to be (there's no
+    such thing when adding a brand new category). Callers that don't
+    have either handy can omit them; picking still works, there's just
+    less to compare against."""
+    n_custom = len(COLOR_PALETTE) + 1
+    n_random = len(COLOR_PALETTE) + 2
+
+    while True:
+        print()
+        for i, color in enumerate(COLOR_PALETTE, start=1):
+            print(f"  {i}. {color_swatch(color)} {color}")
+        print(f"  {n_custom}. Type a custom hex colour")
+        print(f"  {n_random}. Generate random colour options")
+        print()
+
+        choice = input("Colour (number): ").strip()
+        if not choice.isdigit():
+            print("Enter a number.\n")
+            continue
+        n = int(choice)
+        if 1 <= n <= len(COLOR_PALETTE):
+            candidate = COLOR_PALETTE[n - 1]
+            if _confirm_pick(candidate, existing=existing, old_color=old_color):
+                return candidate
+            continue  # back to the full menu
+        if n == n_custom:
+            # Own inner loop, deliberately separate from the outer
+            # menu loop above - a bad format or saying "no" to the
+            # confirm should both just re-ask for the hex again, not
+            # dump you back to picking a number from the palette menu.
+            # That was the actual bug this used to have: every
+            # `continue` in here used to jump back to the OUTER loop's
+            # "Colour (number):" prompt, which only accepts a menu
+            # number - so retyping a hex value there just kept failing
+            # with "Enter a number." with no way out except restarting
+            # the whole picker from scratch.
+            while True:
+                custom = input("Hex colour (e.g. #3D8B5F), or blank to go back: ").strip()
+                if not custom:
+                    break  # back to the outer menu (palette + option list)
+                if not custom.startswith('#') or len(custom) != 7:
+                    print("Must look like #RRGGBB.\n")
+                    continue
+                try:
+                    hex_to_rgb(custom)
+                except ValueError:
+                    print("That's not a valid hex colour (letters must be 0-9/A-F).\n")
+                    continue
+
+                if _confirm_pick(custom, existing=existing, old_color=old_color):
+                    return custom
+                print("OK, try again.\n")
+            continue
+        if n == n_random:
+            result = _choose_from_random_batch(existing, old_color=old_color)
+            if result is not None:
+                return result
+            continue  # cancelled back to this same menu
+        print(f"Enter a number from 1 to {n_random}.\n")
 
 
 def choose_category(categories, prompt="Category"):

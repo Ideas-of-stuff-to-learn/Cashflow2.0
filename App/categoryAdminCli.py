@@ -8,20 +8,23 @@ can do several different kinds of action in one session without
 re-entering your password each time.
 
 This does NOT reimplement any of the actions - it imports and calls
-run_add(), run_rename(), run_combine(), run_delete(), run_audit(), and
-run_list() from the individual scripts (addCategoryAdmin.py,
-renameCategoryAdmin.py, combineCategoryAdmin.py, deleteCategoryAdmin.py,
-auditCategoryNamesAdmin.py, listCategoriesAdmin.py). Those scripts
-still work standalone too (`python renameCategoryAdmin.py` etc still
-does exactly what it always did) - this is just another way to reach
-the same logic, sharing one login instead of six.
+run_add(), run_rename(), run_combine(), run_delete(), run_audit(),
+run_list(), run_set_color(), run_set_default_color(), and
+run_set_color_and_default() from the individual scripts
+(addCategoryAdmin.py, renameCategoryAdmin.py, combineCategoryAdmin.py,
+deleteCategoryAdmin.py, auditCategoryNamesAdmin.py,
+listCategoriesAdmin.py, setColorAdmin.py, setDefaultColorAdmin.py,
+setColorAndDefaultAdmin.py). Those scripts still work standalone too
+(`python renameCategoryAdmin.py` etc still does exactly what it always
+did) - this is just another way to reach the same logic, sharing one
+login instead of nine.
 
 Usage:
     python categoryAdminCli.py
 
 Requires: pip install requests
 
-All six action scripts, plus adminCliCommon.py, need to be in the
+All nine action scripts, plus adminCliCommon.py, need to be in the
 same folder as this file for the imports below to work.
 """
 
@@ -32,6 +35,9 @@ from combineCategoryAdmin import run_combine
 from deleteCategoryAdmin import run_delete
 from auditCategoryNamesAdmin import run_audit
 from listCategoriesAdmin import run_list
+from setColorAdmin import run_set_color
+from setDefaultColorAdmin import run_set_default_color
+from setColorAndDefaultAdmin import run_set_color_and_default
 
 MENU = [
     ("Add a category", run_add),
@@ -40,6 +46,9 @@ MENU = [
     ("Delete a category", run_delete),
     ("Audit category names (read-only)", run_audit),
     ("List categories, numbered (read-only)", run_list),
+    ("Change a category's colour (default unaffected)", run_set_color),
+    ("Change a category's default colour (current unaffected)", run_set_default_color),
+    ("Change a category's colour, with option to update default too", run_set_color_and_default),
 ]
 
 

@@ -2,11 +2,11 @@
 listCategoriesAdmin.py
 
 Read-only: prints every category currently in the `categories` table,
-numbered, in display order, along with its colour (and default colour,
-if it's been recoloured away from that). Makes no changes - nothing
-else to it. Meant for quick reference (e.g. when you need the exact
-current list of names AND colours to sync a schema change against)
-rather than any of the mutating tools.
+numbered, in display order, along with its colour swatch/hex (and
+default colour, if it's been recoloured away from that). Makes no
+changes - nothing else to it. Meant for quick reference (e.g. when you
+need the exact current list of names AND colours to sync a schema
+change against) rather than any of the mutating tools.
 
 Usage:
     python listCategoriesAdmin.py
@@ -17,24 +17,7 @@ Can also be used from categoryAdminCli.py (the combined menu tool) via
 run_list(token).
 """
 
-from adminCliCommon import BASE_URL, admin_login_prompt
-import requests
-
-
-def fetch_categories_full(token):
-    """Unlike adminCliCommon.fetch_categories() (name-only, used by the
-    numbered pickers everywhere else), this keeps color and
-    default_color too - needed here since the whole point of this tool
-    is being a complete, accurate reference (e.g. for syncing
-    schema.sql's seed data against what's actually live)."""
-    response = requests.get(
-        f"{BASE_URL}/categories",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Failed to fetch categories"))
-    return data["categories"]
+from adminCliCommon import BASE_URL, fetch_categories_full, color_swatch, admin_login_prompt
 
 
 def run_list(token):
@@ -50,8 +33,8 @@ def run_list(token):
 
     print(f"\n{len(categories)} categories, in display order:\n")
     for i, c in enumerate(categories, start=1):
-        default_note = "" if c["color"] == c["defaultColor"] else f" (default: {c['defaultColor']})"
-        print(f"  {i}. {c['name']} - {c['color']}{default_note}")
+        default_note = "" if c["color"] == c["defaultColor"] else f" (default: {color_swatch(c['defaultColor'])} {c['defaultColor']})"
+        print(f"  {i}. {color_swatch(c['color'])} {c['name']} - {c['color']}{default_note}")
     print()
 
 

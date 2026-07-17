@@ -2,9 +2,12 @@
 add_category.py
 
 Small admin CLI for adding a brand new category on the deployed
-backend. Logs in once, then loops: give the new category a name, pick
-a colour from the same palette the app's colour picker uses (or type
-a custom hex), and it's created - repeat as many times as you like.
+backend. Logs in once, then loops: give the new category a name, and
+it's assigned a randomly generated colour that's guaranteed distinct
+from every colour already in use (say no and it'll generate another
+until you're happy) - no palette to pick through, no custom hex to
+type, just a fresh non-clashing colour handed to you. Repeat as many
+times as you like.
 
 Usage:
     python add_category.py
@@ -17,16 +20,7 @@ run_add(token).
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_categories, admin_login_prompt
-
-# Same palette as COLOR_PALETTE in App/utils/charts/chartUtils.js - kept
-# in sync manually since this is a standalone script, not a shared
-# import. If that palette changes, update this list too.
-COLOR_PALETTE = [
-    '#2E5C8A', '#E07A3E', '#3D8B5F', '#9B3D8A', '#C4A227',
-    '#D94F4F', '#4FA8D9', '#7A5C3D', '#5C8A2E', '#D97AB8',
-    '#3D5C8A', '#8A3D3D', '#4DBFBF', '#A67C52',
-]
+from adminCliCommon import BASE_URL, fetch_categories_full, auto_generate_unique_color, admin_login_prompt
 
 
 def create_category(token, name, color):
@@ -41,51 +35,28 @@ def create_category(token, name, color):
     return data
 
 
-def choose_color():
-    print()
-    for i, color in enumerate(COLOR_PALETTE, start=1):
-        print(f"  {i}. {color}")
-    print(f"  {len(COLOR_PALETTE) + 1}. Type a custom hex colour")
-    print()
-
-    while True:
-        choice = input("Colour (number): ").strip()
-        if not choice.isdigit():
-            print("Enter a number.\n")
-            continue
-        n = int(choice)
-        if 1 <= n <= len(COLOR_PALETTE):
-            return COLOR_PALETTE[n - 1]
-        if n == len(COLOR_PALETTE) + 1:
-            custom = input("Hex colour (e.g. #3D8B5F): ").strip()
-            if not custom.startswith('#') or len(custom) != 7:
-                print("Must look like #RRGGBB.\n")
-                continue
-            return custom
-        print(f"Enter a number from 1 to {len(COLOR_PALETTE) + 1}.\n")
-
-
 def run_add(token):
     """The actual add-category workflow, assuming `token` is already an
     authenticated admin session. No login prompt in here - see
     run_rename() in renameCategoryAdmin.py for the same pattern."""
     while True:
         try:
-            existing = fetch_categories(token)
+            existing = fetch_categories_full(token)
         except Exception as e:
             print(f"Couldn't fetch categories: {e}\n")
             break
 
         print("Current categories:")
         for c in existing:
-            print(f"  - {c}")
+            print(f"  - {c['name']}")
 
         name = input("\nName for the new category: ").strip()
         if not name:
             print("Name can't be empty.\n")
             continue
 
-        color = choose_color()
+        print(f'\nGenerating a colour for "{name}"...')
+        color = auto_generate_unique_color(existing_colors=[c["color"] for c in existing])
 
         try:
             result = create_category(token, name, color)
