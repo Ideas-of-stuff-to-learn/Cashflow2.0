@@ -272,6 +272,12 @@ export default function ContentsScreen({ navigation, route }) {
 
                 const { skipped } = await resolveCategories(resolutions);
 
+                // At least some of these genuinely changed category in
+                // the DB (skipped ones didn't, but the rest did) -
+                // charts should reflect that, same signal used after a
+                // categorisation chunk or a delete.
+                bumpChartDataVersion();
+
                 if (skipped && skipped.length > 0) {
                     const skippedKeys = new Set(skipped.map(makeKey));
                     const outOfSyncItems = items.filter(t => skippedKeys.has(makeKey(t)));
@@ -321,6 +327,9 @@ export default function ContentsScreen({ navigation, route }) {
                     amount: reviewItem.amount,
                     category,
                 }]);
+
+                // Same reasoning as the bulk branch above.
+                bumpChartDataVersion();
 
                 if (skipped && skipped.length > 0) {
                     setOutOfSyncMessage('Out of sync - reverting...');

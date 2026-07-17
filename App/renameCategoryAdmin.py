@@ -10,38 +10,16 @@ Usage:
     python rename_category.py
 
 Requires: pip install requests
-"""
 
-import getpass
+Can also be used from categoryAdminCli.py (the combined menu tool) via
+run_rename(token) - that's why the loop logic lives in its own function
+separate from main(), rather than only being reachable by running this
+file directly.
+"""
 
 import requests
 
-# Was pointing at "cashflowbackend-1era.onrender.com" - an old/different
-# Render service than what the app actually talks to (see BASE_URL in
-# App/api.js). Fixed to match the real, current backend.
-BASE_URL = "https://cashflow2-0.onrender.com"
-
-
-def login(username, password):
-    response = requests.post(
-        f"{BASE_URL}/auth/login",
-        json={"username": username, "password": password},
-    )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Login failed"))
-    return data["access_token"]
-
-
-def fetch_categories(token):
-    response = requests.get(
-        f"{BASE_URL}/categories",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Failed to fetch categories"))
-    return [c["name"] for c in data["categories"]]
+from adminCliCommon import BASE_URL, fetch_categories, choose_category, admin_login_prompt
 
 
 def rename_category(token, old_name, new_name):
@@ -63,49 +41,13 @@ def rename_category(token, old_name, new_name):
     return data
 
 
-def choose_category(categories, prompt="Category to rename"):
-    """Prints a numbered list and returns the chosen name, or None if
-    the user backs out (blank input)."""
-    print()
-    for i, name in enumerate(categories, start=1):
-        print(f"  {i}. {name}")
-    print()
-
-    while True:
-        choice = input(f"{prompt} (number, or blank to cancel): ").strip()
-        if not choice:
-            return None
-        if not choice.isdigit() or not (1 <= int(choice) <= len(categories)):
-            print(f"Enter a number from 1 to {len(categories)}.\n")
-            continue
-        return categories[int(choice) - 1]
-
-
-def main():
-    print("Cashflow category rename tool")
-    print(f"Backend: {BASE_URL}\n")
-
-    username = input("Admin username: ").strip()
-
-    # Local safety net only - this does NOT restrict who the backend
-    # itself will accept. Any valid login still works against the
-    # actual PATCH /categories endpoint; this just stops this
-    # particular script from running against the wrong account by
-    # accident (e.g. a typo, or muscle-memory logging into a test user).
-    if username != "admin":
-        print("This tool is restricted to the admin account.")
-        return
-
-    password = getpass.getpass("Admin password: ")
-
-    try:
-        token = login(username, password)
-    except Exception as e:
-        print(f"Login failed: {e}")
-        return
-
-    print("Logged in.\n")
-
+def run_rename(token):
+    """The actual rename workflow, assuming `token` is already an
+    authenticated admin session - loops asking which category to
+    rename and what to rename it to, until the user backs out or says
+    no to "rename another?". No login prompt in here - that's the
+    caller's job (either main() below, standalone, or
+    categoryAdminCli.py, once for the whole session)."""
     while True:
         try:
             categories = fetch_categories(token)
@@ -133,6 +75,17 @@ def main():
         if again != "y":
             print("Done.")
             break
+
+
+def main():
+    print("Cashflow category rename tool")
+    print(f"Backend: {BASE_URL}\n")
+
+    token = admin_login_prompt()
+    if token is None:
+        return
+
+    run_rename(token)
 
 
 if __name__ == "__main__":

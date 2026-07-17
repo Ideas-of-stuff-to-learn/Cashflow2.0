@@ -10,13 +10,14 @@ Usage:
     python add_category.py
 
 Requires: pip install requests
-"""
 
-import getpass
+Can also be used from categoryAdminCli.py (the combined menu tool) via
+run_add(token).
+"""
 
 import requests
 
-BASE_URL = "https://cashflow2-0.onrender.com"
+from adminCliCommon import BASE_URL, fetch_categories, admin_login_prompt
 
 # Same palette as COLOR_PALETTE in App/utils/charts/chartUtils.js - kept
 # in sync manually since this is a standalone script, not a shared
@@ -26,28 +27,6 @@ COLOR_PALETTE = [
     '#D94F4F', '#4FA8D9', '#7A5C3D', '#5C8A2E', '#D97AB8',
     '#3D5C8A', '#8A3D3D', '#4DBFBF', '#A67C52',
 ]
-
-
-def login(username, password):
-    response = requests.post(
-        f"{BASE_URL}/auth/login",
-        json={"username": username, "password": password},
-    )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Login failed"))
-    return data["access_token"]
-
-
-def fetch_categories(token):
-    response = requests.get(
-        f"{BASE_URL}/categories",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Failed to fetch categories"))
-    return data["categories"]
 
 
 def create_category(token, name, color):
@@ -86,29 +65,10 @@ def choose_color():
         print(f"Enter a number from 1 to {len(COLOR_PALETTE) + 1}.\n")
 
 
-def main():
-    print("Cashflow add-category tool")
-    print(f"Backend: {BASE_URL}\n")
-
-    username = input("Admin username: ").strip()
-
-    # Same local-only safety net as the other admin scripts - this just
-    # stops THIS script from running against the wrong account by
-    # accident.
-    if username != "admin":
-        print("This tool is restricted to the admin account.")
-        return
-
-    password = getpass.getpass("Admin password: ")
-
-    try:
-        token = login(username, password)
-    except Exception as e:
-        print(f"Login failed: {e}")
-        return
-
-    print("Logged in.\n")
-
+def run_add(token):
+    """The actual add-category workflow, assuming `token` is already an
+    authenticated admin session. No login prompt in here - see
+    run_rename() in renameCategoryAdmin.py for the same pattern."""
     while True:
         try:
             existing = fetch_categories(token)
@@ -118,7 +78,7 @@ def main():
 
         print("Current categories:")
         for c in existing:
-            print(f"  - {c['name']}")
+            print(f"  - {c}")
 
         name = input("\nName for the new category: ").strip()
         if not name:
@@ -137,6 +97,17 @@ def main():
         if again != "y":
             print("Done.")
             break
+
+
+def main():
+    print("Cashflow add-category tool")
+    print(f"Backend: {BASE_URL}\n")
+
+    token = admin_login_prompt()
+    if token is None:
+        return
+
+    run_add(token)
 
 
 if __name__ == "__main__":

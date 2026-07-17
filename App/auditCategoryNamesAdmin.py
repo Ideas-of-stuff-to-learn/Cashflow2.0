@@ -14,35 +14,14 @@ Usage:
     python audit_category_names.py
 
 Requires: pip install requests
-"""
 
-import getpass
+Can also be used from categoryAdminCli.py (the combined menu tool) via
+run_audit(token).
+"""
 
 import requests
 
-BASE_URL = "https://cashflow2-0.onrender.com"
-
-
-def login(username, password):
-    response = requests.post(
-        f"{BASE_URL}/auth/login",
-        json={"username": username, "password": password},
-    )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Login failed"))
-    return data["access_token"]
-
-
-def fetch_categories(token):
-    response = requests.get(
-        f"{BASE_URL}/categories",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Failed to fetch categories"))
-    return [c["name"] for c in data["categories"]]
+from adminCliCommon import BASE_URL, fetch_categories, admin_login_prompt
 
 
 def fetch_summary_categories(token):
@@ -72,21 +51,12 @@ def fetch_transaction_categories(token):
     return {t["category"] for t in data["transactions"] if t.get("category")}
 
 
-def main():
-    print("Cashflow category name audit (read-only)")
-    print(f"Backend: {BASE_URL}\n")
-
-    username = input("Admin username: ").strip()
-    password = getpass.getpass("Password: ")
-
-    try:
-        token = login(username, password)
-    except Exception as e:
-        print(f"Login failed: {e}")
-        return
-
-    print("Logged in.\n")
-
+def run_audit(token):
+    """The actual audit workflow, assuming `token` is already an
+    authenticated admin session. Runs once (not a loop like the other
+    tools - there's nothing to "do again", it's a single read-only
+    report) and returns. No login prompt in here - see run_rename() in
+    renameCategoryAdmin.py for the same pattern."""
     try:
         category_names = fetch_categories(token)
         summary_names = fetch_summary_categories(token)
@@ -136,6 +106,17 @@ def main():
         print("Tip: the repr() output above shows exact characters, including any invisible")
         print("whitespace - compare the flagged strings closely against each other and against")
         print("what you typed into the combine/rename tool.")
+
+
+def main():
+    print("Cashflow category name audit (read-only)")
+    print(f"Backend: {BASE_URL}\n")
+
+    token = admin_login_prompt()
+    if token is None:
+        return
+
+    run_audit(token)
 
 
 if __name__ == "__main__":

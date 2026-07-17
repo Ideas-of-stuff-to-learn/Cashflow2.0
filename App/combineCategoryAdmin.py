@@ -11,35 +11,14 @@ Usage:
     python combine_category.py
 
 Requires: pip install requests
-"""
 
-import getpass
+Can also be used from categoryAdminCli.py (the combined menu tool) via
+run_combine(token).
+"""
 
 import requests
 
-BASE_URL = "https://cashflow2-0.onrender.com"
-
-
-def login(username, password):
-    response = requests.post(
-        f"{BASE_URL}/auth/login",
-        json={"username": username, "password": password},
-    )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Login failed"))
-    return data["access_token"]
-
-
-def fetch_categories(token):
-    response = requests.get(
-        f"{BASE_URL}/categories",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Failed to fetch categories"))
-    return [c["name"] for c in data["categories"]]
+from adminCliCommon import BASE_URL, fetch_categories, admin_login_prompt
 
 
 def combine_categories(token, names, new_name):
@@ -98,29 +77,10 @@ def choose_categories(categories, count):
     return chosen
 
 
-def main():
-    print("Cashflow category combine tool")
-    print(f"Backend: {BASE_URL}\n")
-
-    username = input("Admin username: ").strip()
-
-    # Same local-only safety net as rename_category.py / the backend's
-    # own admin check - this just stops THIS script from running
-    # against the wrong account by accident.
-    if username != "admin":
-        print("This tool is restricted to the admin account.")
-        return
-
-    password = getpass.getpass("Admin password: ")
-
-    try:
-        token = login(username, password)
-    except Exception as e:
-        print(f"Login failed: {e}")
-        return
-
-    print("Logged in.\n")
-
+def run_combine(token):
+    """The actual combine workflow, assuming `token` is already an
+    authenticated admin session. No login prompt in here - see
+    run_rename() in renameCategoryAdmin.py for the same pattern."""
     while True:
         try:
             categories = fetch_categories(token)
@@ -163,6 +123,17 @@ def main():
         if again != "y":
             print("Done.")
             break
+
+
+def main():
+    print("Cashflow category combine tool")
+    print(f"Backend: {BASE_URL}\n")
+
+    token = admin_login_prompt()
+    if token is None:
+        return
+
+    run_combine(token)
 
 
 if __name__ == "__main__":
