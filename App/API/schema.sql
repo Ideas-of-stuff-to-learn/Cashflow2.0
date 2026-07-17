@@ -55,20 +55,42 @@ CREATE TABLE IF NOT EXISTS categories (
     default_color TEXT NOT NULL
 );
 
+-- Kept in sync with the LIVE category state (as of the admin tools'
+-- rename/combine/add/delete history) rather than the original launch
+-- set. This matters more than it might look: ON CONFLICT (name) DO
+-- NOTHING only skips a row whose NAME already exists - it does nothing
+-- to stop a stale name that's since been renamed/combined/deleted away
+-- from getting silently re-inserted as a brand new row on the next
+-- schema.sql run (fresh deploy, new environment, DB recreation). The
+-- original seed had exactly this problem: 'Entertainment (Games)' (renamed
+-- since), 'Households, medicines and stationary' + 'Groceries' (combined
+-- into one since), and 'Housing & Rent' + 'Transfers' (gone entirely)
+-- would all have come back from the dead alongside the real, current
+-- categories on the next fresh install.
+--
+-- color/default_color both reflect CURRENT values - same convention
+-- every other category-creation path in this app already follows
+-- (default_color = color at creation time, see create_category() in
+-- backend.py). A handful of these have been actively recoloured away
+-- from their original launch palette (Entertainment, IT/Software,
+-- Sports/Fitness, Phone, Groceries and Households, Other) - this
+-- reseed treats that recolouring as the new baseline, not the old
+-- launch colours. "Reset to default" on a fresh install of one of
+-- those will correctly be a no-op until recoloured again from here.
 INSERT INTO categories (name, display_order, color, default_color) VALUES
-    ('Entertainment (Games)', 1, '#E07A3E', '#E07A3E'),
+    ('Entertainment (Movies,Games)', 1, '#e03e48', '#e03e48'),
     ('Personal development (music,driving)', 2, '#3D8B5F', '#3D8B5F'),
-    ('IT/Software', 3, '#9B3D8A', '#9B3D8A'),
-    ('Sports/Fitness', 4, '#C4A227', '#C4A227'),
-    ('Phone', 5, '#D94F4F', '#D94F4F'),
+    ('IT/Software', 3, '#9f939d', '#9f939d'),
+    ('Sports/Fitness', 4, '#0be40e', '#0be40e'),
+    ('Phone', 5, '#d8da1d', '#d8da1d'),
     ('Travel', 6, '#4FA8D9', '#4FA8D9'),
     ('Clothes', 7, '#7A5C3D', '#7A5C3D'),
-    ('Households, medicines and stationary', 8, '#5C8A2E', '#5C8A2E'),
+    ('Groceries and Households (medicine & stationary)', 8, '#eada18', '#eada18'),
     ('Eating out', 9, '#D97AB8', '#D97AB8'),
-    ('Groceries', 10, '#3D5C8A', '#3D5C8A'),
-    ('Housing & Rent', 11, '#8A3D3D', '#8A3D3D'),
-    ('Transfers', 12, '#4DBFBF', '#4DBFBF'),
-    ('Income', 13, '#A67C52', '#A67C52')
+    ('Accomodation & Bills', 10, '#8A3D3D', '#8A3D3D'),
+    ('Other', 11, '#bf4db1', '#bf4db1'),
+    ('Income', 12, '#A67C52', '#A67C52'),
+    ('Trading and investments', 13, '#4FA8D9', '#4FA8D9')
 ON CONFLICT (name) DO NOTHING;
 
 -- Every parsed transaction a user has ever uploaded, so re-uploading
