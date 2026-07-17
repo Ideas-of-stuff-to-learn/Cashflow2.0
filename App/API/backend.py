@@ -272,6 +272,68 @@ def combine_categories():
     finally:
         release_connection(conn)
 
+@app.route('/categories', methods=['DELETE'])
+@jwt_required()
+@limiter.limit("20 per day")
+def delete_category():
+    """Deletes a category entirely - admin-only, same reasoning as the
+    other category endpoints.
+
+    Anything currently in this category (category_records, merchants,
+    transactions) gets reassigned to NEEDS_MANUAL_REVIEW rather than
+    left pointing at a category string that no longer exists anywhere -
+    an orphaned reference like that can't self-heal the way a rename
+    desync can (there's no "fetch the current name" to resync to, the
+    category is just gone), so it would sit permanently broken instead.
+    NEEDS_MANUAL_REVIEW is the existing "needs a human to decide" state
+    already used when the LLM itself can't confidently categorise
+    something - conceptually the same situation here.
+
+    If you want a category's data to end up in some OTHER real
+    category rather than manual review, use /categories/combine
+    instead - this endpoint is specifically for abandoning a category
+    altogether.
+    """
+    data = request.get_json() or {}
+    name = (data.get('name') or '').strip()
+
+    if not name:
+        return jsonify({'error': 'name is required'}), 400
+
+    current_user = int(get_jwt_identity())
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT username FROM users WHERE id = %s", (current_user,))
+            row = cur.fetchone()
+            if not row or row[0] != "admin":
+                return jsonify({'error': 'Not authorized'}), 403
+
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM categories WHERE name = %s", (name,))
+            if not cur.fetchone():
+                return jsonify({'error': f'Category "{name}" not found'}), 404
+
+            cur.execute("UPDATE category_records SET category = %s WHERE category = %s", (NEEDS_MANUAL_REVIEW, name))
+            cur.execute("UPDATE merchants SET category = %s WHERE category = %s", (NEEDS_MANUAL_REVIEW, name))
+            cur.execute("UPDATE transactions SET category = %s WHERE category = %s", (NEEDS_MANUAL_REVIEW, name))
+            reassigned_count = cur.rowcount
+            cur.execute("DELETE FROM categories WHERE name = %s", (name,))
+
+        conn.commit()
+
+        # Same in-memory cache patching as rename/combine.
+        CategoryCache.patch_global_category_rename(name, NEEDS_MANUAL_REVIEW)
+        patch_merchants_category_rename(name, NEEDS_MANUAL_REVIEW)
+
+        return jsonify({'status': 'ok', 'deleted': name, 'reassigned_transactions': reassigned_count}), 200
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Category deletion failed: {e}')
+        return jsonify({'error': 'Category deletion failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
 @app.route('/categories', methods=['POST'])
 @jwt_required()
 @limiter.limit("20 per day")
