@@ -1,8 +1,8 @@
 /*
 
 Combination of groceries, households and medicines and stationary DONE
-Remove transfers
-Add others
+Remove transfers DONE
+Add others DONE
 Fix the upload files counter for non same files DONE
 Permission system
 Road map accurate to deployed to play store and app store
