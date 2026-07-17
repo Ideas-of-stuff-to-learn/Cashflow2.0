@@ -8,7 +8,7 @@ export default function LoginScreen({ navigation }) {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const { setIsLoggedIn } = useApp();
+    const { completeLogin } = useApp();
 
     async function handleLogin() {
         if (!username.trim() || !password.trim()) {
@@ -18,13 +18,18 @@ export default function LoginScreen({ navigation }) {
         setLoading(true);
         setError(null);
         try {
-            await login(username.trim(), password);
-            // Flip this BEFORE navigating, not after - it's what
+            const trimmedUsername = username.trim();
+            await login(trimmedUsername, password);
+            // Call this BEFORE navigating, not after - it's what
             // AppContext's chartSummary effect is waiting on to make
             // its first fetch (see AppContext.js), and HomeScreen's own
             // initial-load effect fires the moment it mounts, so this
-            // needs to already be true by the time navigation lands.
-            setIsLoggedIn(true);
+            // needs to already be done by the time navigation lands.
+            // completeLogin also decides whether to wipe leftover data
+            // from a previous session, based on whether this is the
+            // same username as last time - see the comment on it in
+            // AppContext.js.
+            completeLogin(trimmedUsername);
             navigation.replace('Home');
         } catch (e) {
             setError(e.message);

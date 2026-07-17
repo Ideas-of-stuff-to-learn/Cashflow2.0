@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { getChartSummary } from './api.js';
 
 const AppContext = createContext();
@@ -33,9 +33,9 @@ export function AppProvider({ children }) {
     // AppProvider mounts the whole app, including the Login screen
     // itself, so anything in this provider that fetches from an
     // authenticated endpoint (chartSummary, below) must not run until
-    // LoginScreen/SignupScreen explicitly flip this to true right after
-    // a successful login/signup call. useLogout.js flips it back to
-    // false on logout.
+    // LoginScreen/SignupScreen call completeLogin() (below) right after
+    // a successful login/signup call. useLogout.js calls endSession()
+    // to flip it back to false on logout.
     const [isLoggedIn, setIsLoggedIn] = useState(false);
 
     // Chart summary lives HERE, at the provider level, not inside
@@ -108,23 +108,62 @@ export function AppProvider({ children }) {
     const categoryNames = categories.map(c => c.name);
     const categoryColors = Object.fromEntries(categories.map(c => [c.name, c.color]));
 
+    // Tracks the username of whoever last completed a login in THIS APP
+    // INSTANCE - not persisted anywhere, resets to null on every app
+    // relaunch, which is exactly the scope we want: "does the person
+    // currently logging in match the person who was using this device a
+    // moment ago", not anything that needs to survive a restart. A ref,
+    // not state - nothing ever needs to re-render off this value, it's
+    // pure bookkeeping read only inside completeLogin below.
+    const lastLoggedInUsernameRef = useRef(null);
+
+    // Called by LoginScreen/SignupScreen right after their login()/
+    // signup() call succeeds - this is what actually flips isLoggedIn
+    // true (see the chartSummary effect above, which is waiting on it).
+    //
+    // Before doing that, it decides whether the PREVIOUS account's data
+    // (transactions/categories/chartSummary, still sitting in state
+    // from before logout - see endSession below) is safe to leave on
+    // screen for a moment while the fresh fetch runs, or needs wiping
+    // first:
+    //   - Same username as last time -> leave it. It's the same
+    //     person's own data; the normal post-login fetch will overwrite
+    //     it with current data anyway (same as any other refresh in
+    //     this app), so there's nothing to protect against, and skipping
+    //     the wipe avoids an unnecessary blank-screen flash between
+    //     logout and the fetch landing.
+    //   - Different username (or no prior login this session) -> wipe
+    //     immediately, synchronously, before isLoggedIn even flips - a
+    //     second account must never render a single frame of the first
+    //     account's numbers.
+    //
+    // Comparison is case-sensitive and NOT normalized beyond what the
+    // caller already passes in - backend.py treats usernames as exact
+    // strings (`WHERE username = %s`, no lowercasing anywhere in
+    // auth), so lowercasing here would wrongly treat two distinct
+    // accounts ("Bob" vs "bob") as the same person and leave one
+    // account's data showing under the other's session.
+    const completeLogin = useCallback((username) => {
+        if (username !== lastLoggedInUsernameRef.current) {
+            setChartSummary({ yearly: [], monthly: [] });
+            setTransactions([]);
+            setCategories([]);
+        }
+        lastLoggedInUsernameRef.current = username;
+        setIsLoggedIn(true);
+    }, []);
+
     // Called by useLogout.js right before it clears the stored token.
-    // Flips isLoggedIn back to false (stopping any further chartSummary
-    // fetches immediately) and wipes every piece of the previous
-    // account's data held in memory - chartSummary, transactions, and
-    // categories. Without this, transactions/categories would sit here
-    // until HomeScreen's own initial-load effect happened to overwrite
-    // them after the next login (see useInitialLoadLogic.js) - fine
-    // most of the time, but a real window where a second account
-    // logging in on the same device could see a flash of the first
-    // account's data before that fetch resolves. Same reasoning as the
-    // chartSummary clear, just applied to the rest of the per-account
-    // state this provider holds.
-    const clearSessionState = useCallback(() => {
+    // Only flips isLoggedIn false - stops the chartSummary effect from
+    // firing again on this now-stale session. Deliberately does NOT
+    // clear transactions/categories/chartSummary here anymore: that
+    // decision now happens at the START of the NEXT login instead (see
+    // completeLogin above), based on whether it's the same person
+    // logging back in. Doing it here unconditionally would blank the
+    // screen for a moment on every single logout, even the extremely
+    // common case of the same person immediately logging back in.
+    const endSession = useCallback(() => {
         setIsLoggedIn(false);
-        setChartSummary({ yearly: [], monthly: [] });
-        setTransactions([]);
-        setCategories([]);
     }, []);
 
     return (
@@ -147,8 +186,8 @@ export function AppProvider({ children }) {
             bumpChartDataVersion,
             chartSummary,
             isLoggedIn,
-            setIsLoggedIn,
-            clearSessionState,
+            completeLogin,
+            endSession,
         }}>
             {children}
         </AppContext.Provider>

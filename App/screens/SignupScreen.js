@@ -9,7 +9,7 @@ export default function LoginScreen({ navigation }) {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const { setIsLoggedIn } = useApp();
+    const { completeLogin } = useApp();
 
     async function handleSignup() {
         if (!username.trim() || !password.trim() || !confirmPassword.trim()) {
@@ -27,11 +27,17 @@ export default function LoginScreen({ navigation }) {
         setLoading(true);
         setError(null);
         try {
-            await signup(username.trim(), password);
+            const trimmedUsername = username.trim();
+            await signup(trimmedUsername, password);
             // signup() also stores a fresh token (same as login()) - see
             // api.js - so this is a genuine authenticated session from
-            // here on, same gate as LoginScreen.
-            setIsLoggedIn(true);
+            // here on, same gate as LoginScreen. A brand new account can
+            // never match lastLoggedInUsernameRef from an old session
+            // (the backend rejects duplicate usernames at signup), so
+            // completeLogin will always wipe any leftover data here -
+            // that's correct, a fresh signup should never inherit
+            // anything from whoever used this device before.
+            completeLogin(trimmedUsername);
             navigation.replace('Home');
         } catch (e) {
             setError(e.message);
