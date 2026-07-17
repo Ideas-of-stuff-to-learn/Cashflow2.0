@@ -1,0 +1,209 @@
+# Handoff — Categorization Robustness, Live Charts, Transaction Deletion & Category Admin CLI Suite
+
+**Scope of this doc:** `App/API/backend.py`, `App/API/categoriseAugDB.py`, `App/API/categoriseAPI2.py`, `App/API/schema.sql`, `App/AppContext.js`, `App/api.js`, `App/customHooks/homescreen/useFileProcessor.js`, `App/customHooks/charts/useChartData.js`, `App/screens/ContentsScreen.js`, `App/screens/HomeScreen.js`, `App/screens/ChartsScreen.js`, `App/components/charts/StatusBanners.js`, `App/checkingName.js`, and the entire `App/*Admin.py` / `App/categoryAdminCli.py` / `App/adminCliCommon.py` family.
+
+This is a separate document from the original `handoff.txt` (upload counting / cache-warming), not a replacement — that doc's scope is still valid and untouched by this round. This one picks up from roughly where that one left off and covers everything since.
+
+---
+
+## READ THIS FIRST
+
+**The repo is the source of truth. This document can be, and eventually will be, stale.**
+
+1. Pull the current version of every file listed above directly from `main` before changing anything here — this doc's code snippets and constant values are a snapshot, not a spec.
+2. If the repo contradicts this doc, **the repo wins.**
+3. Don't make large/structural changes in this area without explaining the impact first.
+4. **After a major change here, add a new dated section below rather than rewriting history.**
+
+---
+
+## Part 1: Categorization pipeline — from "crashes the backend" to "recoverable by design"
+
+### The original problem
+Uploading a large amount of data (multiple years of statements at once) sent the ENTIRE pending list to `/categorize/cached` and `/categorize/llm` in one request each. Real production log evidence: a single `/categorize/llm` call ran for ~121 seconds before gunicorn's own worker timeout (120s, set via Render's Start Command) fired and SIGKILLed the whole worker — mid-request, no graceful response, and it corrupted the DB connection pool badly enough that the *next* unrelated request (`GET /categories`) failed with `SSL error: decryption failed or bad record mac`.
+
+### Fix 1: client-side chunking (`useFileProcessor.js`)
+Both tiers are now sent in bounded-size chunks instead of one giant request:
+```js
+const CACHE_CHUNK_SIZE = 200;                              // raw txns per /categorize/cached request
+const LLM_BATCH_SIZE = 400;                                 // sent to backend as batch_size AND used as chunk size
+const MIN_LLM_BATCH_SIZE = 200;                              // floor, protects the 20/day rate limit
+const LLM_CHUNK_SIZE = Math.max(MIN_LLM_BATCH_SIZE, LLM_BATCH_SIZE);
+```
+`LLM_BATCH_SIZE` is sent through to the backend as the literal `batch_size` param on `/categorize/llm` (see below) — it's not just a client-side slicing size, it directly controls how many *unique descriptions* `run_llm_tier` batches per Gemini call. One HTTP request now corresponds to exactly one server-side Gemini batch, no hidden multiplication layer.
+
+**Note on current values:** these were turned down from higher defaults (`CACHE_CHUNK_SIZE` was 500, `LLM_BATCH_SIZE` was 600) while chasing what turned out to be the Gemini-timeout issue (see Part 1 Fix 3) — that troubleshooting is resolved now, so these are candidates to raise back up if you want fewer round trips and don't mind eating slightly more of the 20/day `/categorize/llm` limit per upload.
+
+### Fix 2: client + server timeouts, two different network hops
+```js
+// useFileProcessor.js
+const WORKER_TIMEOUT_SECONDS = 120;             // documents the actual gunicorn timeout
+const TIMEOUT_SAFETY_BUFFER_SECONDS = 10;
+const CLIENT_TIMEOUT_MS = (WORKER_TIMEOUT_SECONDS - TIMEOUT_SAFETY_BUFFER_SECONDS) * 1000;  // = 110000
+const GEMINI_REQUEST_TIMEOUT_MS = 30000;         // sent to backend as gemini_timeout_ms
+```
+- `CLIENT_TIMEOUT_MS` (via `fetchWithTimeout` in `api.js`, `AbortController`-based) controls how long **this app** waits for a response from **our backend**.
+- `GEMINI_REQUEST_TIMEOUT_MS` controls how long **our backend** waits for a response from **Gemini** — a completely different hop. Sent as `gemini_timeout_ms` on the `/categorize/llm` request body, threaded through `backend.py` → `run_llm_tier` (`categoriseAPI2.py`) → `categorize_batch` (`categoriseAugDB.py`), where it's applied via `http_options: {"timeout": gemini_timeout_ms}` on the actual `client.models.generate_content(...)` call.
+- **Why this needed fixing at all:** the `google-genai` SDK sets NO timeout on its HTTP calls by default (confirmed directly from the SDK source — `stop_after_attempt(1)`, no retry config, no timeout). A slow/hung Gemini response used to just block the worker indefinitely, with gunicorn's SIGKILL as the only thing that ever stopped it. Now it fails on its own, cleanly, well before that.
+- **Math worth keeping in mind if you ever raise `GEMINI_REQUEST_TIMEOUT_MS`:** worst case with retries is roughly `(GEMINI_REQUEST_TIMEOUT_MS × 3) + backoff sleeps`, and that needs to stay comfortably under `WORKER_TIMEOUT_SECONDS × 1000` or you reopen the exact SIGKILL scenario this was built to prevent. At 30000ms: `(30×3)+6 ≈ 96s`, 24s of margin.
+- Backend caps whatever's sent for `gemini_timeout_ms` to between 1000–90000ms and `batch_size` to 1–2000 — a client can't push these outside safe bounds even by accident.
+
+### Fix 3: the actual root cause of repeated Gemini timeouts — thinking mode
+Even after Fix 2 stopped requests from crashing the worker, `/categorize/llm` kept failing with `504 DEADLINE_EXCEEDED` at almost exactly the same ~27-30s **regardless of batch size** (600 items and 200 items both failed at the same wall-clock time) — a flat, size-independent cost is the signature of reasoning/thinking overhead, not genuine per-item work. Fixed in `categorize_batch` (`categoriseAugDB.py`):
+```python
+config={
+    "temperature": 0,
+    "response_mime_type": "application/json",
+    "http_options": {"timeout": gemini_timeout_ms},
+    "thinking_config": {"thinking_budget": 0},   # <- this
+}
+```
+Categorizing a transaction description is plain classification — extended reasoning was pure overhead, not accuracy.
+
+### Fix 4: 504/DEADLINE_EXCEEDED wasn't even being retried
+Separately from Fix 3, found the retry logic in `categorize_batch`'s exception handler only recognized `429`/`503`/`UNAVAILABLE` as transient:
+```python
+is_retryable = (
+    "429" in str(e) or "503" in str(e) or "504" in str(e)
+    or "UNAVAILABLE" in str(e) or "DEADLINE_EXCEEDED" in str(e)
+)
+```
+A `504` used to fall straight through to the "hard failure, don't retry" path — now it gets the same exponential backoff (2s, 4s) as the others.
+
+### Fix 5: the NOT_YET_CATEGORISED recovery path
+`checkingName.js` now exports a second sentinel alongside `NEEDS_MANUAL_REVIEW`:
+```js
+const NOT_YET_CATEGORISED = "NOT YET CATEGORISED"
+```
+Deliberately distinct from `MANUALLY CATEGORISE` — nothing has judged these transactions ambiguous, they just didn't get a chance to be looked at (timeout, or any other chunk failure). In `useFileProcessor.js`'s `categorizeTransactions()`, **any** chunk failure — client-side timeout OR a backend error response — now marks that chunk and every not-yet-attempted chunk `NOT_YET_CATEGORISED`, keeps whatever already succeeded, and stops the run rather than losing all progress to one failure.
+
+**UI treatment** (`ContentsScreen.js`): reuses the exact same "pending" row styling as a `null` category (not tappable, shown as `...`, no separate visual state) — `isPending = !item.category || item.category === NOT_YET_CATEGORISED`. `isStale()` also excludes it from the rename-desync check.
+
+**Retry mechanism:** `useFileProcessor.js` exposes `retryNotYetCategorized()` — pulls `transactions.filter(t => t.category === NOT_YET_CATEGORISED)` straight from `AppContext` and reruns them through both tiers, **no file re-upload required**. `HomeScreen.js` shows a "Retry categorising N transactions" button whenever `notYetCategorisedCount > 0`, independent of whether any file is currently selected.
+
+---
+
+## Part 2: Charts now update live, not just at the end of a run
+
+### The problem
+`ChartsScreen` looked "stuck on dummy data" through an entire multi-batch upload, and even after that was partially fixed, recolouring or deleting a transaction on `ContentsScreen` didn't refresh the chart at all.
+
+### Root cause #1: wrong refresh trigger
+`useChartData.js`'s summary-fetch effect was keyed on `processingStage`, which only has ~4 values for an ENTIRE run (`parsing → checkingCache → waitingForLLM → done`) and doesn't change per chunk. A run with 19 cache batches sits at `checkingCache` the whole time — the effect never re-fired mid-run.
+
+**Fix:** `AppContext.js` has a new counter, `chartDataVersion` (originally named `categorizationTick` — renamed once it started being used for reasons other than categorization, see below), bumped via `bumpChartDataVersion()`:
+```js
+const [chartDataVersion, setChartDataVersion] = useState(0);
+const bumpChartDataVersion = useCallback(() => setChartDataVersion(t => t + 1), []);
+```
+Called from **every** place that changes something a chart total depends on:
+- `useFileProcessor.js`: after every successful cache chunk AND every successful LLM chunk (not on the `NOT_YET_CATEGORISED` failure paths — nothing new was actually committed there).
+- `ContentsScreen.js`: after a successful bulk or single category change (`handleCategoryPick`), and after a successful delete (`handleDeleteSelected`).
+
+### Root cause #2: chart state lived in the wrong place
+Even after the tick fix, `ChartsScreen` is a stack screen — `navigation.goBack()` fully **unmounts** it, and React Navigation's `navigate()` mounts a fresh instance next time (not reusing the popped one). The chart summary used to live inside `useChartData()`, so every quick Home↔Charts round trip reset it to empty and re-fetched — and if the user navigated away again before that fetch resolved, the effect's own cleanup (`cancelled = true`) discarded the result entirely. Rapid back-and-forth navigation could mean the fetch never got a chance to land, looking exactly like "Charts never updates."
+
+**Fix:** `chartSummary` now lives in `AppContext.js` itself (mounted once for the whole app session, never torn down by navigation), with its own fetch effect keyed on `chartDataVersion`:
+```js
+useEffect(() => {
+    let cancelled = false;
+    async function fetchWithRetry(attempt = 1) {
+        try {
+            const data = await getChartSummary();
+            if (!cancelled) setChartSummary(data);
+        } catch (e) {
+            if (attempt >= 3) { console.warn(...); return; }
+            await new Promise(r => setTimeout(r, 1000 * attempt));
+            if (!cancelled) await fetchWithRetry(attempt + 1);
+        }
+    }
+    fetchWithRetry();
+    return () => { cancelled = true; };
+}, [chartDataVersion]);
+```
+The retry-with-backoff was added after a real (if likely dev-environment-specific) failure: `getChartSummary()` threw "Not logged in" once, immediately after a Metro bundle reload landed mid-flight — `getToken()` is a bare `SecureStore` read with no expiry logic of its own, so this points at a transient native-module hiccup rather than a real auth problem. The retry covers that class of one-off blip regardless of exact cause.
+
+`useChartData.js` no longer owns any summary state or fetch logic — it just reads `chartSummary` from `useApp()`.
+
+### Root cause #3: dummy-data banner watched the wrong thing too
+`showingDummyData` used to be `processingStage === 'checkingCache'` — true for the WHOLE stage regardless of how much real data had already landed. Now:
+```js
+const showingDummyData = summary.yearly.length === 0
+    && (processingStage === 'parsing' || processingStage === 'checkingCache' || processingStage === 'waitingForLLM');
+```
+Drops to `false` the instant any real data exists, not when the stage happens to change. `StatusBanners.js`'s "📊 Dummy data..." banner is now driven by this same `showingDummyData` prop instead of re-deriving its own (stale) condition from `processingStage` directly.
+
+---
+
+## Part 3: Delete transactions (`ContentsScreen.js`)
+
+New backend endpoint, `DELETE /transactions`, scoped by `user_id` in the `WHERE` clause (not just `id = ANY(...)`) so there's no way to delete another user's rows even by guessing ids:
+```python
+cur.execute("DELETE FROM transactions WHERE user_id = %s AND id = ANY(%s)", (current_user, ids))
+```
+Returns `{'deleted': <count>}` — can legitimately be less than `len(ids)` if local state was stale (already deleted elsewhere); not treated as an error.
+
+Frontend reuses the **existing** multi-select system (long-press or the "Select" button → checkboxes → toolbar) rather than building a new one — a red "Delete" button sits alongside "Change category" in the same `selectionBar`. Confirms via a native `Alert` first ("cannot be undone"), optimistic-removes locally, calls the endpoint, reverts on failure.
+
+**Known limitation, not yet addressed:** pending/`NOT_YET_CATEGORISED` rows still can't be selected at all — `isPending` blocks row interaction in selection mode, same restriction that predates this feature. You currently can't delete an uncategorised transaction without it first getting a category.
+
+---
+
+## Part 4: Category admin CLI suite
+
+Started as a single `renameCategoryAdmin.py`, grew into a full family. All files live in `App/`, all follow the same shape: a `run_X(token)` function (the actual workflow, assumes an authenticated session) plus a thin `main()` (does login, then calls `run_X`) — so every script works standalone (`python xAdmin.py`) AND is importable into the combined menu tool without re-implementing anything.
+
+### `adminCliCommon.py` — shared foundation
+- `login()`, `fetch_categories()` (names only), `fetch_categories_full()` (name+color+defaultColor), `admin_login_prompt()`, `choose_category()` (numbered single-pick).
+- `hex_to_rgb()`, `color_distance()` (Euclidean RGB distance), `color_swatch()` — real terminal colour swatches via 24-bit ANSI escape codes (`\033[48;2;R;G;Bm`), degrades harmlessly to blank space on terminals that don't support it.
+- `COLOR_PALETTE` — 14 fixed colours, manually kept in sync with `App/utils/charts/chartUtils.js`'s `COLOR_PALETTE` (not a shared import, these are standalone scripts).
+- `generate_random_colors(count, avoid=None, min_distance=45)` — random HUE with constrained saturation (55-85%) / lightness (40-62%), NOT pure random RGB (which produces muddy/unreadable results). Enforces minimum RGB-space distance from everything in `avoid` and from other colours in the same batch.
+- `choose_color(existing=None, old_color=None, old_color_name=None)` — the full picker: 14-colour palette, custom hex entry, or "generate random colour options." **Every path converges on one shared confirmation step, `_confirm_pick()`**, which shows the full "Currently in use" stack (labelled with category names), the OLD colour (labelled with `old_color_name` if given), and the NEW candidate, before asking `Use this colour? (y/n)`. Saying no never applies anything — it returns to wherever you were picking from (custom-hex re-asks for hex; random batch goes back to the same batch; palette redisplays the full menu).
+- `auto_generate_unique_color(existing_colors)` — deliberately **separate**, simpler flow used only by `addCategoryAdmin.py`: no menu, no palette, no "avoid existing?" question (avoidance is automatic, not optional) — just one random suggestion, shown, confirm y/n, regenerate on no. A brand new category doesn't have an "old" colour to compare against, so it doesn't go through `_confirm_pick()`.
+
+### The action scripts
+| Script | Backend endpoint(s) | Notes |
+|---|---|---|
+| `addCategoryAdmin.py` | `POST /categories` | Auto-generates a non-clashing colour (`auto_generate_unique_color`), no picker menu. |
+| `renameCategoryAdmin.py` | `PATCH /categories` (`current_name` + `new_name`) | Numbered category picker instead of typing exact names. |
+| `combineCategoryAdmin.py` | `PATCH /categories/combine` | Pick 2+ categories, pick/type the surviving name. Reuses one existing row (renamed if the target name is new) rather than inserting a fresh row — no need to invent a `display_order`/colour. |
+| `deleteCategoryAdmin.py` | `DELETE /categories` | Reassigns everything currently in the category to `MANUALLY CATEGORISE` before removing the row — never leaves an orphaned reference, since there's no "current name" for a resync to fall back to once the category's gone. |
+| `auditCategoryNamesAdmin.py` | `GET /categories`, `GET /charts/summary`, `GET /transactions` (all read-only) | Compares category name strings across all three sources, flags anything that doesn't match exactly (`repr()`'d, so invisible whitespace differences show up). |
+| `listCategoriesAdmin.py` | `GET /categories` (read-only) | Numbered list with real swatches, `color` and `defaultColor` (only shown if they differ). |
+| `setColorAdmin.py` | `PATCH /categories` (`current_name` + `color`, no `new_name`) | Full `choose_color()` picker. Default untouched. |
+| `setDefaultColorAdmin.py` | `PATCH /categories/default-color` | Same picker. This endpoint already existed in the backend (referenced by name in `schema.sql`'s own comments before this tool existed) but had no CLI until now. Current colour untouched. |
+| `setColorAndDefaultAdmin.py` | Both of the above, back to back | Same picker, one extra "also set this as the default?" prompt. Calls `set_color()` and `set_default_color()` (imported from the other two scripts, not reimplemented) in separate `try` blocks — if the colour change succeeds but the default-update call fails, it says so accurately rather than claiming nothing happened. |
+| `categoryAdminCli.py` | — | Combined menu: logs in once, shows all 9 actions numbered, calls the matching `run_X(token)`, loops back to the menu when that action's own internal loop ends. |
+
+**One deliberate behavior change from folding `auditCategoryNamesAdmin.py` into the shared login:** it used to have NO "username must be `admin`" restriction — any valid login worked. Using the shared `admin_login_prompt()` now applies that same restriction, matching the other tools. Harmless (it's read-only) but worth knowing.
+
+**Bug fixed along the way, not obvious from the outside:** the custom-hex sub-flow inside `choose_color()` originally had every retry (`continue`) jump back to the OUTER menu's `"Colour (number):"` prompt instead of just re-asking for the hex — so a single format mistake (missing `#`) meant retyping a hex value there just failed forever with "Enter a number," no way out except restarting the whole picker. Fixed with its own inner loop, plus a "blank to go back" escape hatch.
+
+---
+
+## Part 5: `schema.sql` synced to live state
+
+The `INSERT INTO categories ... ON CONFLICT (name) DO NOTHING` seed only skips a row whose **name** already exists — it does nothing to stop a name that's since been renamed/combined/deleted from being silently resurrected as a brand-new row on the next fresh deploy or DB recreation. The seed was stale relative to admin-tool activity (renames, a combine, a delete) that had happened since launch. Re-synced to the actual live 13 categories (name, `display_order`, `color`, `default_color` all pulled directly from `GET /categories` via `listCategoriesAdmin.py`).
+
+**Decision made:** `default_color` in the reseed equals `color` (today's value), not the original launch-palette colour — matching the same convention every other category-creation path in this app already follows (`default_color = color` at creation time, see `POST /categories`). A reseed is effectively "recreating" these rows; their default is what they are now, not a historical value the admin has since actively moved away from.
+
+**This does NOT touch the live, currently-running database** — `ON CONFLICT DO NOTHING` means it's purely preventive, protecting the *next* fresh install.
+
+---
+
+## Architecture Notes / Things the Next Person Should Know
+
+- **Two separate "timeout" concepts, don't confuse them:** `CLIENT_TIMEOUT_MS` (this app → our backend) vs `GEMINI_REQUEST_TIMEOUT_MS` (our backend → Gemini). Both live in `useFileProcessor.js` now (moved there deliberately so every adjustable number lives in one file), but they govern completely different network hops.
+- **The cache-tier fuzzy-matching bottleneck flagged in the original `handoff.txt` is now measured, not just theoretical:** production logs showed ~27-29s per 200-transaction cache batch, scaling roughly linearly with batch size (~0.14s/transaction) — a 19-batch run took close to 9 minutes just in the cache tier. This is the pre-existing `O(merchant_count + global_description_count)` per-unrecognized-description cost (`match_known_merchant`, `find_similar_cached_description` in `categoriseAugDB.py`), **not fixed in this round** — chunking mitigates the crash risk, not the raw speed. Still the most likely next bottleneck to address.
+- **`chartDataVersion` is a general "something changed that affects chart totals" signal, not a categorization-specific one** despite its name's history (it was called `categorizationTick` originally) — anything that mutates `transactions`/`category_records` in a way that should be reflected on `ChartsScreen` should bump it, not just the categorization pipeline.
+- **Android sideload build:** `eas build --platform android --profile preview` (per `eas.json`'s `preview` profile: `distribution: internal`, `android.buildType: apk` — directly installable, not a Play Store bundle).
+
+---
+
+## Future Plans / Roadmap (not yet done, not yet decided)
+
+- **Fuzzy-matching cost** — see Architecture Notes above. Still the biggest known remaining performance issue.
+- **`LLM_BATCH_SIZE`/`CACHE_CHUNK_SIZE` are currently lower than their original defaults** (turned down mid-troubleshooting before the real Gemini-thinking-mode cause was found) — worth revisiting now that the actual bottleneck is fixed.
+- **Pending/`NOT_YET_CATEGORISED` transactions can't be selected for deletion** on `ContentsScreen` — same pre-existing `isPending` restriction, not addressed this round.
+- **Movable/reorderable chart stacks** — discussed, not built. Real scope question left open: global (admin-only, `display_order` in DB) vs. per-user personalization (would need a new table/column, more work). Drag-in-chart directly was ruled impractical (bad touch targets); a long-press-to-reorder legend list, mirroring the existing `ContentsScreen` multi-select pattern, was the leading direction if this gets picked back up.
+- **No automated tests exist for any of this round's changes** — same gap the original `handoff.txt` flagged for its own scope. Manual testing so far has been live, on-device, via Expo/Metro logs.
