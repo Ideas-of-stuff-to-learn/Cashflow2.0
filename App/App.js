@@ -17,7 +17,6 @@ If month chart doesn't have 12 months of data it' backfill remaining months data
 */
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AppProvider } from './AppContext.js';
 
 import HomeScreen from './screens/HomeScreen';
