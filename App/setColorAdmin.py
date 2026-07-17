@@ -80,7 +80,7 @@ def run_set_color(token):
             break
 
         print(f'\nNew colour for "{chosen["name"]}" (currently {color_swatch(chosen["color"])} {chosen["color"]}):')
-        new_color = choose_color(existing=categories, old_color=chosen["color"])
+        new_color = choose_color(existing=categories, old_color=chosen["color"], old_color_name=chosen["name"])
 
         try:
             result = set_color(token, chosen["name"], new_color)

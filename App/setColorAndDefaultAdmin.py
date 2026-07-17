@@ -48,7 +48,7 @@ def run_set_color_and_default(token):
             break
 
         print(f'\nNew colour for "{chosen["name"]}" (currently {color_swatch(chosen["color"])} {chosen["color"]}):')
-        new_color = choose_color(existing=categories, old_color=chosen["color"])
+        new_color = choose_color(existing=categories, old_color=chosen["color"], old_color_name=chosen["name"])
 
         also_default = input(
             f'Also set this as the default colour (currently {chosen["defaultColor"]})? (y/n): '

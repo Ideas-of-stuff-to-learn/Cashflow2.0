@@ -83,7 +83,7 @@ def run_set_default_color(token):
             break
 
         print(f'\nNew default colour for "{chosen["name"]}" (currently {color_swatch(chosen["defaultColor"])} {chosen["defaultColor"]}):')
-        new_default = choose_color(existing=categories, old_color=chosen["defaultColor"])
+        new_default = choose_color(existing=categories, old_color=chosen["defaultColor"], old_color_name=chosen["name"])
 
         try:
             result = set_default_color(token, chosen["name"], new_default)

@@ -138,7 +138,7 @@ def generate_random_colors(count, avoid=None, min_distance=45):
     return results
 
 
-def _confirm_pick(candidate, existing=None, old_color=None):
+def _confirm_pick(candidate, existing=None, old_color=None, old_color_name=None):
     """Shared confirmation step for EVERY colour-picking path (palette,
     custom hex, random batch) - shows the full stack of colours
     currently in use, what the specific thing being changed USED to
@@ -153,7 +153,10 @@ def _confirm_pick(candidate, existing=None, old_color=None):
     reference stack); `old_color` is specifically "what THIS ONE
     category was before this change" (there's no such thing when
     adding a brand new category, which is why auto_generate_unique_color()
-    doesn't use this - a new category doesn't have an "old" colour)."""
+    doesn't use this - a new category doesn't have an "old" colour).
+    `old_color_name`, if given, is that category's name - shown
+    alongside the old colour so it's clear WHOSE old colour it was,
+    not just an unlabelled hex value."""
     if existing:
         print("\nCurrently in use:")
         for c in existing:
@@ -161,14 +164,15 @@ def _confirm_pick(candidate, existing=None, old_color=None):
 
     print()
     if old_color:
-        print(f"  Old: {color_swatch(old_color)} {old_color}")
+        name_part = f" ({old_color_name})" if old_color_name else ""
+        print(f"  Old: {color_swatch(old_color)} {old_color}{name_part}")
     print(f"  New: {color_swatch(candidate)} {candidate}")
     print()
 
     return input("Use this colour? (y/n): ").strip().lower() == "y"
 
 
-def _choose_from_random_batch(existing, old_color=None):
+def _choose_from_random_batch(existing, old_color=None, old_color_name=None):
     """The random-generation sub-flow: ask whether to avoid colours
     already in use, ask how many to generate (defaulting to the
     category count), then show a fresh batch every time (including on
@@ -208,6 +212,18 @@ def _choose_from_random_batch(existing, old_color=None):
     while True:
         batch = generate_random_colors(count, avoid=avoid)
 
+        # Shown every time a batch is (re)generated, not just at the
+        # final confirm step - the whole point is comparing options
+        # WHILE browsing/regenerating, not just once after you've
+        # already committed to a number.
+        if existing:
+            print("\nCurrently in use:")
+            for c in existing:
+                print(f"  {color_swatch(c['color'])} {c['color']} - {c['name']}")
+        if old_color:
+            name_part = f" ({old_color_name})" if old_color_name else ""
+            print(f"\n  Old: {color_swatch(old_color)} {old_color}{name_part}")
+
         print("\nNew options:")
         for i, color in enumerate(batch, start=1):
             print(f"  {i}. {color_swatch(color)} {color}")
@@ -222,7 +238,7 @@ def _choose_from_random_batch(existing, old_color=None):
             continue
         if pick.isdigit() and 1 <= int(pick) <= len(batch):
             chosen = batch[int(pick) - 1]
-            if _confirm_pick(chosen, existing=existing, old_color=old_color):
+            if _confirm_pick(chosen, existing=existing, old_color=old_color, old_color_name=old_color_name):
                 return chosen
             print("OK, back to this batch.\n")
             continue
@@ -251,7 +267,7 @@ def auto_generate_unique_color(existing_colors):
         print("Generating another...\n")
 
 
-def choose_color(existing=None, old_color=None):
+def choose_color(existing=None, old_color=None, old_color_name=None):
     """Prints the standard palette (with swatches), plus a "type a
     custom hex" option and a "generate random colours" option, and
     returns whichever hex string was chosen. Shared by every tool that
@@ -272,9 +288,10 @@ def choose_color(existing=None, old_color=None):
     returned by fetch_categories_full() - name + color) currently in
     the app - shown as the comparison stack. `old_color`, if given, is
     specifically what the thing being changed used to be (there's no
-    such thing when adding a brand new category). Callers that don't
-    have either handy can omit them; picking still works, there's just
-    less to compare against."""
+    such thing when adding a brand new category); `old_color_name` is
+    that category's name, shown alongside it. Callers that don't have
+    any of these handy can omit them; picking still works, there's
+    just less to compare against."""
     n_custom = len(COLOR_PALETTE) + 1
     n_random = len(COLOR_PALETTE) + 2
 
@@ -293,7 +310,7 @@ def choose_color(existing=None, old_color=None):
         n = int(choice)
         if 1 <= n <= len(COLOR_PALETTE):
             candidate = COLOR_PALETTE[n - 1]
-            if _confirm_pick(candidate, existing=existing, old_color=old_color):
+            if _confirm_pick(candidate, existing=existing, old_color=old_color, old_color_name=old_color_name):
                 return candidate
             continue  # back to the full menu
         if n == n_custom:
@@ -320,12 +337,12 @@ def choose_color(existing=None, old_color=None):
                     print("That's not a valid hex colour (letters must be 0-9/A-F).\n")
                     continue
 
-                if _confirm_pick(custom, existing=existing, old_color=old_color):
+                if _confirm_pick(custom, existing=existing, old_color=old_color, old_color_name=old_color_name):
                     return custom
                 print("OK, try again.\n")
             continue
         if n == n_random:
-            result = _choose_from_random_batch(existing, old_color=old_color)
+            result = _choose_from_random_batch(existing, old_color=old_color, old_color_name=old_color_name)
             if result is not None:
                 return result
             continue  # cancelled back to this same menu
