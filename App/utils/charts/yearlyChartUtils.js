@@ -57,25 +57,93 @@ export function buildYearStackData(yearly, categoryNames, categoryColors, select
     });
 }
 
-// Same idea, one level down - builds one stacked bar per month, scoped
-// to a single already-selected year.
-export function buildMonthStackData(monthly, year, categoryNames, categoryColors, selectedCategories, onSegmentPress) {
+const DEFAULT_DRILLDOWN_TARGET = 12;
+
+// `monthly` ({year, month, category, total}) already contains every
+// year the account has ever uploaded (see backend.py's /charts/summary -
+// no year filter in the SQL), so all of this is pure client-side work
+// over data that's already sitting in memory. No extra fetch, nothing
+// async, nothing that blocks - same synchronous useMemo pattern as
+// buildYearStackData above.
+//
+// Groups the flat monthly rows into one entry per (year, month), each
+// carrying its own category->total map (Income included - callers that
+// need the income line pull it back out of categoryTotals themselves).
+function groupMonthlyByYearMonth(monthly) {
+    const map = new Map();
+    for (const row of monthly) {
+        const key = row.year * 100 + row.month; // e.g. 202603 - sorts naturally too
+        let entry = map.get(key);
+        if (!entry) {
+            entry = { year: row.year, month: row.month, categoryTotals: {} };
+            map.set(key, entry);
+        }
+        entry.categoryTotals[row.category] = (entry.categoryTotals[row.category] || 0) + row.total;
+    }
+    return [...map.values()];
+}
+
+// Picks which (year, month) bars the month drill-down should show for
+// `year`. Starts with every real month `year` actually has. If that's
+// fewer than `targetCount`, backfills the rest from the CLOSEST prior
+// months available anywhere in history - walking backward in time
+// across year boundaries as needed (year - 1, year - 2, ...) - until
+// either targetCount is reached or history runs out. Never invents
+// data: if there simply isn't `targetCount` months anywhere in the
+// account's history, this returns fewer than targetCount and that's
+// the final answer, not padded with anything fake.
+export function selectMonthsForDrilldown(monthly, year, targetCount = DEFAULT_DRILLDOWN_TARGET) {
     if (year == null) return [];
 
-    const monthsInYear = monthly.filter(r => r.year === year);
-    const totalsByMonth = {};
+    const allEntries = groupMonthlyByYearMonth(monthly);
+
+    const realMonths = allEntries
+        .filter(e => e.year === year)
+        .sort((a, b) => a.month - b.month);
+
+    const needed = targetCount - realMonths.length;
+    if (needed <= 0) return realMonths;
+
+    // Every month strictly before `year`, closest-first (most recent
+    // year/month first) - so taking the first `needed` of these is
+    // exactly "start from the nearest available month and go
+    // backwards", automatically rolling into an earlier year once the
+    // nearer one runs out, with no special-casing needed for that.
+    const backfillPool = allEntries
+        .filter(e => e.year < year)
+        .sort((a, b) => (b.year - a.year) || (b.month - a.month));
+
+    const backfill = backfillPool.slice(0, needed);
+
+    return [...backfill, ...realMonths].sort((a, b) => (a.year - b.year) || (a.month - b.month));
+}
+
+// Same idea as buildYearStackData, one level down - builds one stacked
+// bar per (year, month) entry already selected by
+// selectMonthsForDrilldown. Kept separate from that selection step so
+// callers needing the same set of months for something else (the
+// income line, see useChartData.js) can reuse the exact same entries
+// instead of re-deriving a possibly-different set.
+export function buildMonthStackDataFromEntries(entries, categoryNames, categoryColors, selectedCategories, onSegmentPress) {
+    if (entries.length === 0) return [];
+
+    // Backfilled months come from a different year than the one the
+    // user drilled into, so once backfill has actually happened, a
+    // bare "Mar" label would be ambiguous against another Mar from a
+    // different year. Only add the year suffix when it's actually
+    // needed (more than one calendar year present) - a full, unbackfilled
+    // year keeps the plain month label exactly as before.
+    const spansMultipleYears = new Set(entries.map(e => e.year)).size > 1;
+
     let maxValue = 0;
-    for (const row of monthsInYear) {
-        if (!totalsByMonth[row.month]) totalsByMonth[row.month] = {};
-        totalsByMonth[row.month][row.category] = row.total;
-        if (row.total > maxValue) maxValue = row.total;
+    for (const { categoryTotals } of entries) {
+        for (const value of Object.values(categoryTotals)) {
+            if (value > maxValue) maxValue = value;
+        }
     }
     const minRenderHeight = maxValue * MIN_HEIGHT_FRACTION;
 
-    const months = [...new Set(monthsInYear.map(r => r.month))].sort((a, b) => a - b);
-
-    return months.map(month => {
-        const categoryTotals = totalsByMonth[month] || {};
+    return entries.map(({ year, month, categoryTotals }) => {
         const stacks = categoryNames
             .filter(category => category !== 'Income')
             .map(category => {
@@ -88,8 +156,18 @@ export function buildMonthStackData(monthly, year, categoryNames, categoryColors
                     onPress: () => onSegmentPress({ year, month, category, value: realValue }),
                 };
             });
-        return { label: MONTH_LABELS[month - 1] || String(month), stacks };
+        const monthName = MONTH_LABELS[month - 1] || String(month);
+        const label = spansMultipleYears ? `${monthName} '${String(year).slice(2)}` : monthName;
+        return { label, stacks };
     });
+}
+
+// Convenience wrapper for callers that just want the bars in one call
+// and don't need to reuse the underlying (year, month) selection for
+// anything else.
+export function buildMonthStackData(monthly, year, categoryNames, categoryColors, selectedCategories, onSegmentPress, targetCount = DEFAULT_DRILLDOWN_TARGET) {
+    const entries = selectMonthsForDrilldown(monthly, year, targetCount);
+    return buildMonthStackDataFromEntries(entries, categoryNames, categoryColors, selectedCategories, onSegmentPress);
 }
 
 export function monthLabel(monthNumber) {

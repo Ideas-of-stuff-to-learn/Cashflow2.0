@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { signup } from '../api';
+import { useApp } from '../AppContext.js';
 
 export default function LoginScreen({ navigation }) {
     const [username, setUsername] = useState('');
@@ -8,6 +9,7 @@ export default function LoginScreen({ navigation }) {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const { setIsLoggedIn } = useApp();
 
     async function handleSignup() {
         if (!username.trim() || !password.trim() || !confirmPassword.trim()) {
@@ -26,6 +28,10 @@ export default function LoginScreen({ navigation }) {
         setError(null);
         try {
             await signup(username.trim(), password);
+            // signup() also stores a fresh token (same as login()) - see
+            // api.js - so this is a genuine authenticated session from
+            // here on, same gate as LoginScreen.
+            setIsLoggedIn(true);
             navigation.replace('Home');
         } catch (e) {
             setError(e.message);

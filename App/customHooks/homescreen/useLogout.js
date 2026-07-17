@@ -1,10 +1,12 @@
 import { Alert } from 'react-native';
 import { logout } from '../../api.js';
 import { useNavigation } from '@react-navigation/native';
+import { useApp } from '../../AppContext.js';
 
 export function useLogout(){
-    
+
     const navigation = useNavigation();
+    const { clearSessionState } = useApp();
 
     const handleLogout = () => {
         Alert.alert(
@@ -16,10 +18,15 @@ export function useLogout(){
                     text: "Logout", 
                     style: "destructive",
                     onPress: async () => {
-                        // 1. Clear any local states, auth headers, or tokens here if you are storing them 
-                        // (e.g., AsyncStorage.clear() or resetting a state manager)
+                        // Flip isLoggedIn false and wipe chartSummary
+                        // FIRST - stops AppContext's chartSummary effect
+                        // from firing again on this now-stale session,
+                        // and clears the previous account's numbers out
+                        // of memory before whoever logs in next sees
+                        // anything (see AppContext.js).
+                        clearSessionState();
                         await logout();
-                        // 2. Clear the navigation stack and force-route back to Login
+                        // Clear the navigation stack and force-route back to Login
                         navigation.reset({
                             index: 0,
                             routes: [{ name: 'Login' }],

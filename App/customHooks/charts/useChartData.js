@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useApp } from '../../AppContext.js';
 import { buildDummyTotals, toggleItem, selectAll } from '../../utils/charts/chartUtils.js';
-import { buildYearStackData, buildMonthStackData } from '../../utils/charts/yearlyChartUtils.js';
+import { buildYearStackData, selectMonthsForDrilldown, buildMonthStackDataFromEntries } from '../../utils/charts/yearlyChartUtils.js';
 
 export function useChartData() {
     const { categoryNames, categoryColors, processingStage, chartSummary } = useApp();
@@ -114,21 +114,30 @@ export function useChartData() {
             }));
     }, [yearly]);
 
-    const monthChartData = useMemo(
-        () => buildMonthStackData(summary.monthly, selectedYear, categoryNames, categoryColors, selectedCategories, handleMonthSegmentPress),
-        [summary.monthly, selectedYear, categoryNames, categoryColors, selectedCategories, handleMonthSegmentPress]
+    // If the drilled-into year has fewer than 12 months of data, this
+    // backfills the remaining bars from the closest prior months
+    // available anywhere in history (walking back across year
+    // boundaries as needed), never inventing data if history simply
+    // runs out first. Computed once here and reused for both the bars
+    // and the income line below so the two stay index-aligned - see
+    // selectMonthsForDrilldown in yearlyChartUtils.js for the full
+    // selection logic. Pure client-side work over `summary.monthly`,
+    // which already holds the account's full history (no per-year
+    // fetch), so this is synchronous and doesn't touch the network.
+    const drilldownMonths = useMemo(
+        () => selectMonthsForDrilldown(summary.monthly, selectedYear),
+        [summary.monthly, selectedYear]
     );
 
-    const monthIncomeLineData = useMemo(() => {
-        if (selectedYear == null) return [];
-        const monthsInYear = summary.monthly.filter(r => r.year === selectedYear);
-        const months = [...new Set(monthsInYear.map(r => r.month))].sort((a, b) => a - b);
-        const incomeByMonth = {};
-        monthsInYear.forEach(r => {
-            if (r.category === 'Income') incomeByMonth[r.month] = (incomeByMonth[r.month] || 0) + r.total;
-        });
-        return months.map(m => ({ value: incomeByMonth[m] || 0 }));
-    }, [summary.monthly, selectedYear]);
+    const monthChartData = useMemo(
+        () => buildMonthStackDataFromEntries(drilldownMonths, categoryNames, categoryColors, selectedCategories, handleMonthSegmentPress),
+        [drilldownMonths, categoryNames, categoryColors, selectedCategories, handleMonthSegmentPress]
+    );
+
+    const monthIncomeLineData = useMemo(
+        () => drilldownMonths.map(({ categoryTotals }) => ({ value: categoryTotals['Income'] || 0 })),
+        [drilldownMonths]
+    );
 
     return {
         showingDummyData,

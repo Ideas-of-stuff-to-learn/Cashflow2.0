@@ -29,6 +29,15 @@ export function AppProvider({ children }) {
         setChartDataVersion(t => t + 1);
     }, []);
 
+    // Whether an authenticated session currently exists. Starts false -
+    // AppProvider mounts the whole app, including the Login screen
+    // itself, so anything in this provider that fetches from an
+    // authenticated endpoint (chartSummary, below) must not run until
+    // LoginScreen/SignupScreen explicitly flip this to true right after
+    // a successful login/signup call. useLogout.js flips it back to
+    // false on logout.
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
     // Chart summary lives HERE, at the provider level, not inside
     // ChartsScreen/useChartData - deliberately. ChartsScreen is a stack
     // screen; navigation.goBack() fully UNMOUNTS it, and navigating
@@ -46,6 +55,23 @@ export function AppProvider({ children }) {
     const [chartSummary, setChartSummary] = useState({ yearly: [], monthly: [] });
 
     useEffect(() => {
+        // AppProvider (and this effect) is alive for the ENTIRE app
+        // lifetime, including the Login/Signup screens themselves -
+        // there is no "logged in" gate around AppProvider in App.js.
+        // Without this check, chartDataVersion's initial value (0) was
+        // enough to fire this effect the instant the app opened, well
+        // before any credentials existed, so getChartSummary() 401'd
+        // immediately - burning the retry budget below on a call that
+        // was never going to succeed - and then sat there doing
+        // nothing until something else happened to bump
+        // chartDataVersion (a login flowing into an upload). Now it
+        // simply doesn't run at all until isLoggedIn flips true, which
+        // LoginScreen/SignupScreen do right after their login()/signup()
+        // call succeeds - and because isLoggedIn is itself a dependency
+        // here, that flip is exactly what triggers the first real fetch,
+        // no separate kickoff needed.
+        if (!isLoggedIn) return;
+
         let cancelled = false;
 
         // A failed fetch here used to just warn and give up - fine
@@ -77,10 +103,30 @@ export function AppProvider({ children }) {
         fetchWithRetry();
 
         return () => { cancelled = true; };
-    }, [chartDataVersion]);
+    }, [chartDataVersion, isLoggedIn]);
 
     const categoryNames = categories.map(c => c.name);
     const categoryColors = Object.fromEntries(categories.map(c => [c.name, c.color]));
+
+    // Called by useLogout.js right before it clears the stored token.
+    // Flips isLoggedIn back to false (stopping any further chartSummary
+    // fetches immediately) and wipes every piece of the previous
+    // account's data held in memory - chartSummary, transactions, and
+    // categories. Without this, transactions/categories would sit here
+    // until HomeScreen's own initial-load effect happened to overwrite
+    // them after the next login (see useInitialLoadLogic.js) - fine
+    // most of the time, but a real window where a second account
+    // logging in on the same device could see a flash of the first
+    // account's data before that fetch resolves. Same reasoning as the
+    // chartSummary clear, just applied to the rest of the per-account
+    // state this provider holds.
+    const clearSessionState = useCallback(() => {
+        setIsLoggedIn(false);
+        setChartSummary({ yearly: [], monthly: [] });
+        setTransactions([]);
+        setCategories([]);
+    }, []);
+
     return (
         <AppContext.Provider value={{
             transactions,
@@ -100,6 +146,9 @@ export function AppProvider({ children }) {
             chartDataVersion,
             bumpChartDataVersion,
             chartSummary,
+            isLoggedIn,
+            setIsLoggedIn,
+            clearSessionState,
         }}>
             {children}
         </AppContext.Provider>

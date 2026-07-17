@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { login } from '../api';
+import { useApp } from '../AppContext.js';
 
 export default function LoginScreen({ navigation }) {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const { setIsLoggedIn } = useApp();
 
     async function handleLogin() {
         if (!username.trim() || !password.trim()) {
@@ -17,6 +19,12 @@ export default function LoginScreen({ navigation }) {
         setError(null);
         try {
             await login(username.trim(), password);
+            // Flip this BEFORE navigating, not after - it's what
+            // AppContext's chartSummary effect is waiting on to make
+            // its first fetch (see AppContext.js), and HomeScreen's own
+            // initial-load effect fires the moment it mounts, so this
+            // needs to already be true by the time navigation lands.
+            setIsLoggedIn(true);
             navigation.replace('Home');
         } catch (e) {
             setError(e.message);
