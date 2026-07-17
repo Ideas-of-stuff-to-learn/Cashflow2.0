@@ -1,8 +1,8 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import {Text, View, TouchableOpacity, ScrollView, TextInput, FlatList, Modal, Pressable } from 'react-native';
+import {Text, View, TouchableOpacity, ScrollView, TextInput, FlatList, Modal, Pressable, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../AppContext.js';
-import { resolveCategories, getCategories, getTransactionHistory } from '../api.js';
+import { resolveCategories, getCategories, getTransactionHistory, deleteTransactions } from '../api.js';
 import { NEEDS_MANUAL_REVIEW, NOT_YET_CATEGORISED } from '../checkingName.js';
 import { styles } from '../styles/contentsStyles.js';
 // A transaction's category is stale if it holds a real, non-empty value
@@ -22,7 +22,7 @@ function isStale(transaction, categoryNames) {
 
 export default function ContentsScreen({ navigation, route }) {
     const insets = useSafeAreaInsets();
-    const { transactions, setTransactions, categorising, categoryNames, initialLoading, setCategories } = useApp();
+    const { transactions, setTransactions, categorising, categoryNames, initialLoading, setCategories, bumpChartDataVersion } = useApp();
 
     const [searchText, setSearchText] = useState('');
     const [selectedCategories, setSelectedCategories] = useState(new Set());
@@ -184,6 +184,52 @@ export default function ContentsScreen({ navigation, route }) {
     // Cancel/exitSelectionMode which leaves selection mode entirely.
     function deselectAll() {
         setSelectedIds(new Set());
+    }
+
+    const [deleting, setDeleting] = useState(false);
+
+    // Deletes every currently-selected transaction. Optimistic like the
+    // category-pick flow above: removes them from local state
+    // immediately, then confirms with the backend - if the backend
+    // call fails, puts them back rather than leaving the UI showing
+    // something that isn't actually true.
+    async function handleDeleteSelected() {
+        const ids = [...selectedIds];
+        if (ids.length === 0) return;
+
+        Alert.alert(
+            `Delete ${ids.length} transaction${ids.length === 1 ? '' : 's'}?`,
+            'This cannot be undone.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        const removed = transactions.filter(t => selectedIds.has(t.id));
+
+                        setDeleting(true);
+                        setTransactions(prev => prev.filter(t => !selectedIds.has(t.id)));
+                        exitSelectionMode();
+
+                        try {
+                            await deleteTransactions(ids);
+                            // Deleting changes what charts should
+                            // total up to - same signal used after a
+                            // categorisation chunk lands.
+                            bumpChartDataVersion();
+                        } catch (e) {
+                            console.warn('Delete failed:', e.message);
+                            // Put them back - the backend never
+                            // actually removed them, so neither should we.
+                            setTransactions(prev => [...prev, ...removed]);
+                        } finally {
+                            setDeleting(false);
+                        }
+                    },
+                },
+            ],
+        );
     }
 
     // --- Shared category-pick handler for both single and bulk resolve.
@@ -465,6 +511,13 @@ export default function ContentsScreen({ navigation, route }) {
                             disabled={selectedIds.size === 0}
                         >
                             <Text style={styles.selectionButtonTextPrimary}>Change category</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.selectionButtonSmall, styles.selectionButtonDanger, (selectedIds.size === 0 || deleting) && styles.selectionButtonDisabled]}
+                            onPress={handleDeleteSelected}
+                            disabled={selectedIds.size === 0 || deleting}
+                        >
+                            <Text style={styles.selectionButtonTextDanger}>Delete</Text>
                         </TouchableOpacity>
                     </View>
                 </View>

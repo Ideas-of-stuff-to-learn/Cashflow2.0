@@ -15,14 +15,18 @@ export function AppProvider({ children }) {
     // (idle -> parsing -> checkingCache -> waitingForLLM -> done) and
     // doesn't change per chunk - useFileProcessor.js can work through
     // many separate cache/LLM batches while stuck on the SAME stage
-    // value the whole time. Anything that needs to know "new real data
-    // just landed in the DB" (see the chartSummary effect below) needs
-    // something finer-grained than processingStage - this ticks up
-    // once per chunk, cache or LLM, regardless of which stage it
-    // happened in.
-    const [categorizationTick, setCategorizationTick] = useState(0);
-    const bumpCategorizationTick = useCallback(() => {
-        setCategorizationTick(t => t + 1);
+    // value the whole time. Anything that needs to know "the DB
+    // changed in a way that affects chart totals" (see the
+    // chartSummary effect below) needs something finer-grained than
+    // processingStage - this ticks up once per categorisation chunk
+    // (cache or LLM), AND on any other DB-changing action that should
+    // refresh the charts (e.g. deleting transactions - see
+    // ContentsScreen.js). Not tied to categorisation specifically
+    // despite the name's history - anything that changes what charts
+    // should show bumps this.
+    const [chartDataVersion, setChartDataVersion] = useState(0);
+    const bumpChartDataVersion = useCallback(() => {
+        setChartDataVersion(t => t + 1);
     }, []);
 
     // Chart summary lives HERE, at the provider level, not inside
@@ -73,7 +77,7 @@ export function AppProvider({ children }) {
         fetchWithRetry();
 
         return () => { cancelled = true; };
-    }, [categorizationTick]);
+    }, [chartDataVersion]);
 
     const categoryNames = categories.map(c => c.name);
     const categoryColors = Object.fromEntries(categories.map(c => [c.name, c.color]));
@@ -93,8 +97,8 @@ export function AppProvider({ children }) {
             setInitialLoading,
             processingStage,
             setProcessingStage,
-            categorizationTick,
-            bumpCategorizationTick,
+            chartDataVersion,
+            bumpChartDataVersion,
             chartSummary,
         }}>
             {children}

@@ -1,4 +1,5 @@
 import os
+import re
 
 from flask import Flask, request, jsonify
 from flask_limiter import Limiter
@@ -268,6 +269,72 @@ def combine_categories():
         conn.rollback()
         app.logger.error(f'Category combine failed: {e}')
         return jsonify({'error': 'Category combine failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
+@app.route('/categories', methods=['POST'])
+@jwt_required()
+@limiter.limit("20 per day")
+def create_category():
+    """Adds a brand new category - admin-only, same reasoning as
+    rename/combine/recolour: this is global, shared structure.
+
+    Unlike rename/combine, this needs no cascade anywhere: nothing
+    references this name yet by definition, so there's nothing else
+    to update. load_categories() (categoriseAugDB.py) re-queries the
+    categories table fresh on every /categorize/llm call with no
+    caching of its own, so a newly added category is available to the
+    LLM as a valid target immediately, on the very next categorisation
+    request - no cache to invalidate, no restart needed.
+
+    display_order is auto-assigned as one past the current max, so new
+    categories always land at the end of the list rather than needing
+    the caller to know/guess a free slot. color is required; default_color
+    is seeded identical to it, same convention as the schema's initial
+    seed data - "reset to default" will revert to whatever color was
+    given here until changed via the separate default-color admin tool.
+    """
+    data = request.get_json() or {}
+    name = (data.get('name') or '').strip()
+    color = (data.get('color') or '').strip()
+
+    if not name:
+        return jsonify({'error': 'name is required'}), 400
+    if not color:
+        return jsonify({'error': 'color is required'}), 400
+    if not re.match(r'^#[0-9A-Fa-f]{6}$', color):
+        return jsonify({'error': 'color must be a hex string like #3D8B5F'}), 400
+    if name == NEEDS_MANUAL_REVIEW:
+        return jsonify({'error': f'"{name}" is a reserved system value, not a real category'}), 400
+
+    current_user = int(get_jwt_identity())
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT username FROM users WHERE id = %s", (current_user,))
+            row = cur.fetchone()
+            if not row or row[0] != "admin":
+                return jsonify({'error': 'Not authorized'}), 403
+
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM categories WHERE name = %s", (name,))
+            if cur.fetchone():
+                return jsonify({'error': f'Category "{name}" already exists'}), 409
+
+            cur.execute("SELECT COALESCE(MAX(display_order), 0) FROM categories")
+            next_order = cur.fetchone()[0] + 1
+
+            cur.execute(
+                "INSERT INTO categories (name, display_order, color, default_color) VALUES (%s, %s, %s, %s)",
+                (name, next_order, color, color),
+            )
+
+        conn.commit()
+        return jsonify({'status': 'ok', 'name': name, 'color': color, 'display_order': next_order}), 201
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Category creation failed: {e}')
+        return jsonify({'error': 'Category creation failed - please try again'}), 500
     finally:
         release_connection(conn)
 
@@ -720,6 +787,53 @@ def get_transactions():
     except Exception as e:
         app.logger.error(f'Fetching transaction history failed for user {current_user}: {e}')
         return jsonify({'error': 'Failed to fetch transaction history'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/transactions', methods=['DELETE'])
+@jwt_required()
+@limiter.limit("100 per day")
+def delete_transactions():
+    """Deletes one or more of the CURRENT USER's own transactions by id.
+
+    Not admin-only, unlike the category endpoints - this is a personal
+    action on your own data, not global shared structure. Scoped by
+    `user_id = current_user` in the WHERE clause (not just `id = ANY`)
+    so there's no way to delete another user's rows even by guessing
+    ids - any id that doesn't belong to you is silently ignored rather
+    than erroring, same as it just wouldn't exist from your perspective.
+
+    Returns how many rows actually got deleted, which can legitimately
+    be less than len(ids) if the caller's local state was stale (e.g.
+    something already deleted in another session) - not treated as an
+    error, same reasoning as skipped rows in /categorize/resolve.
+    """
+    data = request.get_json() or {}
+    ids = data.get('ids')
+
+    if not ids or not isinstance(ids, list):
+        return jsonify({'error': 'ids must be a non-empty list'}), 400
+    try:
+        ids = [int(i) for i in ids]
+    except (TypeError, ValueError):
+        return jsonify({'error': 'ids must be a list of integers'}), 400
+
+    current_user = int(get_jwt_identity())
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM transactions WHERE user_id = %s AND id = ANY(%s)",
+                (current_user, ids),
+            )
+            deleted_count = cur.rowcount
+        conn.commit()
+        return jsonify({'status': 'ok', 'deleted': deleted_count}), 200
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Deleting transactions failed for user {current_user}: {e}')
+        return jsonify({'error': 'Delete failed - please try again'}), 500
     finally:
         release_connection(conn)
 

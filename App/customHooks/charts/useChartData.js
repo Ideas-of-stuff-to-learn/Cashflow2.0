@@ -24,7 +24,7 @@ export function useChartData() {
         && (processingStage === 'parsing' || processingStage === 'checkingCache' || processingStage === 'waitingForLLM');
 
     // chartSummary itself now lives in AppContext (see the effect
-    // there, keyed on categorizationTick) - it stays fresh in the
+    // there, keyed on chartDataVersion) - it stays fresh in the
     // background regardless of whether this screen is even mounted,
     // so there's nothing left to fetch here. This hook just reads it.
 

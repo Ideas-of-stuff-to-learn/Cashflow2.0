@@ -158,6 +158,23 @@ export async function getTransactionHistory() {
     const data = await parseJsonResponse(response, 'Failed to fetch transaction history');
     return data.transactions;
 }
+
+export async function deleteTransactions(ids) {
+    const token = await getToken();
+    if (!token) throw new Error('Not logged in');
+
+    const response = await fetch(`${BASE_URL}/transactions`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ids }),
+    });
+
+    const data = await parseJsonResponse(response, 'Delete failed');
+    return data.deleted;
+}
 export async function signup(username, password) {
     const response = await fetch(`${BASE_URL}/auth/signup`, {
         method: 'POST',
