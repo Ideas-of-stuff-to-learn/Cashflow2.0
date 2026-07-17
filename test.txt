@@ -1,0 +1,84 @@
+# Testing Strategy — Plan, Not Yet Implemented
+
+**Scope of this doc:** the whole repo, conceptually. Nothing described here exists yet - this is a plan arrived at through discussion, kept deliberately separate from `handoff.txt`/`handoff2.txt`/`handoff3.txt` (which document work that's actually been done) so it doesn't get confused with completed work.
+
+Every prior handoff doc has independently flagged the same gap in its own Roadmap section: no automated tests exist anywhere in this repo. Verification so far has all been manual - Supabase SQL editor delete/recreate cycles, live on-device testing via Expo/Metro logs, synthetic Node scripts run once in a chat session and thrown away. This doc is about turning that into something that runs itself, every time, forever.
+
+---
+
+## What the database actually is, for anyone unsure
+
+`App/API/database.py` connects via `DATABASE_SESSION_POOLER` - that's Supabase's **connection pooler** (PgBouncer-based), sitting in front of a real, ordinary Postgres instance. Supabase's "database" product IS Postgres; it doesn't run its own engine. There are two pooling layers in play: Supabase's pooler on the far side of that connection string, and a second `psycopg2.pool.SimpleConnectionPool` on this app's own side of it (per the comment already in `database.py` - avoids opening/closing a raw connection per request even though the pooler underneath already pools).
+
+This matters for testing because it means: every table, every `schema.sql` statement, every raw SQL query written anywhere in `backend.py` is standard Postgres SQL, portable to any other Postgres instance - including a throwaway local or Docker one used only for tests.
+
+---
+
+## The three tiers
+
+### Tier 1 — Pure functions (start here)
+
+The highest value-per-hour of anything on this list, and the safest to build first since none of it touches a network or a database. Anything that's already a plain "data in, data out" function with no side effects qualifies:
+
+**Frontend (Jest):**
+- `selectMonthsForDrilldown`, `groupMonthlyByYearMonth`, `buildMonthStackDataFromEntries` (`yearlyChartUtils.js`) - the four backfill scenarios already exercised informally in chat (full year / single-prior-year backfill / multi-year rollover / insufficient history) become the first four real test cases, verbatim.
+- `buildYearStackData`, `monthLabel` (`yearlyChartUtils.js`)
+- `buildDummyTotals`, `toggleItem`, `selectAll` (`chartUtils.js`)
+
+**Backend (pytest, no DB needed):**
+- `dedup_key` construction and `_sanitize_cell()` (`backend.py`) - the formula-injection stripping (`=`, `+`, `-`, `@`, tab, CR) and the "sanitization must never touch the dedup_key itself" invariant from `handoff.txt` are exactly the kind of thing a test locks in permanently instead of relying on a comment to prevent regression.
+- The `is_retryable` check in `categorize_batch`'s exception handler (`categoriseAugDB.py`) - string-matching `"429"`/`"503"`/`"504"`/`"UNAVAILABLE"`/`"DEADLINE_EXCEEDED"` against an error message is exactly the kind of logic that's easy to accidentally narrow later without noticing.
+- `color_distance()`, `generate_random_colors()` (`adminCliCommon.py`) - pure math, deterministic with a seeded RNG.
+
+None of this needs mocking, a database, or Gemini. It's genuinely just: pick a function, write 3-5 input/expected-output pairs, done.
+
+### Tier 2 — Backend endpoints against a real, disposable Postgres
+
+**Not "faking" the database** - with raw `psycopg2` and hand-written SQL (no ORM), there's no clean seam to swap in an in-memory fake without reimplementing SQL semantics, which isn't worth doing. The real approach: a second, throwaway Postgres instance used only for tests (a local install or a Docker container in CI - NOT the real Supabase project), with `schema.sql` applied fresh before the test run, and each test wrapped in a transaction that gets rolled back afterward (or tables truncated between tests) so nothing needs manual cleanup and tests can't pollute each other.
+
+Flask's own `app.test_client()` can hit real endpoints (`/api/parse-csv`, `/categorize/cached`, `PATCH /categories`, `DELETE /transactions`, etc.) without a running server process, using that test database underneath instead of the real one (point `DATABASE_SESSION_POOLER` at the test instance in the test environment's `.env`).
+
+This is where the specific untested scenarios flagged in `handoff.txt`'s and `handoff2.txt`'s own roadmaps stop being "manual testing so far" and become permanent, fast, repeatable tests:
+- The three dedup/upload-count scenarios: exact re-upload (zero new keys, doesn't count), multi-file combine with overlap, partial-overlap multi-month file.
+- The rename-then-categorize-new-transaction path - does `patch_global_category_rename`/`patch_merchants_category_rename` actually keep the in-memory cache correct after a `PATCH /categories` rename, with no DB re-read.
+- Cache warm/cold behavior - one `COLD LOAD` on first request in a process, `WARM` on every request after, without needing a real redeploy to verify (the manual version of this test was literally deleting and recreating the admin account via Supabase's SQL editor).
+- `DELETE /transactions`'s `user_id` scoping - confirm a user genuinely cannot delete another user's rows even by guessing/supplying their ids.
+
+### Tier 3 — Gemini, actually mocked
+
+Unlike Tier 2, this one IS a real mock, not a disposable-instance workaround - `categorize_batch` (`categoriseAugDB.py`) has exactly one call to `client.models.generate_content(...)`. Swap that specific call via `unittest.mock.patch` for a stub returning canned responses - a clean success, a `504`, a malformed-JSON body - and every test runs instantly, for free, with zero real API calls and zero risk of eating into the 20/day rate limit mentioned in `handoff2.txt`.
+
+What this tier should actually verify:
+- A `504` retries with the documented exponential backoff (2s, 4s) instead of falling straight to hard failure.
+- `thinking_config: {"thinking_budget": 0}` is actually present in the request config (this is the fix for the flat ~27-30s latency regardless of batch size, documented in `handoff2.txt` Part 1 Fix 3 - a silent regression here would be easy to miss without a test explicitly checking for it).
+- `gemini_timeout_ms` gets clamped to 1000-90000 and `batch_size` to 1-2000 server-side, regardless of what a client sends.
+- A chunk failure correctly marks that chunk and every not-yet-attempted chunk `NOT_YET_CATEGORISED` while keeping whatever already succeeded - the recovery path from `handoff2.txt` Part 1 Fix 5.
+
+The cache tiers (`run_cache_tiers` in `categoriseAPI2.py`) don't need Gemini mocked at all for their own tests - they're pure Postgres reads/fuzzy-matching against a seeded `category_records`/`merchants` table, so those tests belong in Tier 2 instead.
+
+### Tier 4 — Frontend components/screens (lowest priority, optional)
+
+The honest tier. Two real options, both with real costs:
+- **React Native Testing Library** - renders components in a JS-DOM-like environment. Works reasonably well for logic-heavy pieces, but native modules (`expo-secure-store`, the community `Slider`) need manual mocking and can be flaky to set up.
+- **Detox or Maestro** - true on-device/simulator end-to-end testing. The most realistic option, and the most expensive: real builds, real simulators, meaningfully slower in CI, more moving parts to keep green.
+
+Given this is a solo/small project on Expo, the better return is usually NOT full component or E2E coverage - it's making sure logic keeps living in hooks/utils (which this codebase already does well: `yearlyChartUtils.js`, `chartUtils.js`, the whole `customHooks/` split) so THAT logic is covered by Tier 1 directly, and leaving screens themselves to a thin smoke test at most ("does `HomeScreen` render without throwing, given a fake `AppContext` value") rather than deep interaction testing. Full Detox/Maestro E2E is worth reconsidering later if this app grows a team or ships to a wider audience, not before.
+
+---
+
+## Suggested order of attack
+
+1. Jest on `yearlyChartUtils.js` + `chartUtils.js` - the four backfill scenarios already exist informally, just need saving as real `.test.js` files.
+2. pytest on the Tier 1 backend pure functions (`_sanitize_cell`, `is_retryable`, `adminCliCommon.py`'s color functions) - no DB needed, fast to set up.
+3. Docker Postgres locally, `schema.sql` applied, first Tier 2 tests: the three dedup scenarios + the rename-patch path, since those are the most concretely specified in `handoff.txt` already.
+4. Tier 3 - mock Gemini, test the retry/timeout/thinking-budget/`NOT_YET_CATEGORISED` logic.
+5. CI (GitHub Actions works fine here - free tier, and spinning up a Postgres service container for the Tier 2 suite is a standard, well-documented setup) running 1-4 on every push.
+6. Tier 4, if and when it's actually worth the setup cost for this project's size - not before.
+
+---
+
+## Open questions (not yet decided)
+
+- Docker Postgres in CI vs. a second free-tier Supabase project used only for tests - Docker is more standard and doesn't touch Supabase quota at all, but a second Supabase project would be closer to production Postgres config (extensions, defaults) if that ever matters here. Leaning Docker, not settled.
+- Whether Tier 2 tests should run against `schema.sql` applied fresh every run, or a maintained fixture/seed file separate from the production seed - `schema.sql`'s own seed data is documented in `handoff2.txt` Part 5 as being kept in sync with live category state, which is a different concern than what a test fixture needs (test data should probably be deliberately minimal and hand-crafted, not a mirror of production categories).
+- No decision yet on a coverage target or a "tests required before merge" policy - this doc is about what's technically feasible and worth building, not about process.

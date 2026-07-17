@@ -1,0 +1,102 @@
+# Handoff — Month Drill-Down Backfill, Login-Gated Chart Fetching, Session Boundary Data Clearing
+
+**Scope of this doc:** `App/AppContext.js`, `App/screens/LoginScreen.js`, `App/screens/SignupScreen.js`, `App/customHooks/homescreen/useLogout.js`, `App/utils/charts/yearlyChartUtils.js`, `App/customHooks/charts/useChartData.js`
+
+This is a separate document from `handoff.txt` (upload counting / cache-warming) and `handoff2.txt` (categorization robustness, live charts, deletion, admin CLI) - both of those docs' scopes are still valid and untouched by this round. This one picks up from roughly where handoff2.txt left off.
+
+---
+
+## READ THIS FIRST
+
+**The repo is the source of truth. This document can be, and eventually will be, stale.**
+
+1. Pull the current version of every file listed above directly from `main` before changing anything here - this doc's code snippets and reasoning are a snapshot, not a spec.
+2. If the repo contradicts this doc, **the repo wins.**
+3. Don't make large/structural changes in this area without explaining the impact first.
+4. **After a major change here, add a new dated section below rather than rewriting history.**
+
+---
+
+## Part 1: Month drill-down now backfills to 12 bars
+
+### The original problem
+`App.js`'s own task-list comment flagged this directly: *"If month chart doesn't have 12 months of data it'll backfill remaining months data from previous yr"*. Before this round, drilling into a year with fewer than 12 months of real data just showed however many months existed and nothing else - e.g. a year with only Feb and Mar produced a 2-bar chart.
+
+### Solution (`yearlyChartUtils.js`)
+`buildMonthStackData` (the old single function) was split into three pieces:
+
+- `groupMonthlyByYearMonth(monthly)` - groups the flat `{year, month, category, total}` rows into one entry per `(year, month)`, each carrying its own category-total map (including `Income` - callers needing the income line pull it back out themselves rather than this function special-casing it).
+- `selectMonthsForDrilldown(monthly, year, targetCount = 12)` - the actual backfill logic. Starts with every real month `year` has. If that's fewer than `targetCount`, backfills the remainder from the CLOSEST prior months available anywhere in history: every `(year, month)` strictly before the selected year, sorted most-recent-first, take however many are needed off the front of that list. Sorting purely by recency (not "look at year-1, then year-2, ...") means it automatically rolls across an empty or partial year without any special-casing - if the immediately prior year has only 2 months, the next-closest months naturally come from two years back, no extra logic needed for that case. Returns the combined set sorted chronologically ascending. **Never invents data** - if the account's entire history has fewer than `targetCount` months total, this returns fewer than `targetCount` and that's final, no padding.
+- `buildMonthStackDataFromEntries(entries, ...)` - turns an already-selected list of entries into stacked-bar chart data (the old function's actual bar-building logic, unchanged). Kept separate from selection so other callers (the income line) can reuse the exact same selected months instead of re-deriving a possibly-different set.
+- `buildMonthStackData(monthly, year, ...)` - thin wrapper combining the two, kept for any caller that just wants bars in one call.
+
+**Labeling:** when backfill pulls in months from more than one calendar year, each bar gets a `'24`/`'26`-style year suffix (e.g. `Mar '24`) so two different Marches aren't ambiguous. An untouched, unbackfilled full year keeps the plain `Jan`/`Feb`/etc. labels exactly as before - the suffix only appears when it's actually needed.
+
+### `useChartData.js` - keeping bars and the income line aligned
+`monthIncomeLineData` used to be derived independently, re-filtering `summary.monthly` by year on its own. Left alone, it would have drifted out of sync with the now-backfilled bars (different month set, different order). Fixed by computing the backfill selection once (`drilldownMonths`, via `selectMonthsForDrilldown`) and feeding both `monthChartData` and `monthIncomeLineData` from that same array, so they're guaranteed index-aligned.
+
+### Performance
+`summary.monthly` (fetched via `/charts/summary`, see `backend.py`) already contains the account's **entire** history in one response - there's no year filter in that endpoint's SQL. So all of the above is pure synchronous client-side grouping/sorting over data already sitting in memory. No new network call, nothing async, nothing that blocks - same pattern as the existing `buildYearStackData`.
+
+### Verification
+Tested against synthetic data covering all four shapes: a full unbackfilled year (plain labels, no backfill triggered), a single-prior-year backfill (the original motivating example - a year with only 2 real months backfilled from the closest prior year), a backfill that rolls across two prior years (a thin middle year exhausted, rolling automatically into the year before it), and the "not enough history anywhere" case (fewer than 12 total months ever - returns what exists, no fake data).
+
+Five test CSVs were also generated (years 2014, 2015, 2016, 2017, 2019 - 2018 deliberately has no file at all) with intentionally gappy month coverage designed to exercise all of the above through the real upload -> categorize -> chart flow, not just synthetic unit-level data.
+
+---
+
+## Part 2: `chartSummary` no longer fetches before login
+
+### The original problem
+`chartSummary`'s fetch effect lives in `AppContext`, which mounts for the app's entire lifetime - including the Login and Signup screens themselves. There is no auth gate around `AppProvider` in `App.js`. This meant `chartDataVersion`'s initial value (`0`) was enough to fire the fetch effect the instant the app opened, well before any credentials existed. `getChartSummary()` failed immediately (unauthenticated), which burned the 3-attempt retry-with-backoff budget on a call that could never succeed - and then the effect sat dead, since nothing further would re-trigger it until something else happened to bump `chartDataVersion` (a login flowing into an upload or category change). This is why the chart summary looked "stuck" and only started working after some unrelated action.
+
+### Solution (`AppContext.js`)
+Added an `isLoggedIn` boolean state, defaulting `false`. The chart-summary fetch effect now starts with `if (!isLoggedIn) return;` and lists `isLoggedIn` as a dependency alongside `chartDataVersion` - so flipping it to `true` is itself what triggers the very first real fetch attempt, no separate kickoff call needed anywhere else.
+
+`isLoggedIn` is flipped `true` via `completeLogin()` (see Part 3), called by `LoginScreen`/`SignupScreen` right after their `login()`/`signup()` call succeeds - and called BEFORE `navigation.replace('Home')`, since `HomeScreen`'s own initial-load effect fires the moment it mounts and needs this already true by then. It's flipped back `false` via `endSession()`, called by `useLogout.js`.
+
+---
+
+## Part 3: Session-boundary data clearing, then refined into a same-user fast path
+
+### First pass - unconditional clear on logout
+Initial fix: a `clearSessionState()` function, called from `useLogout.js`, that immediately wiped `chartSummary`, `transactions`, and `categories`, and flipped `isLoggedIn` false - all at logout time. Reasoning: on a shared device, a second account logging in right after the first logs out could otherwise briefly render the first account's data (whatever was still sitting in `AppContext` state) before the post-login fetch overwrote it. `chartSummary` was the first piece identified; `transactions`/`categories` were added immediately after, once it was clear they were an equally sensitive gap - `transactions` in particular is raw line-item data (merchant names, amounts), more sensitive than the aggregated `chartSummary` totals.
+
+### Refined - "Version A": decide at the NEXT login, not at logout
+The unconditional-clear approach had a real cost: it blanked `HomeScreen` to empty for a beat on **every single logout**, even the overwhelmingly common case of the same person logging straight back in - because the post-login fetch was always going to overwrite the data regardless of whether it had been pre-emptively cleared. The clear was pure UX cost with zero corresponding benefit in the same-user case; it only matters when the *next* logged-in identity differs from the previous one.
+
+This reframed the whole feature: the actual backend fetch on login should never be skipped (nothing here should trust old client-side data as the final answer - that would break the same "always refetch, never trust stale state" principle `chartDataVersion` was built around in handoff2.txt). What changes is only what's shown **during the gap** while that fetch is in flight.
+
+**Final design:**
+- `lastLoggedInUsernameRef` (`AppContext.js`) - a `useRef`, not state, since nothing needs to re-render off it; it's read exactly once per login. Starts `null`. Not persisted anywhere (no SecureStore, no disk) - resets to `null` on every app relaunch, which is deliberately the intended scope: "does this login match the last one *in this running app instance*," not anything that needs to survive a restart.
+- `completeLogin(username)` - called by `LoginScreen`/`SignupScreen` right after a successful `login()`/`signup()` call.
+  - If `username !== lastLoggedInUsernameRef.current`: wipes `chartSummary`, `transactions`, and `categories` immediately and synchronously, BEFORE `isLoggedIn` even flips true - a different account must never render a single frame of the previous account's data.
+  - If it matches: leaves everything as-is. The normal post-login fetch overwrites it with current data shortly after anyway (same as any other refresh in this app), so there's nothing to protect against, and skipping the wipe avoids the unnecessary blank-screen flash.
+  - Either way, updates `lastLoggedInUsernameRef` to the new username and flips `isLoggedIn` true.
+- `endSession()` - called by `useLogout.js`. Now only flips `isLoggedIn` false. No longer clears any data itself - that decision has moved entirely to the next `completeLogin` call.
+- The raw `setIsLoggedIn` setter is no longer exposed through context (it previously was, and both screens called it directly) - only `completeLogin`/`endSession` are, so the clear-vs-keep decision can't accidentally be bypassed by some future call site that just flips the flag directly.
+
+**Comparison is case-sensitive**, matching `backend.py` exactly: neither `/auth/login` nor `/auth/signup` lowercase or otherwise normalize usernames beyond a `.strip()` at signup - `WHERE username = %s` is an exact string match. Lowercasing client-side would incorrectly treat two genuinely distinct accounts (`"Bob"` vs `"bob"`) as the same person and leave one account's data showing under the other's session.
+
+---
+
+## Key Discussion / Decisions Made Along the Way
+
+- **Why move the clear from logout-time to login-time instead of just leaving it unconditional:** the backend fetch on login always runs regardless of whether old data was cleared first - so clearing is purely about what's rendered during the loading gap, not about the eventual correctness of the data (that's guaranteed by the fetch either way). Framed that way, "always clear" is pure unnecessary UX cost in the by-far-most-common same-user case, while "never clear" is a genuine privacy gap in the shared-device case. Comparing usernames at login gets both properties instead of picking one.
+- **Why a ref, not state, for `lastLoggedInUsernameRef`:** nothing in the UI ever needs to react to this value changing - it's write-once-per-login, read-once-per-next-login. Making it state would just cause an unnecessary extra render with no visible benefit.
+- **Why not persist the last-logged-in username to SecureStore/disk:** explicitly out of scope for this round - "per running app instance" was the intended scope. Persisting it would extend the same-user fast path across app restarts too, which is a different (larger) decision - `App.js`'s `initialRouteName` is always `'Login'` regardless of any stored token, so "restart with a still-valid token" doesn't currently skip the login screen at all, and folding this into that would need its own separate reasoning pass.
+
+---
+
+## Architecture Notes / Things the Next Person Should Know
+
+- **`isLoggedIn` is now the gate for anything in `AppContext` that assumes an authenticated session exists.** Any future addition here that fetches from an authenticated endpoint should follow the same pattern used by the `chartSummary` effect - check `isLoggedIn`, list it as an effect dependency - rather than assuming `AppProvider` being mounted means someone is logged in. It doesn't; it mounts before Login too.
+- **`completeLogin`/`endSession` are the only two things allowed to touch `isLoggedIn` from outside `AppContext.js`.** The raw setter isn't exposed anymore specifically so this invariant lives in one place instead of depending on every call site remembering the clear-vs-keep comparison.
+- **`transactions`/`categories`/`chartSummary` are the three pieces of state this pattern currently covers.** If any new per-account state gets added to `AppContext` later (a saved filter set, a draft note, anything user-specific), it needs to be added to `completeLogin`'s clear branch too - otherwise it'll silently leak between accounts on a shared device, the exact class of bug this round fixed.
+
+---
+
+## Future Plans / Roadmap (not yet done, not yet decided)
+
+- **`lastLoggedInUsernameRef` doesn't survive an app restart, by design** (see Key Discussion above). If that's ever wanted, it would need to move into `SecureStore` alongside `jwt_token`, and would need its own reasoning pass about what "app relaunched with a still-valid token" should even do given `App.js` currently always opens on `Login` regardless.
+- **No automated tests exist yet for any of Parts 1-3** - same gap both prior handoff docs flagged for their own scopes. See the separate `test.txt` for the testing strategy under discussion (not yet built).
