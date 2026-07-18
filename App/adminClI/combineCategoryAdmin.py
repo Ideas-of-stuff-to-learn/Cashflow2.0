@@ -18,7 +18,7 @@ run_combine(token).
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_categories, admin_login_prompt
+from adminCliCommon import BASE_URL, fetch_categories, admin_login_prompt,check_response
 
 
 def combine_categories(token, names, new_name):
@@ -27,9 +27,7 @@ def combine_categories(token, names, new_name):
         headers={"Authorization": f"Bearer {token}"},
         json={"names": names, "new_name": new_name},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Combine failed"))
+    data = check_response(response, "Combine failed")
     return data
 
 

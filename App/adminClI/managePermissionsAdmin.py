@@ -27,7 +27,7 @@ run_manage_permissions(token).
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_users, fetch_permissions, choose_from_list, admin_login_prompt
+from adminCliCommon import BASE_URL, fetch_users, fetch_permissions, choose_from_list, admin_login_prompt,check_response
 
 
 def set_permission_override(token, user_id, permission_key, granted):
@@ -37,9 +37,7 @@ def set_permission_override(token, user_id, permission_key, granted):
         headers={"Authorization": f"Bearer {token}"},
         json={"permission": permission_key, "granted": granted},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Permission override failed"))
+    data = check_response(response, "Permission override failed")
     return data["user"]
 
 

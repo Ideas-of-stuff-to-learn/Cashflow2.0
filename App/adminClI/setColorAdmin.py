@@ -23,7 +23,7 @@ run_set_color(token).
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_categories_full, color_swatch, choose_color, admin_login_prompt
+from adminCliCommon import BASE_URL, fetch_categories_full, color_swatch, choose_color, admin_login_prompt, check_response
 
 
 def set_color(token, name, color):
@@ -37,9 +37,7 @@ def set_color(token, name, color):
         headers={"Authorization": f"Bearer {token}"},
         json={"current_name": name, "color": color},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Colour update failed"))
+    data = check_response(response, "Colour update failed")
     return data
 
 

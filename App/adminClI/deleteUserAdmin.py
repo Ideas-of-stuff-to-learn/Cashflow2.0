@@ -28,7 +28,7 @@ run_delete_user(token).
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_me, fetch_users, choose_from_list, admin_login_prompt
+from adminCliCommon import BASE_URL, fetch_me, fetch_users, choose_from_list, admin_login_prompt,check_response
 
 
 def delete_user(token, user_id):
@@ -36,9 +36,7 @@ def delete_user(token, user_id):
         f"{BASE_URL}/admin/users/{user_id}",
         headers={"Authorization": f"Bearer {token}"},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "User deletion failed"))
+    data = check_response(response, "User deletion failed")
     return data
 
 

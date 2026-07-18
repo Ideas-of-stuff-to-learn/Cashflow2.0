@@ -20,7 +20,7 @@ run_add(token).
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_categories_full, auto_generate_unique_color, admin_login_prompt
+from adminCliCommon import BASE_URL, fetch_categories_full, auto_generate_unique_color, admin_login_prompt,check_response
 
 
 def create_category(token, name, color):
@@ -29,9 +29,7 @@ def create_category(token, name, color):
         headers={"Authorization": f"Bearer {token}"},
         json={"name": name, "color": color},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Category creation failed"))
+    data = check_response(response, "Category creation failed")
     return data
 
 

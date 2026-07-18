@@ -26,7 +26,7 @@ run_set_default_color(token).
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_categories_full, color_swatch, choose_color, admin_login_prompt
+from adminCliCommon import BASE_URL, fetch_categories_full, color_swatch, choose_color, admin_login_prompt,check_response
 
 
 def set_default_color(token, name, default_color):
@@ -38,9 +38,7 @@ def set_default_color(token, name, default_color):
         headers={"Authorization": f"Bearer {token}"},
         json={"current_name": name, "default_color": default_color},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Default colour update failed"))
+    data = check_response(response, "Default colour update failed")
     return data
 
 

@@ -26,7 +26,7 @@ import getpass
 
 import requests
 
-from adminCliCommon import BASE_URL, admin_login_prompt
+from adminCliCommon import BASE_URL, admin_login_prompt,check_response
 
 
 def create_user(token, username, password):
@@ -35,9 +35,7 @@ def create_user(token, username, password):
         headers={"Authorization": f"Bearer {token}"},
         json={"username": username, "password": password},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "User creation failed"))
+    data = check_response(response, "User creation failed")
     return data["user"]
 
 

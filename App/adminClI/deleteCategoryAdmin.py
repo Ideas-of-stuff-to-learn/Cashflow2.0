@@ -21,7 +21,7 @@ run_delete(token).
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_categories, choose_category, admin_login_prompt
+from adminCliCommon import BASE_URL, fetch_categories, choose_category, admin_login_prompt,check_response
 
 
 def delete_category(token, name):
@@ -30,9 +30,7 @@ def delete_category(token, name):
         headers={"Authorization": f"Bearer {token}"},
         json={"name": name},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Delete failed"))
+    data = check_response(response, "Delete failed")
     return data
 
 

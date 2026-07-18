@@ -21,7 +21,7 @@ run_audit(token).
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_categories, admin_login_prompt
+from adminCliCommon import BASE_URL, fetch_categories, admin_login_prompt,check_response
 
 
 def fetch_summary_categories(token):
@@ -29,9 +29,7 @@ def fetch_summary_categories(token):
         f"{BASE_URL}/charts/summary",
         headers={"Authorization": f"Bearer {token}"},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Failed to fetch chart summary"))
+    data = check_response(response, "Failed to fetch chart summary")
     names = set()
     for row in data.get("yearly", []):
         names.add(row["category"])
@@ -45,9 +43,7 @@ def fetch_transaction_categories(token):
         f"{BASE_URL}/transactions",
         headers={"Authorization": f"Bearer {token}"},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Failed to fetch transactions"))
+    data = check_response(response, "Failed to fetch transactions")
     return {t["category"] for t in data["transactions"] if t.get("category")}
 
 

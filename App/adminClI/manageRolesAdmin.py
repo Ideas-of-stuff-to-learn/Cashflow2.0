@@ -34,7 +34,7 @@ import requests
 
 from adminCliCommon import (
     BASE_URL, fetch_me, fetch_roles, fetch_permissions,
-    choose_from_list, choose_multiple_permissions, admin_login_prompt,
+    choose_from_list, choose_multiple_permissions, admin_login_prompt,check_response
 )
 
 PROTECTED_ROLE_NAMES = {"owner", "admin", "user"}
@@ -46,9 +46,7 @@ def create_role(token, name, level, permission_keys):
         headers={"Authorization": f"Bearer {token}"},
         json={"name": name, "level": level, "permissions": sorted(permission_keys)},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Role creation failed"))
+    data = check_response(response, "Role creation failed")
     return data["role"]
 
 
@@ -63,9 +61,7 @@ def update_role(token, role_id, level=None, permission_keys=None):
         headers={"Authorization": f"Bearer {token}"},
         json=body,
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Role update failed"))
+    data = check_response(response, "Role update failed")
     return data["role"]
 
 
@@ -74,9 +70,7 @@ def delete_role(token, role_id):
         f"{BASE_URL}/admin/roles/{role_id}",
         headers={"Authorization": f"Bearer {token}"},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Role deletion failed"))
+    data = check_response(response, "Role deletion failed")
     return data
 
 

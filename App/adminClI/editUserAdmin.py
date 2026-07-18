@@ -27,7 +27,7 @@ import getpass
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_me, fetch_users, choose_from_list, admin_login_prompt
+from adminCliCommon import BASE_URL, fetch_me, fetch_users, choose_from_list, admin_login_prompt,check_response
 
 
 def edit_user_credentials(token, user_id, username=None, password=None):
@@ -41,9 +41,7 @@ def edit_user_credentials(token, user_id, username=None, password=None):
         headers={"Authorization": f"Bearer {token}"},
         json=body,
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Update failed"))
+    data = check_response(response, "Update failed")
     return data["user"]
 
 

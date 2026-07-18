@@ -19,7 +19,7 @@ file directly.
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_categories, choose_category, admin_login_prompt
+from adminCliCommon import BASE_URL, fetch_categories, choose_category, admin_login_prompt,check_response
 
 
 def rename_category(token, old_name, new_name):
@@ -35,9 +35,7 @@ def rename_category(token, old_name, new_name):
         headers={"Authorization": f"Bearer {token}"},
         json={"current_name": old_name, "new_name": new_name},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Rename failed"))
+    data = check_response(response, "Rename failed")
     return data
 
 
