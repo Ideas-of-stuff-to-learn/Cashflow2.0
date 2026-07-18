@@ -37,6 +37,60 @@ const Y_AXIS_SECTIONS = 4;
 // shift down by this same amount to stay aligned with the bars.
 const TOP_PADDING = 10;
 
+// Memoised per-bar component. Previously all bars were rendered inline
+// inside SpendingStackChart's render function - when maxValue changed
+// (any data change) every bar re-rendered even if its own segments were
+// identical. Now each bar only re-renders when its own props change.
+// Props are all primitives or the bar object itself - memo's shallow
+// comparison skips a bar correctly when nothing about it changed.
+const StackBar = React.memo(function StackBar({ bar, barIndex, maxValue, chartHeight, columnWidth }) {
+    let cumulativeBottom = 0;
+    const visibleSegments = bar.stacks.filter(s => s.value > 0);
+    const topSegmentIndex = visibleSegments.length > 0
+        ? bar.stacks.indexOf(visibleSegments[visibleSegments.length - 1])
+        : -1;
+
+    return (
+        <View
+            style={{
+                position: 'absolute',
+                left: LEFT_PADDING + barIndex * columnWidth,
+                bottom: 0,
+                width: BAR_WIDTH,
+                height: chartHeight,
+            }}
+        >
+            {bar.stacks.map((segment, segIndex) => {
+                const segHeight = (segment.value / maxValue) * chartHeight;
+                const bottom = cumulativeBottom;
+                cumulativeBottom += segHeight;
+
+                if (segHeight <= 0) return null;
+
+                const isTop = segIndex === topSegmentIndex;
+
+                return (
+                    <Pressable
+                        key={segIndex}
+                        onPress={segment.onPress}
+                        style={({ pressed }) => ({
+                            position: 'absolute',
+                            left: 0,
+                            bottom,
+                            width: '100%',
+                            height: segHeight,
+                            backgroundColor: segment.color,
+                            opacity: pressed ? 0.6 : 1,
+                            borderTopLeftRadius: isTop ? 4 : 0,
+                            borderTopRightRadius: isTop ? 4 : 0,
+                        })}
+                    />
+                );
+            })}
+        </View>
+    );
+});
+
 function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
     if (!stackData || stackData.length === 0) {
         return null;
@@ -112,59 +166,16 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
                         <View style={[styles.xAxisLine, { top: TOP_PADDING + chartHeight, width: totalWidth }]} />
 
                         <View style={{ position: 'absolute', top: TOP_PADDING, left: 0, width: totalWidth, height: chartHeight }}>
-                            {stackData.map((bar, barIndex) => {
-                                let cumulativeBottom = 0;
-                                const visibleSegments = bar.stacks.filter(s => s.value > 0);
-                                const topSegmentIndex = visibleSegments.length > 0
-                                    ? bar.stacks.indexOf(visibleSegments[visibleSegments.length - 1])
-                                    : -1;
-
-                                return (
-                                    <View
-                                        key={barIndex}
-                                        style={{
-                                            position: 'absolute',
-                                            left: LEFT_PADDING + barIndex * columnWidth,
-                                            bottom: 0,
-                                            width: BAR_WIDTH,
-                                            height: chartHeight,
-                                        }}
-                                    >
-                                        {bar.stacks.map((segment, segIndex) => {
-                                            const segHeight = (segment.value / maxValue) * chartHeight;
-                                            const bottom = cumulativeBottom;
-                                            cumulativeBottom += segHeight;
-
-                                            // Genuine zeros (segment.value === 0) never reach here
-                                            // as anything but 0 - yearlyChartUtils.js only applies
-                                            // the minimum-height floor to NONZERO values, so a real
-                                            // zero stays exactly 0 and is filtered out here, never
-                                            // rendered as a padded sliver.
-                                            if (segHeight <= 0) return null;
-
-                                            const isTop = segIndex === topSegmentIndex;
-
-                                            return (
-                                                <Pressable
-                                                    key={segIndex}
-                                                    onPress={segment.onPress}
-                                                    style={({ pressed }) => ({
-                                                        position: 'absolute',
-                                                        left: 0,
-                                                        bottom,
-                                                        width: '100%',
-                                                        height: segHeight,
-                                                        backgroundColor: segment.color,
-                                                        opacity: pressed ? 0.6 : 1,
-                                                        borderTopLeftRadius: isTop ? 4 : 0,
-                                                        borderTopRightRadius: isTop ? 4 : 0,
-                                                    })}
-                                                />
-                                            );
-                                        })}
-                                    </View>
-                                );
-                            })}
+                            {stackData.map((bar, barIndex) => (
+                                <StackBar
+                                    key={barIndex}
+                                    bar={bar}
+                                    barIndex={barIndex}
+                                    maxValue={maxValue}
+                                    chartHeight={chartHeight}
+                                    columnWidth={columnWidth}
+                                />
+                            ))}
                         </View>
 
                         {incomeData && incomeData.length > 1 && (

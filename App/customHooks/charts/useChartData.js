@@ -100,6 +100,16 @@ export function useChartData() {
     // handleYearSegmentPress above), which is meant to scope the MONTH
     // drill-down, not silently collapse this unrelated all-time summary
     // down to one category too. This chart always shows everything.
+    // onBarPress is stable (useCallback, empty deps) so it doesn't
+    // invalidate allTimeChartData2's memo when it's included as a dep.
+    // Previously the onPress arrow was defined inline inside the useMemo,
+    // creating a new function reference on every run and causing
+    // allTimeChartData2 to change identity even when the data hadn't -
+    // defeating React.memo on SpendingStackedChart.
+    const onBarPress = useCallback((category, total) => {
+        setSelectedBar({ category, total });
+    }, []);
+
     const allTimeChartData2 = useMemo(() => {
         const totals = {};
         yearly.forEach(r => {
@@ -110,9 +120,12 @@ export function useChartData() {
             .map(([category, total]) => ({
                 value: total,
                 label: category,
-                onPress: () => setSelectedBar({ category, total }),
+                // onPress is now a stable callback (see above) called
+                // with (category, total) by SpendingBarChart, not an
+                // inline arrow that recreates on every useMemo run.
+                onPress: () => onBarPress(category, total),
             }));
-    }, [yearly]);
+    }, [yearly, onBarPress]);
 
     // If the drilled-into year has fewer than 12 months of data, this
     // backfills the remaining bars from the closest prior months
