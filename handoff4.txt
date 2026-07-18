@@ -1,0 +1,147 @@
+# Handoff — Permission System (roles, granular permissions, per-user overrides)
+
+**Scope of this doc:** `App/API/schema.sql`, `App/API/permissions.py` (new), `App/API/backend.py`, `App/api.js`, `App/AppContext.js`, `App/App.js`, `App/components/RoleBadge.js` (new), `App/adminCliCommon.py`, and four new CLI scripts: `App/listUsersAdmin.py`, `App/assignRoleAdmin.py`, `App/managePermissionsAdmin.py`, `App/manageRolesAdmin.py`. `App/categoryAdminCli.py` grew to wire all four in.
+
+This is a separate document from `handoff.txt`, `handoff2.txt`, and `handoff3.txt` - all three of those docs' scopes are still valid and untouched by this round. This one is the "Permission system" item that's been sitting on `App.js`'s own top-of-file task list since before any of the other three rounds.
+
+---
+
+## READ THIS FIRST
+
+**The repo is the source of truth. This document can be, and eventually will be, stale.**
+
+1. Pull the current version of every file listed above directly from `main` before changing anything here - this doc's code snippets and reasoning are a snapshot, not a spec.
+2. If the repo contradicts this doc, **the repo wins.**
+3. Don't make large/structural changes in this area without explaining the impact first - this one especially, since a mistake here is an access-control mistake, not a cosmetic one.
+4. **After a major change here, add a new dated section below rather than rewriting history.**
+
+---
+
+## What existed before this round
+
+Every admin-only endpoint in `backend.py` (category create/rename/recolor/combine/delete/default-color/reset-defaults) did the exact same thing, copy-pasted six times:
+```python
+cur.execute("SELECT username FROM users WHERE id = %s", (current_user,))
+if not row or row[0] != "admin":
+    return jsonify({'error': 'Not authorized'}), 403
+```
+There was no `role` concept anywhere - `users` had just `id`, `username`, `password_hash`, `created_at`. "Admin" meant, literally, "your username is the four-letter string 'admin'." The CLI suite's `admin_login_prompt()` enforced the same hardcoded string client-side, as a (non-authoritative) convenience gate before even attempting login.
+
+## What this round replaces it with
+
+Three layers, all real DB tables, no hardcoded role names anywhere except one deliberate exception (see Owner below):
+
+1. **`roles`** - named tiers with a `level` integer (higher = more senior). Seeded: `owner` (100), `admin` (50), `user` (0). Not limited to exactly three - `manageRolesAdmin.py` can create more (e.g. a `support` role at level 20).
+2. **`permissions`** - the master list of every fine-grained action key that exists (`categories.rename`, `users.assign_role`, `roles.manage`, etc. - eleven seeded, see schema.sql for the full list and descriptions). Every gated route checks one of these keys, never a role name directly.
+3. **`role_permissions`** - which permissions a role bundles by default. Assigning someone the `admin` role gives them everything in that bundle in one move - this is the "simple tiers" half of the ask.
+4. **`user_permission_overrides`** - per-PERSON exceptions layered on top of whatever their role gives them. `granted=true` adds one extra permission beyond the role; `granted=false` explicitly takes one away even if the role would otherwise include it; deleting the row clears the override back to "whatever the role alone says." This is the "fine-grain, individual" half - one person can get (or lose) one specific permission without a whole new role being invented just for them.
+
+### The owner ceiling is structural, not a maintained list
+
+`permissions.py`'s `user_has_permission()`:
+```python
+def user_has_permission(conn, user_id, permission_key):
+    role_name, _level, perms = get_user_role_and_permissions(conn, user_id)
+    if role_name == OWNER_ROLE_NAME:
+        return True
+    return permission_key in perms
+```
+Deliberately NOT implemented by seeding every permission row against an `owner` role_permissions entry. If that were the mechanism, a permission added six months from now that nobody remembered to explicitly grant to owner would silently lock the owner out of their own feature. Instead, the string `'owner'` is checked directly - the one hardcoded name in the whole system, on purpose, because the ceiling itself shouldn't be configurable away by a future migration bug.
+
+### Everywhere else, permissions are the only thing checked
+
+`backend.py`'s six previously-duplicated inline checks are gone. Five of the six routes now carry a plain decorator:
+```python
+@app.route('/categories', methods=['DELETE'])
+@jwt_required()
+@require_permission('categories.delete')
+@limiter.limit("20 per day")
+def delete_category():
+    ...
+```
+(Decorator order matters: `require_permission` must sit AFTER `@jwt_required()` - so `get_jwt_identity()` is already valid - and BEFORE `@limiter.limit(...)`, matching this file's existing convention.)
+
+`update_category` (the sixth) is the one exception - it can rename AND recolor in a single call, and those are two distinct permission keys (`categories.rename` / `categories.recolor`), so it can't be a single decorator. It does its own two-permission check inline instead, right where the old single hardcoded check used to be.
+
+### New endpoints this round adds
+
+- `GET /auth/me` - callable by anyone logged in (not gated by any specific permission beyond having a valid token). Returns `{username, role, level, permissions}` for the CALLER's own account. Powers the app's role badge and the CLI's login gate.
+- `GET /admin/permissions` (`roles.view`) - the master permission list.
+- `GET /admin/roles` (`roles.view`) / `POST /admin/roles` (`roles.manage`) / `PATCH /admin/roles/<id>` (`roles.manage`) / `DELETE /admin/roles/<id>` (`roles.manage`) - role CRUD. Create/edit both enforce a level-ceiling guard: a non-owner can't create or push a role to their own level or above (an owner has no ceiling) - otherwise a single `roles.manage` grant would let someone mint a role as powerful as themselves.
+- `GET /admin/users` (`users.view`) - every user with role + effective permissions.
+- `PATCH /admin/users/<id>/role` (`users.assign_role`) - same level-ceiling guard as role creation: a non-owner can only hand out roles strictly below their own level. Owner is exempt, including being able to assign the owner role itself to someone else.
+- `PATCH /admin/users/<id>/permissions` (`users.manage_permissions`) - sets/clears one individual override. `granted: true|false|null` (null clears).
+
+None of `roles.manage` / `users.view` / `users.assign_role` / `users.manage_permissions` are in the `admin` role's default bundle - a freshly-promoted admin can manage categories but not other people's access, by default. Handing that out is an explicit choice (a custom role, or a per-user override), not a side effect of being "admin."
+
+### Migration / backfill (`schema.sql`)
+
+`users.role_id` is a nullable FK, added via `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`.
+
+**Added after this round's initial version:** a one-time `UPDATE users SET username = 'owner' WHERE username = 'admin'` runs before the role backfill. This exists purely to avoid the confusing overlap of "the pre-existing account happens to be named 'admin'" with "there's now a separate ROLE also named 'admin'" (level 50, one tier under owner) - two unrelated concepts that used to share a name. It only matches a row still named `'admin'`, so it's a no-op on every run after the first. **Once you've run schema.sql against your live database, delete this rename block entirely** - it's permanently dead weight from that point on, and the backfill directly below it already searches for `'owner'` (not `'admin'`) for exactly this reason, so no further edit is needed there once you remove it.
+
+Two backfill UPDATEs follow, both scoped to `role_id IS NULL` so they're safe to run again on every deploy without re-clobbering a role someone's since deliberately changed:
+```sql
+UPDATE users SET username = 'owner' WHERE username = 'admin';  -- see above; delete after first run
+
+UPDATE users SET role_id = (SELECT id FROM roles WHERE name = 'owner')
+    WHERE username = 'owner' AND role_id IS NULL;
+UPDATE users SET role_id = (SELECT id FROM roles WHERE name = 'user')
+    WHERE role_id IS NULL;
+```
+The pre-existing single account (now renamed to `owner`) becomes the first owner. Everything else defaults to plain `user`. Going forward, `create_user()` in `backend.py` assigns the `user` role at signup time directly (`INSERT ... role_id = (SELECT id FROM roles WHERE name = 'user')`) rather than relying on this backfill running again - a brand new signup should never have a NULL `role_id` even for a moment.
+
+**Run schema.sql against the live database before deploying the new backend.py** - the new endpoints and the `require_permission` decorator both assume `roles`/`permissions`/`role_permissions`/`user_permission_overrides` exist and `users.role_id` is populated. Deploying the code first without running the migration means every previously-admin-only action starts 403ing (a fail-closed failure mode, not fail-open - `get_user_role_and_permissions` falls back to `('user', 0, set())` for a user with no matching role row, not to elevated access).
+
+---
+
+## Frontend: the role badge
+
+Only visible change to the app itself - a small pill, top-right of every authenticated screen, showing the caller's role name (nothing shown at all for a plain `user`, level 0).
+
+- `api.js`: new `getMe()`, same shape as every other call here (`getToken()` → fetch → `parseJsonResponse`).
+- `AppContext.js`: new `userRole` state, fetched via its own `useEffect` gated on `isLoggedIn` - same pattern `chartSummary` already uses (fires once when `completeLogin()` flips `isLoggedIn` true, not before). No retry-with-backoff here unlike `chartSummary`'s effect - a missed role fetch just means the badge doesn't show for a moment, not a stuck chart, so a single attempt is enough. Also cleared (`setUserRole(null)`) in `completeLogin`'s account-switch branch, alongside the other three pieces of state already cleared there - a different person's badge must never flash under the previous session.
+- `components/RoleBadge.js` (new): reads `userRole` from `useApp()`, renders nothing if `!userRole.level`, otherwise a coloured pill (`owner` gold, `admin` blue, anything else a neutral fallback colour - a brand new custom role doesn't need a colour decision made for it up front).
+- `App.js`: wired in ONE place, via `Stack.Navigator`'s `screenOptions={{ headerRight: () => <RoleBadge /> }}` - applies to every screen in the navigator that doesn't override it (Login/Signup already set `headerShown: false` so they're unaffected; Home/Charts/Contents all pick it up automatically, and any screen added later gets it for free with zero extra wiring).
+
+Plain users see nothing different anywhere in the app - this was a deliberate scope decision, not an oversight. All actual permission-gated actions still live entirely in the CLI tools, same as before this system existed.
+
+---
+
+## CLI: four new scripts, one changed gate
+
+- **`listUsersAdmin.py`** (read-only) - every user, their role/level, and effective permission set.
+- **`assignRoleAdmin.py`** - change a user's role. Client-side mirrors the server's level-ceiling guard (only shows roles below your own level, unless you're owner) purely so the picker doesn't offer something the server will reject anyway - the server re-checks this itself regardless, so there's no way to bypass the guard by editing this script.
+- **`managePermissionsAdmin.py`** - the fine-grained, per-person tool: pick a user, pick a permission, grant/revoke/clear.
+- **`manageRolesAdmin.py`** - create/edit/delete roles themselves (the reusable bundles, as opposed to managePermissionsAdmin's one-off per-person exceptions). The three built-in roles' NAMES are protected (can't be renamed or deleted, enforced both client-side via `PROTECTED_ROLE_NAMES` and server-side in `permissions.py`'s `delete_role`/`create_role`) - but their LEVEL and PERMISSION BUNDLE can still be edited (e.g. deciding `admin` should also get `categories.combine` by default).
+
+All four are wired into `categoryAdminCli.py`'s `MENU`, same pattern as every prior tool - `run_X(token)` imported and called, nothing reimplemented.
+
+**`adminCliCommon.py`'s `admin_login_prompt()` changed meaningfully:** it used to hardcode `username != "admin"` as a local pre-login gate. That's now actively wrong - it would lock out a legitimately-promoted admin with a different username, while doing nothing to stop someone who kept the literal `"admin"` account after being demoted (not that demoting the seed owner account is a scenario this system supports, but the principle holds for any renamed/demoted account). The new gate logs in first, then calls `/auth/me`, and only turns the person away if they have `level <= 0` AND an empty permission set - i.e., a genuinely plain user with zero elevated access of any kind, including no individual overrides. Every individual action still enforces its own specific permission server-side regardless of what this entry gate decides - same "the CLI is a front door, not the authority" principle as before.
+
+---
+
+## Key Discussion / Decisions Made Along the Way
+
+- **Why the owner ceiling is a hardcoded name-check rather than a fully-seeded permission set:** covered above under "The owner ceiling is structural" - the short version is that a maintained list can be forgotten to update; a structural bypass can't silently rot.
+- **Why `role_permissions` is a many-to-many join table rather than a single `roles.permissions` array/JSON column:** lets `SELECT`s stay simple joins, lets a permission's existence be validated via a real foreign key (a typo'd key in an INSERT just fails, rather than silently sitting in a JSON blob nothing ever checks), and matches this schema's existing style (`category_records`, `role_permissions` are both plain relational tables, not JSON columns, even where JSON would also work).
+- **Why overrides are a separate table from role_permissions rather than roles being purely per-user:** per-user "clone this role, tweak one flag" would mean a role table entry for every person who's ever needed a single exception, which defeats the point of roles being reusable, shared bundles. The override table keeps the common case (assign a role, done) cheap and the rare case (one specific exception for one specific person) possible without polluting the role list.
+- **Why the level-ceiling guard exists on role assignment/creation but role assignment itself doesn't check individual permission keys beyond the guard:** the guard's whole job is preventing privilege escalation via level, independent of whatever specific permissions a role happens to bundle - a level-20 custom role with a surprisingly broad permission set is a role-design question (use `manageRolesAdmin.py` to review what's actually in it before creating/assigning it), not something the assignment endpoint should second-guess.
+- **Why `update_category` didn't get the same clean decorator treatment as the other five:** it's the one endpoint that can act on two independent permissions (`rename`, `recolor`) in a single call - a single `@require_permission(...)` decorator can only check one key. Rather than splitting the endpoint into two routes (a bigger, riskier change to an already-working endpoint used by the app itself, not just the CLI), it keeps its own two-key inline check exactly where the old single hardcoded check used to live.
+
+---
+
+## Architecture Notes / Things the Next Person Should Know
+
+- **The backend is the only authority, always.** The CLI's `admin_login_prompt()` gate and `assignRoleAdmin.py`'s role-list filtering are both conveniences that predict what the server will allow - neither is load-bearing. Any new admin-facing tool (CLI or otherwise) should keep this split: client-side filtering for a better UX, server-side `@require_permission(...)` for the actual gate. Never trust a client-side check as the real one.
+- **A new gated feature needs, in order: (1) one `INSERT INTO permissions` in schema.sql, (2) `@require_permission('the.new.key')` on its route, (3) optionally, adding that key to a role's default bundle (another INSERT) if it should come "for free" with an existing tier.** No other file needs to know the key exists in advance - `/admin/permissions` and everything downstream (CLI checklists) reflect the table generically.
+- **`get_user_role_and_permissions()` is the single source of truth for "what can this person do."** Both the route decorator and every `/admin/*` endpoint's manual checks go through it (directly or via `user_has_permission`) - there should never be a second, parallel way to compute someone's effective permissions.
+- **Multiple owners are allowed, deliberately unrestricted.** The system doesn't enforce "exactly one owner" anywhere - the owner role can be assigned to more than one account (only an existing owner can do this, via `assignRoleAdmin.py`, since the level-ceiling guard exempts owners entirely). Worth deciding consciously if/when it's ever actually used, but nothing currently stops it.
+
+---
+
+## Future Plans / Roadmap (not yet done, not yet decided)
+
+- **In-app UI for anything beyond the read-only role badge** - explicitly out of scope this round (see the "Should regular users ever see role-gated stuff in the app UI" decision at the top of this project). If that changes, `userRole.permissions` (already fetched into `AppContext`) is the array to gate any new in-app admin controls on - no new backend work needed to expose it, it's already there.
+- **No UI badge/indicator for WHICH individual overrides a user has**, beyond `listUsersAdmin.py`'s flat `permissions` list (which already reflects role + overrides combined) - there's currently no way to see "this permission came from the role, that one's an override" without cross-referencing `fetch_roles()`'s bundle against a user's effective list by hand. A dedicated diff view would be a nice addition to `listUsersAdmin.py` if this gets used heavily.
+- **No automated tests exist yet for any of this** - same gap every prior handoff doc flagged for its own scope. This round's logic (`get_user_role_and_permissions`, the override grant/revoke/clear semantics, the level-ceiling guards) was verified with mocked-cursor/mocked-request unit tests during development, not against a real database - worth turning those into a real pytest suite before this area gets touched again by someone unfamiliar with it, given how much more consequential a mistake here is than in, say, the chart-rendering code.
