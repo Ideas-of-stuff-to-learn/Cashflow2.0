@@ -2,19 +2,18 @@
 reorderCategoriesAdmin.py
 
 Sets the global display_order of categories in the database — the order
-all users see by default when they open the charts screen (bottom segment
-= first in list, top segment = last). This is a global change: it takes
-effect immediately for every user, on every device, on their next app
-open or refresh.
+all users see by default when they open the charts screen. This is a
+global change: it takes effect immediately for every user, on every
+device, on their next app open or refresh.
 
-Individual users can override this order locally on their own device via
-the "Stack order" panel in the app (see useStackOrder.js / AsyncStorage).
-This CLI sets the GLOBAL DEFAULT that local preferences are compared
-against and that fresh installs start from.
+The list is displayed exactly as the bar looks: top of the list = top
+of the stacked bar, bottom of the list = bottom of the stacked bar.
+U moves a category up the list (and up the bar). D moves it down.
 
-Validation is strict: the backend rejects any request where the list
-doesn't contain every existing category exactly once. This script only
-allows confirmed, valid reorders to be submitted.
+Individual users can override this order locally on their own device
+via the "Stack order" panel in the app. This CLI sets the GLOBAL
+DEFAULT that fresh installs and users without a local preference start
+from.
 
 Requires the 'categories.reorder' permission (bundled into the 'admin'
 role by default, and always available to owner).
@@ -35,9 +34,8 @@ from adminCliCommon import BASE_URL, fetch_categories, admin_login_prompt, check
 
 def reorder_categories(token, names):
     """PATCH /categories/order with the new ordered name list.
-    The backend validates that every existing category is present
-    exactly once before writing anything - raises RuntimeError (via
-    check_response) if not."""
+    The backend expects index 0 = bottom of bar (display_order 1).
+    We store internally that way and only flip for display."""
     response = requests.patch(
         f"{BASE_URL}/categories/order",
         headers={"Authorization": f"Bearer {token}"},
@@ -46,11 +44,20 @@ def reorder_categories(token, names):
     return check_response(response, "Reorder failed")
 
 
-def print_order(names):
+def print_order(order):
+    """Display the order as the bar looks: top of list = top of bar.
+    `order` is the internal list (index 0 = bottom of bar), so we
+    display it reversed."""
     print()
-    for i, name in enumerate(names, start=1):
-        marker = "▼ bottom" if i == 1 else ("▲ top   " if i == len(names) else "        ")
-        print(f"  {i:>2}. {marker}  {name}")
+    n = len(order)
+    for display_pos, name in enumerate(reversed(order), start=1):
+        if display_pos == 1:
+            marker = "▲ top   "
+        elif display_pos == n:
+            marker = "▼ bottom"
+        else:
+            marker = "        "
+        print(f"  {display_pos:>2}. {marker}  {name}")
     print()
 
 
@@ -64,16 +71,24 @@ def run_reorder_categories(token):
         print(f"Couldn't fetch categories: {e}\n")
         return
 
-    # Work on a mutable copy - the original is untouched until the user
-    # explicitly confirms and submits.
-    order = list(category_names)
+    # Split Income out - it's shown as a line overlay, not a bar segment,
+    # so it shouldn't appear in the reorder list. We remember its original
+    # position and stitch it back in before submitting to the backend so
+    # its display_order in the DB isn't touched.
+    income_index = category_names.index('Income') if 'Income' in category_names else None
+    stackable = [c for c in category_names if c != 'Income']
 
-    print("Current order (top of list = bottom of stacked bar):")
+    # Internal order: index 0 = bottom of bar, last index = top of bar.
+    # Display order (what the user sees and types numbers against) is the
+    # reverse: display position 1 = top of bar = last item internally.
+    order = list(stackable)
+
+    print("Current stack order (top of list = top of bar, Income excluded):")
     print_order(order)
 
     while True:
-        print("  U <n>  — move item n UP one position (towards bottom of bar)")
-        print("  D <n>  — move item n DOWN one position (towards top of bar)")
+        print("  U <n>  — move item n up   (higher in the bar)")
+        print("  D <n>  — move item n down (lower in the bar)")
         print("  S      — submit this order to the database")
         print("  R      — reset to original order (does not write to DB)")
         print("  Q      — quit without saving")
@@ -91,7 +106,7 @@ def run_reorder_categories(token):
             break
 
         if cmd == 'R':
-            order = list(category_names)
+            order = list(stackable)
             print("\nReset to original order:")
             print_order(order)
             continue
@@ -100,26 +115,35 @@ def run_reorder_categories(token):
             if len(parts) < 2 or not parts[1].isdigit():
                 print(f"Usage: {cmd} <number>\n")
                 continue
-            n = int(parts[1])
-            if not (1 <= n <= len(order)):
-                print(f"Enter a number from 1 to {len(order)}.\n")
+
+            display_n = int(parts[1])
+            if not (1 <= display_n <= len(order)):
+                print(f"Enter a number from 1 to {len(order)} (Income excluded).\n")
                 continue
-            idx = n - 1
+
+            # Convert display position to internal index.
+            # Display pos 1 = top of bar = internal index len-1.
+            # Display pos n = bottom of bar = internal index 0.
+            idx = len(order) - display_n
+
             if cmd == 'U':
-                if idx == 0:
-                    print("Already at the top of the list.\n")
-                    continue
-                order[idx - 1], order[idx] = order[idx], order[idx - 1]
-            else:
+                # Moving up the display = moving toward higher internal index
                 if idx == len(order) - 1:
-                    print("Already at the bottom of the list.\n")
+                    print("Already at the top.\n")
                     continue
                 order[idx], order[idx + 1] = order[idx + 1], order[idx]
+            else:
+                # Moving down the display = moving toward lower internal index
+                if idx == 0:
+                    print("Already at the bottom.\n")
+                    continue
+                order[idx - 1], order[idx] = order[idx], order[idx - 1]
+
             print_order(order)
             continue
 
         if cmd == 'S':
-            if order == list(category_names):
+            if order == list(stackable):
                 print("Order hasn't changed - nothing to submit.\n")
                 continue
             print("Submit this order to the database? This becomes the global default for all users.")
@@ -129,7 +153,12 @@ def run_reorder_categories(token):
                 print("Cancelled.\n")
                 continue
             try:
-                result = reorder_categories(token, order)
+                # Stitch Income back in at its original position before
+                # submitting - we never touched it, just kept it aside.
+                submit_order = list(order)
+                if income_index is not None:
+                    submit_order.insert(income_index, 'Income')
+                result = reorder_categories(token, submit_order)
                 returned = [c['name'] for c in result['categories']]
                 print(f"\nDone — new global order saved ({len(returned)} categories).")
                 print_order(returned)
