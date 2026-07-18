@@ -46,12 +46,12 @@ Can also be used from categoryAdminCli.py (the combined menu tool) via
 run_manage_user_transactions(token).
 """
 
-from adminCliCommon import (
+from ..adminCliCommon import (
     BASE_URL, fetch_me, fetch_users, fetch_categories_full,
     fetch_transactions, delete_transactions, resolve_categories,
     choose_from_list, admin_login_prompt, SessionExpired, revoke_token,
 )
-from impersonateUserAdmin import impersonate_user
+from .impersonateUserAdmin import impersonate_user
 
 
 def _parse_date(d):

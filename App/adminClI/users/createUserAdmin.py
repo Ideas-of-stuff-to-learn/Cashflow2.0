@@ -26,7 +26,7 @@ import getpass
 
 import requests
 
-from adminCliCommon import BASE_URL, admin_login_prompt,check_response
+from ..adminCliCommon import BASE_URL, admin_login_prompt,check_response
 
 
 def create_user(token, username, password):

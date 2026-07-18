@@ -21,7 +21,7 @@ Can also be used from categoryAdminCli.py (the combined menu tool) via
 run_list_impersonation_log(token).
 """
 
-from adminCliCommon import BASE_URL, fetch_impersonation_log, admin_login_prompt
+from .adminCliCommon import BASE_URL, fetch_impersonation_log, admin_login_prompt
 
 
 def run_list_impersonation_log(token):

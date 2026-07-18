@@ -23,7 +23,7 @@ run_set_color(token).
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_categories_full, color_swatch, choose_color, admin_login_prompt, check_response
+from ..adminCliCommon import BASE_URL, fetch_categories_full, color_swatch, choose_color, admin_login_prompt, check_response
 
 
 def set_color(token, name, color):

@@ -17,7 +17,7 @@ Can also be used from categoryAdminCli.py (the combined menu tool) via
 run_list(token).
 """
 
-from adminCliCommon import BASE_URL, fetch_categories_full, color_swatch, admin_login_prompt
+from .adminCliCommon import BASE_URL, fetch_categories_full, color_swatch, admin_login_prompt
 
 
 def run_list(token):

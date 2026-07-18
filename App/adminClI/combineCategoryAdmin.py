@@ -18,7 +18,7 @@ run_combine(token).
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_categories, admin_login_prompt,check_response
+from .adminCliCommon import BASE_URL, fetch_categories, admin_login_prompt,check_response
 
 
 def combine_categories(token, names, new_name):

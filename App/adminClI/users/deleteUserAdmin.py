@@ -28,7 +28,7 @@ run_delete_user(token).
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_me, fetch_users, choose_from_list, admin_login_prompt,check_response
+from ..adminCliCommon import BASE_URL, fetch_me, fetch_users, choose_from_list, admin_login_prompt,check_response
 
 
 def delete_user(token, user_id):

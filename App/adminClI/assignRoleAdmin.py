@@ -25,7 +25,7 @@ run_assign_role(token).
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_me, fetch_users, fetch_roles, choose_from_list, admin_login_prompt, check_response
+from .adminCliCommon import BASE_URL, fetch_me, fetch_users, fetch_roles, choose_from_list, admin_login_prompt, check_response
 
 
 def assign_role(token, user_id, role_name):

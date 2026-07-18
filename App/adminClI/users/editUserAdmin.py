@@ -27,7 +27,7 @@ import getpass
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_me, fetch_users, choose_from_list, admin_login_prompt,check_response
+from ..adminCliCommon import BASE_URL, fetch_me, fetch_users, choose_from_list, admin_login_prompt,check_response
 
 
 def edit_user_credentials(token, user_id, username=None, password=None):

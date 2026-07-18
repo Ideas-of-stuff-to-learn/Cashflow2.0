@@ -22,8 +22,8 @@ Can also be used from categoryAdminCli.py (the combined menu tool) via
 run_set_color_and_default(token).
 """
 
-from adminCliCommon import BASE_URL, fetch_categories_full, color_swatch, choose_color, admin_login_prompt
-from setColorAdmin import set_color, choose_category_with_colors
+from ..adminCliCommon import BASE_URL, fetch_categories_full, color_swatch, choose_color, admin_login_prompt
+from .setColorAdmin import set_color, choose_category_with_colors
 
 
 def run_set_color_and_default(token):
@@ -33,7 +33,7 @@ def run_set_color_and_default(token):
     # Imported here, not at module level, purely to avoid a confusing
     # name collision with setColorAdmin's own set_color import above -
     # both files' internals stay independently readable this way.
-    from setDefaultColorAdmin import set_default_color
+    from App.adminClI.colours.setDefaultColorAdmin import set_default_color
 
     while True:
         try:

@@ -34,8 +34,8 @@ Can also be used from categoryAdminCli.py (the combined menu tool) via
 run_reset_color(token).
 """
 
-from adminCliCommon import BASE_URL, fetch_categories_full, color_swatch, admin_login_prompt
-from setColorAdmin import set_color
+from ..adminCliCommon import BASE_URL, fetch_categories_full, color_swatch, admin_login_prompt
+from .setColorAdmin import set_color
 
 
 ALL = "ALL"  # sentinel returned by choose_category_to_reset() for the bulk path

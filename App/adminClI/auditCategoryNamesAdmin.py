@@ -21,7 +21,7 @@ run_audit(token).
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_categories, admin_login_prompt,check_response
+from .adminCliCommon import BASE_URL, fetch_categories, admin_login_prompt,check_response
 
 
 def fetch_summary_categories(token):

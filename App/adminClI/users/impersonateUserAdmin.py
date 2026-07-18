@@ -39,7 +39,7 @@ run_impersonate_user(token).
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_me, fetch_users, choose_from_list, admin_login_prompt, check_response, revoke_token
+from ..adminCliCommon import BASE_URL, fetch_me, fetch_users, choose_from_list, admin_login_prompt, check_response, revoke_token
 
 
 def impersonate_user(token, user_id):
