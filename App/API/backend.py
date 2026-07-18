@@ -19,6 +19,12 @@ from database import get_connection, release_connection
 from categoriseAPI2 import run_cache_tiers, run_llm_tier, combined_status
 from checkingName import NEEDS_MANUAL_REVIEW
 from categoriseAugDB import load_categories, patch_merchants_category_rename
+from permissions import (
+    require_permission, get_user_role_and_permissions,
+    list_all_permissions, list_all_roles, list_all_users,
+    get_role_by_name, create_role, update_role, delete_role,
+    assign_user_role, set_user_permission_override,
+)
 
 
 load_dotenv()
@@ -113,15 +119,18 @@ def update_category():
     current_user = int(get_jwt_identity())
     conn = get_connection()
     try:
+        # Renaming and recolouring are two distinct permission keys
+        # (categories.rename / categories.recolor) - a request touching
+        # BOTH in one call needs both, since granting one shouldn't
+        # silently imply the other. This replaces what used to be a
+        # single hardcoded username=='admin' check covering everything.
         with conn.cursor() as cur:
-            # Only the admin account may rename or recolour categories -
-            # this is global, shared structure affecting every user, not
-            # a personal action any signed-up account should be able to
-            # trigger.
-            cur.execute("SELECT username FROM users WHERE id = %s", (current_user,))
-            row = cur.fetchone()
-            if not row or row[0] != "admin":
-                return jsonify({'error': 'Not authorized'}), 403
+            _role, _level, perms = get_user_role_and_permissions(conn, current_user)
+        is_owner = _role == 'owner'
+        if new_name and not (is_owner or 'categories.rename' in perms):
+            return jsonify({'error': 'Not authorized'}), 403
+        if new_color and not (is_owner or 'categories.recolor' in perms):
+            return jsonify({'error': 'Not authorized'}), 403
         with conn.cursor() as cur:
             cur.execute("SELECT 1 FROM categories WHERE name = %s", (category_name,))
             if not cur.fetchone():
@@ -169,6 +178,7 @@ def update_category():
 
 @app.route('/categories/combine', methods=['PATCH'])
 @jwt_required()
+@require_permission('categories.combine')
 @limiter.limit("20 per day")
 def combine_categories():
     """Merges 2+ existing categories into one, under new_name.
@@ -208,12 +218,6 @@ def combine_categories():
     current_user = int(get_jwt_identity())
     conn = get_connection()
     try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT username FROM users WHERE id = %s", (current_user,))
-            row = cur.fetchone()
-            if not row or row[0] != "admin":
-                return jsonify({'error': 'Not authorized'}), 403
-
         with conn.cursor() as cur:
             cur.execute("SELECT name FROM categories WHERE name = ANY(%s)", (names,))
             found = {r[0] for r in cur.fetchall()}
@@ -274,6 +278,7 @@ def combine_categories():
 
 @app.route('/categories', methods=['DELETE'])
 @jwt_required()
+@require_permission('categories.delete')
 @limiter.limit("20 per day")
 def delete_category():
     """Deletes a category entirely - admin-only, same reasoning as the
@@ -304,12 +309,6 @@ def delete_category():
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT username FROM users WHERE id = %s", (current_user,))
-            row = cur.fetchone()
-            if not row or row[0] != "admin":
-                return jsonify({'error': 'Not authorized'}), 403
-
-        with conn.cursor() as cur:
             cur.execute("SELECT 1 FROM categories WHERE name = %s", (name,))
             if not cur.fetchone():
                 return jsonify({'error': f'Category "{name}" not found'}), 404
@@ -336,6 +335,7 @@ def delete_category():
 
 @app.route('/categories', methods=['POST'])
 @jwt_required()
+@require_permission('categories.create')
 @limiter.limit("20 per day")
 def create_category():
     """Adds a brand new category - admin-only, same reasoning as
@@ -373,12 +373,6 @@ def create_category():
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT username FROM users WHERE id = %s", (current_user,))
-            row = cur.fetchone()
-            if not row or row[0] != "admin":
-                return jsonify({'error': 'Not authorized'}), 403
-
-        with conn.cursor() as cur:
             cur.execute("SELECT 1 FROM categories WHERE name = %s", (name,))
             if cur.fetchone():
                 return jsonify({'error': f'Category "{name}" already exists'}), 409
@@ -402,6 +396,7 @@ def create_category():
 
 @app.route('/categories/reset-defaults', methods=['POST'])
 @jwt_required()
+@require_permission('categories.recolor')
 @limiter.limit("20 per day")
 def reset_category_defaults():
     """Resets color back to default_color, scoped to whichever category
@@ -422,12 +417,6 @@ def reset_category_defaults():
     current_user = int(get_jwt_identity())
     conn = get_connection()
     try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT username FROM users WHERE id = %s", (current_user,))
-            row = cur.fetchone()
-            if not row or row[0] != "admin":
-                return jsonify({'error': 'Not authorized'}), 403
-
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE categories SET color = default_color WHERE name = ANY(%s)",
@@ -451,6 +440,7 @@ def reset_category_defaults():
 
 @app.route('/categories/default-color', methods=['PATCH'])
 @jwt_required()
+@require_permission('categories.set_default_color')
 @limiter.limit("20 per day")
 def update_default_color():
     """Admin-only: redefines what a category's DEFAULT colour is - i.e.
@@ -470,12 +460,6 @@ def update_default_color():
     current_user = int(get_jwt_identity())
     conn = get_connection()
     try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT username FROM users WHERE id = %s", (current_user,))
-            row = cur.fetchone()
-            if not row or row[0] != "admin":
-                return jsonify({'error': 'Not authorized'}), 403
-
         with conn.cursor() as cur:
             cur.execute("SELECT 1 FROM categories WHERE name = %s", (category_name,))
             if not cur.fetchone():
@@ -511,10 +495,18 @@ def username_exists(conn, username):
 
 
 def create_user(conn, username, password_hash):
-    """Inserts a new user and returns the new integer id."""
+    """Inserts a new user and returns the new integer id. Assigned the
+    'user' role immediately at creation time - NOT left NULL to be
+    picked up by schema.sql's backfill later, since that backfill only
+    runs when schema.sql is re-executed (a fresh deploy/DB recreation),
+    not on every signup. A brand new signup should never have a NULL
+    role_id even for the moment before some unrelated migration script
+    next happens to run."""
     with conn.cursor() as cur:
         cur.execute(
-            "INSERT INTO users (username, password_hash) VALUES (%s, %s) RETURNING id",
+            """INSERT INTO users (username, password_hash, role_id)
+               VALUES (%s, %s, (SELECT id FROM roles WHERE name = 'user'))
+               RETURNING id""",
             (username, password_hash),
         )
         new_id = cur.fetchone()[0]
@@ -540,6 +532,278 @@ def update_transaction_categories(conn, user_id, result):
                 "UPDATE transactions SET category = %s WHERE id = %s AND user_id = %s",
                 (category, txn_id, user_id),
             )
+
+
+# =====================================================================
+# Permission system endpoints
+# =====================================================================
+# /auth/me is callable by anyone logged in - it's how both the app
+# (for the role badge) and the CLI (for "what am I even allowed to do")
+# find out their own access, without needing a separate admin-only
+# lookup just to see your own status.
+#
+# Everything else here is genuinely admin-tooling: managing OTHER
+# people's roles/permissions, and defining what roles/permissions exist
+# at all. Each one is gated by its own specific permission key, same
+# pattern as the category endpoints above - there is no single
+# "is_admin" shortcut anywhere in this section.
+@app.route('/auth/me', methods=['GET'])
+@jwt_required()
+@limiter.limit("100 per day")
+def auth_me():
+    current_user = int(get_jwt_identity())
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT username FROM users WHERE id = %s", (current_user,))
+            row = cur.fetchone()
+        username = row[0] if row else None
+        role_name, level, perms = get_user_role_and_permissions(conn, current_user)
+        return jsonify({
+            'username': username,
+            'role': role_name,
+            'level': level,
+            'permissions': sorted(perms),
+        }), 200
+    except Exception as e:
+        app.logger.error(f'Fetching own identity failed for user {current_user}: {e}')
+        return jsonify({'error': 'Failed to fetch account info'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/admin/permissions', methods=['GET'])
+@jwt_required()
+@require_permission('roles.view')
+@limiter.limit("100 per day")
+def admin_list_permissions():
+    """The master list of every permission key that exists - what
+    CLI/admin-panel checklists build their options from."""
+    conn = get_connection()
+    try:
+        return jsonify({'permissions': list_all_permissions(conn)}), 200
+    except Exception as e:
+        app.logger.error(f'Fetching permissions failed: {e}')
+        return jsonify({'error': 'Failed to fetch permissions'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/admin/roles', methods=['GET'])
+@jwt_required()
+@require_permission('roles.view')
+@limiter.limit("100 per day")
+def admin_list_roles():
+    conn = get_connection()
+    try:
+        return jsonify({'roles': list_all_roles(conn)}), 200
+    except Exception as e:
+        app.logger.error(f'Fetching roles failed: {e}')
+        return jsonify({'error': 'Failed to fetch roles'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/admin/roles', methods=['POST'])
+@jwt_required()
+@require_permission('roles.manage')
+@limiter.limit("20 per day")
+def admin_create_role():
+    """Creates a new custom role. The caller's own level acts as a
+    ceiling: you cannot create a role at or above your own level (an
+    owner has no ceiling; a level-50 admin with roles.manage could at
+    most create something at level 49 or below) - otherwise a single
+    permission grant (roles.manage) would let someone mint a role as
+    powerful as themselves or higher, which defeats the point of levels
+    existing at all."""
+    data = request.get_json() or {}
+    name = data.get('name')
+    level = data.get('level')
+    permission_keys = data.get('permissions') or []
+
+    if level is None or not isinstance(level, int):
+        return jsonify({'error': 'level (integer) is required'}), 400
+    if not isinstance(permission_keys, list):
+        return jsonify({'error': 'permissions must be a list of keys'}), 400
+
+    current_user = int(get_jwt_identity())
+    conn = get_connection()
+    try:
+        caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
+        if caller_role != 'owner' and level >= caller_level:
+            return jsonify({'error': f'Cannot create a role at or above your own level ({caller_level})'}), 403
+
+        role = create_role(conn, name, level, permission_keys)
+        conn.commit()
+        return jsonify({'role': role}), 201
+    except ValueError as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Role creation failed: {e}')
+        return jsonify({'error': 'Role creation failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/admin/roles/<int:role_id>', methods=['PATCH'])
+@jwt_required()
+@require_permission('roles.manage')
+@limiter.limit("20 per day")
+def admin_update_role(role_id):
+    """Edits a role's level and/or permission bundle (permissions, if
+    given, REPLACES the whole set - not additive, matching this app's
+    existing PATCH convention elsewhere). Same level-ceiling guard as
+    creation: a non-owner can't push a role's level to or above their
+    own."""
+    data = request.get_json() or {}
+    level = data.get('level')
+    permission_keys = data.get('permissions')
+
+    if permission_keys is not None and not isinstance(permission_keys, list):
+        return jsonify({'error': 'permissions must be a list of keys'}), 400
+
+    current_user = int(get_jwt_identity())
+    conn = get_connection()
+    try:
+        caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
+        if level is not None:
+            if not isinstance(level, int):
+                return jsonify({'error': 'level must be an integer'}), 400
+            if caller_role != 'owner' and level >= caller_level:
+                return jsonify({'error': f'Cannot set a role to your level or above ({caller_level})'}), 403
+
+        role = update_role(conn, role_id, level=level, permission_keys=permission_keys)
+        conn.commit()
+        return jsonify({'role': role}), 200
+    except ValueError as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Role update failed: {e}')
+        return jsonify({'error': 'Role update failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/admin/roles/<int:role_id>', methods=['DELETE'])
+@jwt_required()
+@require_permission('roles.manage')
+@limiter.limit("20 per day")
+def admin_delete_role(role_id):
+    conn = get_connection()
+    try:
+        delete_role(conn, role_id)
+        conn.commit()
+        return jsonify({'status': 'ok', 'deleted_role_id': role_id}), 200
+    except ValueError as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Role deletion failed: {e}')
+        return jsonify({'error': 'Role deletion failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/admin/users', methods=['GET'])
+@jwt_required()
+@require_permission('users.view')
+@limiter.limit("100 per day")
+def admin_list_users():
+    conn = get_connection()
+    try:
+        return jsonify({'users': list_all_users(conn)}), 200
+    except Exception as e:
+        app.logger.error(f'Fetching users failed: {e}')
+        return jsonify({'error': 'Failed to fetch users'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/admin/users/<int:target_user_id>/role', methods=['PATCH'])
+@jwt_required()
+@require_permission('users.assign_role')
+@limiter.limit("20 per day")
+def admin_assign_role(target_user_id):
+    """Assigns a role to another user, by role name. Same level-ceiling
+    guard as role creation/editing: a non-owner with users.assign_role
+    can only hand out roles strictly BELOW their own level - otherwise
+    a level-50 admin with this one permission could promote someone
+    (including themselves, via a different account) to their own tier
+    or higher, which would make "levels" meaningless. Only the owner is
+    exempt from this ceiling, including being able to assign the owner
+    role itself to someone else - that's a deliberate, high-trust
+    action the owner is allowed to take, not something the system
+    should second-guess.
+    """
+    data = request.get_json() or {}
+    role_name = data.get('role')
+    if not role_name:
+        return jsonify({'error': 'role is required'}), 400
+
+    current_user = int(get_jwt_identity())
+    conn = get_connection()
+    try:
+        caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
+        target_role = get_role_by_name(conn, role_name)
+        if not target_role:
+            return jsonify({'error': f'Role "{role_name}" not found'}), 404
+        if caller_role != 'owner' and target_role['level'] >= caller_level:
+            return jsonify({'error': f'Cannot assign a role at or above your own level ({caller_level})'}), 403
+
+        user = assign_user_role(conn, target_user_id, role_name)
+        conn.commit()
+        return jsonify({'user': user}), 200
+    except ValueError as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Role assignment failed: {e}')
+        return jsonify({'error': 'Role assignment failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/admin/users/<int:target_user_id>/permissions', methods=['PATCH'])
+@jwt_required()
+@require_permission('users.manage_permissions')
+@limiter.limit("20 per day")
+def admin_set_permission_override(target_user_id):
+    """Grants, revokes, or clears ONE individual permission override for
+    ONE user - the fine-grained, per-person exception mechanism
+    (schema.sql's user_permission_overrides). `granted` is a
+    three-state field: true (extra grant), false (explicit revoke even
+    if the role would give it), or null/omitted (clear any existing
+    override, fall back to whatever the role alone says).
+    """
+    data = request.get_json() or {}
+    permission_key = data.get('permission')
+    granted = data.get('granted', None)
+
+    if not permission_key:
+        return jsonify({'error': 'permission is required'}), 400
+    if granted is not None and not isinstance(granted, bool):
+        return jsonify({'error': 'granted must be true, false, or omitted/null'}), 400
+
+    conn = get_connection()
+    try:
+        user = set_user_permission_override(conn, target_user_id, permission_key, granted)
+        conn.commit()
+        return jsonify({'user': user}), 200
+    except ValueError as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Permission override failed: {e}')
+        return jsonify({'error': 'Permission override failed - please try again'}), 500
+    finally:
+        release_connection(conn)
 
 
 @app.route('/auth/login', methods=['POST'])

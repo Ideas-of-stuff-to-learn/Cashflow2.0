@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { getChartSummary } from './api.js';
+import { getChartSummary, getMe } from './api.js';
 
 const AppContext = createContext();
 
@@ -53,6 +53,31 @@ export function AppProvider({ children }) {
     // mounted, and ChartsScreen just reads whatever's already there the
     // moment it mounts - no race, nothing to lose to a quick back-and-forth.
     const [chartSummary, setChartSummary] = useState({ yearly: [], monthly: [] });
+
+    // Whoever's currently logged in's own role/permissions - null until
+    // fetched. Only used to decide what RoleBadge.js shows (nothing for
+    // a plain 'user', the role name for anything above that) - this is
+    // NOT used anywhere as an authorization check, the backend is the
+    // only authority on that; this is purely "what should the UI show."
+    const [userRole, setUserRole] = useState(null);
+
+    // Same login-gated pattern as the chartSummary effect above, and
+    // for the same reason: AppProvider mounts for the app's whole
+    // lifetime, including Login/Signup, so this must not fire until
+    // completeLogin() flips isLoggedIn true. No retry-with-backoff here
+    // like chartSummary has - a missed role fetch just means the badge
+    // doesn't show for a moment, not a stuck/incorrect chart, so it's
+    // lower-stakes and a plain single attempt is enough.
+    useEffect(() => {
+        if (!isLoggedIn) return;
+
+        let cancelled = false;
+        getMe()
+            .then(data => { if (!cancelled) setUserRole(data); })
+            .catch(e => console.warn('Failed to load role info:', e.message));
+
+        return () => { cancelled = true; };
+    }, [isLoggedIn]);
 
     useEffect(() => {
         // AppProvider (and this effect) is alive for the ENTIRE app
@@ -148,6 +173,10 @@ export function AppProvider({ children }) {
             setChartSummary({ yearly: [], monthly: [] });
             setTransactions([]);
             setCategories([]);
+            // A different person's role badge must never flash on screen
+            // even for a moment under the new session - same reasoning
+            // as the other three pieces of state cleared here.
+            setUserRole(null);
         }
         lastLoggedInUsernameRef.current = username;
         setIsLoggedIn(true);
@@ -185,6 +214,7 @@ export function AppProvider({ children }) {
             chartDataVersion,
             bumpChartDataVersion,
             chartSummary,
+            userRole,
             isLoggedIn,
             completeLogin,
             endSession,

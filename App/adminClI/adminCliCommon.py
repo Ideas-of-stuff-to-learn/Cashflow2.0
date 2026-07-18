@@ -58,6 +58,130 @@ def fetch_categories_full(token):
     return data["categories"]
 
 
+def fetch_me(token):
+    """Whoever `token` belongs to: username, role name, level, and
+    effective permission set (role bundle + any per-user overrides
+    already applied - see permissions.py's get_user_role_and_permissions
+    on the backend). Used by admin_login_prompt() below to decide
+    whether these tools are even worth entering, and by the various
+    run_X() actions to only offer options the caller's own permissions
+    actually allow - though the backend remains the real authority on
+    every individual action regardless of what the CLI chooses to show."""
+    response = requests.get(
+        f"{BASE_URL}/auth/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    data = response.json()
+    if not response.ok:
+        raise RuntimeError(data.get("error", "Failed to fetch account info"))
+    return data
+
+
+def fetch_users(token):
+    """Every user with their role name/level and effective permissions -
+    powers listUsersAdmin.py and the picker in assignRoleAdmin.py /
+    managePermissionsAdmin.py."""
+    response = requests.get(
+        f"{BASE_URL}/admin/users",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    data = response.json()
+    if not response.ok:
+        raise RuntimeError(data.get("error", "Failed to fetch users"))
+    return data["users"]
+
+
+def fetch_roles(token):
+    """Every role with its level and bundled permission keys - powers
+    the role picker in assignRoleAdmin.py and manageRolesAdmin.py."""
+    response = requests.get(
+        f"{BASE_URL}/admin/roles",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    data = response.json()
+    if not response.ok:
+        raise RuntimeError(data.get("error", "Failed to fetch roles"))
+    return data["roles"]
+
+
+def fetch_permissions(token):
+    """The full master list of permission keys that exist anywhere in
+    the app (schema.sql's permissions table) - powers the checklist in
+    manageRolesAdmin.py and managePermissionsAdmin.py. Adding a brand
+    new permission later needs no change here; this always reflects
+    whatever the backend currently knows about."""
+    response = requests.get(
+        f"{BASE_URL}/admin/permissions",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    data = response.json()
+    if not response.ok:
+        raise RuntimeError(data.get("error", "Failed to fetch permissions"))
+    return data["permissions"]
+
+
+def choose_from_list(items, label_fn, prompt="Choose", allow_blank=True):
+    """Generic numbered picker - shows label_fn(item) for each item,
+    returns the chosen item or None on blank input. Used by the new
+    user/role/permission-management scripts instead of each one
+    reimplementing its own numbered-list loop (adminCliCommon.py's
+    older choose_category() is the same idea, kept separate since it
+    returns a plain name string rather than a full item - some callers
+    genuinely only ever needed the name)."""
+    print()
+    for i, item in enumerate(items, start=1):
+        print(f"  {i}. {label_fn(item)}")
+    print()
+
+    while True:
+        choice = input(f"{prompt} (number{', or blank to cancel' if allow_blank else ''}): ").strip()
+        if not choice and allow_blank:
+            return None
+        if not choice.isdigit() or not (1 <= int(choice) <= len(items)):
+            print(f"Enter a number from 1 to {len(items)}.\n")
+            continue
+        return items[int(choice) - 1]
+
+
+def choose_multiple_permissions(all_permissions, preselected=None):
+    """Interactive checklist: toggle permission keys on/off by number,
+    'A' to select everything currently shown, 'N' to clear all, blank
+    to confirm the current selection. Used anywhere a script needs a
+    SET of permissions rather than one single pick (creating/editing a
+    role's bundle) - the single-pick choose_from_list() above isn't the
+    right shape for that.
+
+    `preselected` (a set of keys, or None) seeds the initial selection -
+    editing an existing role's permissions should start from what it
+    already has, not from empty every time."""
+    selected = set(preselected or [])
+
+    while True:
+        print("\nPermissions (toggle by number, A = select all, N = none, blank/Enter = done):\n")
+        for i, perm in enumerate(all_permissions, start=1):
+            mark = "x" if perm["key"] in selected else " "
+            print(f"  [{mark}] {i}. {perm['key']} - {perm['description']}")
+        print()
+
+        choice = input("Toggle (number/A/N), or blank to confirm: ").strip()
+        if not choice:
+            return selected
+        if choice.lower() == "a":
+            selected = {p["key"] for p in all_permissions}
+            continue
+        if choice.lower() == "n":
+            selected = set()
+            continue
+        if choice.isdigit() and 1 <= int(choice) <= len(all_permissions):
+            key = all_permissions[int(choice) - 1]["key"]
+            if key in selected:
+                selected.discard(key)
+            else:
+                selected.add(key)
+            continue
+        print(f"Enter a number from 1 to {len(all_permissions)}, A, N, or blank.\n")
+
+
 def hex_to_rgb(hex_color):
     hex_color = hex_color.lstrip('#')
     return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
@@ -372,22 +496,27 @@ def choose_category(categories, prompt="Category"):
 
 def admin_login_prompt():
     """Standard login prompt used by every script's standalone
-    __main__ entry point - asks for username/password, enforces the
-    "admin" username restriction, logs in, and returns the token (or
-    None if login didn't happen, in which case the caller should just
-    return without doing anything further)."""
-    username = input("Admin username: ").strip()
+    __main__ entry point - asks for username/password, logs in, and
+    returns the token (or None if login didn't happen or the account
+    has no elevated access at all, in which case the caller should just
+    return without doing anything further).
 
-    # Local safety net only - this does NOT restrict who the backend
-    # itself will accept. Any valid login still works against the
-    # actual endpoints; this just stops these scripts from running
-    # against the wrong account by accident.
-    if username != "admin":
-        print("This tool is restricted to the admin account.")
-        return None
-
+    Used to hardcode "username must literally be 'admin'" as a local
+    safety net before the permission system existed - now that roles
+    and permissions are real, that check would actively be WRONG: it
+    would lock out a legitimately-promoted admin whose username isn't
+    "admin", while doing nothing to stop someone who somehow still had
+    the literal "admin" account but had since been demoted. The real
+    check is now "does this account have any elevated access at all" -
+    a plain 'user' (level 0, no permissions, no overrides) is turned
+    away here since there's nothing in this whole tool suite they could
+    do anyway; anyone above that gets in, and each individual action
+    still gets its own specific permission check server-side regardless
+    of what this entry gate decided.
+    """
+    username = input("Username: ").strip()
     import getpass
-    password = getpass.getpass("Admin password: ")
+    password = getpass.getpass("Password: ")
 
     try:
         token = login(username, password)
@@ -395,5 +524,15 @@ def admin_login_prompt():
         print(f"Login failed: {e}")
         return None
 
-    print("Logged in.\n")
+    try:
+        me = fetch_me(token)
+    except Exception as e:
+        print(f"Logged in, but couldn't check account permissions: {e}")
+        return None
+
+    if me["level"] <= 0 and not me["permissions"]:
+        print("This account has no elevated permissions - nothing in this tool suite applies to it.")
+        return None
+
+    print(f'Logged in as "{me["username"]}" ({me["role"]}, level {me["level"]}).\n')
     return token

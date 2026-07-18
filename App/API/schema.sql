@@ -131,3 +131,146 @@ CREATE TABLE IF NOT EXISTS uploaded_files (
 );
 CREATE INDEX IF NOT EXISTS idx_uploaded_files_user_id
     ON uploaded_files (user_id);
+
+-- =====================================================================
+-- Permission system
+-- =====================================================================
+-- Replaces the old hardcoded "is your username literally the string
+-- 'admin'?" check that used to be duplicated inline in every
+-- admin-only endpoint in backend.py. Three pieces:
+--
+--   roles              - named tiers (owner/admin/user, extensible)
+--   permissions        - master list of fine-grained action keys
+--   role_permissions   - which permissions each role bundles by default
+--   user_permission_overrides - per-PERSON exceptions on top of their role
+--
+-- `level` on roles is a plain integer, higher = more senior. It's used
+-- for hierarchy GUARDS at assignment time (e.g. "you can't promote
+-- someone to your own level or above"), not for the permission check
+-- itself - the permission check only ever asks "does this specific
+-- key apply to this user," never "is this role high enough."
+--
+-- The OWNER role is a hard ceiling, deliberately NOT implemented by
+-- seeding every permission row against it. See user_has_permission()
+-- in permissions.py: a user whose role is literally named 'owner'
+-- passes every check unconditionally, regardless of what rows exist
+-- in role_permissions. This means a permission added months from now,
+-- that nobody remembered to explicitly grant to 'owner', still can't
+-- accidentally lock the owner out of their own app - the ceiling is
+-- structural, not a maintained list.
+CREATE TABLE IF NOT EXISTS roles (
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    level INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- One row per distinct gate point in the app. `key` is what backend.py's
+-- @require_permission(...) decorator and the CLI/admin-panel checklists
+-- both refer to - think of this table as the single canonical list of
+-- "every distinct thing you could possibly be allowed or forbidden to
+-- do." Adding a brand new gated feature later means one INSERT here
+-- plus wiring the decorator onto its route - no code changes needed
+-- anywhere that already reads this table generically (CLI pickers,
+-- /admin/permissions).
+CREATE TABLE IF NOT EXISTS permissions (
+    id SERIAL PRIMARY KEY,
+    key TEXT UNIQUE NOT NULL,
+    description TEXT NOT NULL
+);
+
+-- Which permissions a ROLE bundles by default. A user's role_id is
+-- what pulls this in - see get_user_role_and_permissions() in
+-- permissions.py.
+CREATE TABLE IF NOT EXISTS role_permissions (
+    role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    permission_id INTEGER NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+    PRIMARY KEY (role_id, permission_id)
+);
+
+-- Per-PERSON exceptions, layered on top of whatever their role already
+-- gives them. granted=true grants one extra permission beyond the
+-- role; granted=false explicitly revokes one the role would otherwise
+-- give - useful for "give this one admin everything except category
+-- deletion" without inventing a whole new role just for that one
+-- person. Deleting the row (rather than setting granted) returns that
+-- permission to "whatever the role alone says" - see
+-- clear_user_permission_override() in permissions.py.
+CREATE TABLE IF NOT EXISTS user_permission_overrides (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    permission_id INTEGER NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+    granted BOOLEAN NOT NULL,
+    PRIMARY KEY (user_id, permission_id)
+);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role_id INTEGER REFERENCES roles(id);
+
+INSERT INTO roles (name, level) VALUES
+    ('owner', 100),
+    ('admin', 50),
+    ('user', 0)
+ON CONFLICT (name) DO NOTHING;
+
+-- Every permission key the app currently checks anywhere. The
+-- categories.* keys are an exact 1:1 replacement for what the old
+-- hardcoded username=='admin' check used to gate - no behavior change
+-- for the existing category admin tools, just a real table backing it
+-- instead of a string comparison. The users.*/roles.* keys are new -
+-- they gate the permission-management system itself.
+INSERT INTO permissions (key, description) VALUES
+    ('categories.create', 'Add a new category'),
+    ('categories.rename', 'Rename an existing category'),
+    ('categories.recolor', 'Change a category''s current colour'),
+    ('categories.set_default_color', 'Change a category''s default colour'),
+    ('categories.combine', 'Merge two or more categories into one'),
+    ('categories.delete', 'Delete a category'),
+    ('users.view', 'List every user and their assigned role'),
+    ('users.assign_role', 'Change which role a user has'),
+    ('users.manage_permissions', 'Grant or revoke individual permission overrides for a user'),
+    ('roles.view', 'List every role and the permissions it bundles'),
+    ('roles.manage', 'Create, edit, or delete roles and their permission bundles')
+ON CONFLICT (key) DO NOTHING;
+
+-- Default bundle for the 'admin' role - exactly the set of actions the
+-- old hardcoded check used to gate. Deliberately does NOT include any
+-- users.*/roles.* permission - an admin promoted under this default
+-- bundle can manage categories but not other people's access; granting
+-- that needs an explicit per-user override or a custom role, not a
+-- silent side effect of being "admin."
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r, permissions p
+WHERE r.name = 'admin'
+  AND p.key IN (
+    'categories.create', 'categories.rename', 'categories.recolor',
+    'categories.set_default_color', 'categories.combine', 'categories.delete'
+  )
+ON CONFLICT DO NOTHING;
+
+-- ONE-TIME: renames the pre-existing account (username 'admin') to
+-- 'owner', so the account itself isn't confusingly named the same
+-- thing as the separate 'admin' ROLE this migration also creates below
+-- (level 50, one tier under owner) - two different concepts that
+-- happened to share a name before this round. Only matches a row that
+-- still has the old username, so it's a no-op on every run after the
+-- first (there's nothing left named 'admin' to match).
+--
+-- AFTER YOU'VE RUN THIS ONCE against your live database: delete this
+-- UPDATE block entirely. It's permanently dead weight from that point
+-- on - keeping it around forever just to remain a no-op adds nothing.
+-- The role backfill directly below already searches for 'owner'
+-- (not 'admin') for exactly this reason - once you remove this block,
+-- no further edit is needed there, it already assumes the rename has
+-- happened.
+UPDATE users SET username = 'owner' WHERE username = 'admin';
+
+-- One-time backfill for accounts that existed before role_id did. The
+-- pre-existing single admin account (now renamed to 'owner', see the
+-- UPDATE directly above) becomes the first owner; everyone else
+-- defaults to the plain 'user' role. Both UPDATEs only touch rows
+-- where role_id IS NULL, so this is safe to run again on every deploy
+-- without re-clobbering a role that's since been deliberately changed
+-- via the admin tools.
+UPDATE users SET role_id = (SELECT id FROM roles WHERE name = 'owner')
+    WHERE username = 'owner' AND role_id IS NULL;
+UPDATE users SET role_id = (SELECT id FROM roles WHERE name = 'user')
+    WHERE role_id IS NULL;

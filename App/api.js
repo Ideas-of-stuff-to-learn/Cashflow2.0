@@ -200,6 +200,24 @@ export async function getToken() {
     return await SecureStore.getItemAsync('jwt_token');
 }
 
+// Returns { username, role, level, permissions } for whoever the
+// current token belongs to. Used by AppContext to decide whether to
+// show the role badge (RoleBadge.js) - a plain 'user' (level 0) sees
+// nothing different; anything above that shows their role name top
+// right of every screen. Also usable by future admin-facing screens
+// that need to know "am I even allowed to see this control."
+export async function getMe() {
+    const token = await getToken();
+    if (!token) throw new Error('Not logged in');
+
+    const response = await fetch(`${BASE_URL}/auth/me`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+
+    return await parseJsonResponse(response, 'Failed to fetch account info');
+}
+
 export async function logout() {
     await SecureStore.deleteItemAsync('jwt_token');
 }
