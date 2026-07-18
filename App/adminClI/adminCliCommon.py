@@ -182,6 +182,56 @@ def choose_multiple_permissions(all_permissions, preselected=None):
         print(f"Enter a number from 1 to {len(all_permissions)}, A, N, or blank.\n")
 
 
+def fetch_transactions(token):
+    """GET /transactions for whoever `token` belongs to. This is a
+    plain per-user endpoint (jwt_required only, no special permission
+    gate) - passing an IMPERSONATED user's token here returns THEIR
+    transaction history, exactly as if they'd opened the app
+    themselves. Used by manageUserTransactionsAdmin.py."""
+    response = requests.get(
+        f"{BASE_URL}/transactions",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    data = response.json()
+    if not response.ok:
+        raise RuntimeError(data.get("error", "Failed to fetch transactions"))
+    return data["transactions"]
+
+
+def delete_transactions(token, ids):
+    """DELETE /transactions for whoever `token` belongs to. Same
+    "acts as whoever the token is" pattern as fetch_transactions above -
+    passing an impersonated token deletes THAT user's transactions,
+    scoped server-side by their own user_id, same as the app itself."""
+    response = requests.delete(
+        f"{BASE_URL}/transactions",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"ids": ids},
+    )
+    data = response.json()
+    if not response.ok:
+        raise RuntimeError(data.get("error", "Delete failed"))
+    return data["deleted"]
+
+
+def resolve_categories(token, resolutions):
+    """POST /categorize/resolve for whoever `token` belongs to - the
+    same endpoint ContentsScreen.js's handleCategoryPick() calls for
+    BOTH "pick a category for something that needs manual review" and
+    "change an already-categorised transaction's category" - the app
+    itself doesn't distinguish these as different backend actions, so
+    neither does this. Returns {'updated': [...], 'skipped': [...]}."""
+    response = requests.post(
+        f"{BASE_URL}/categorize/resolve",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"resolutions": resolutions},
+    )
+    data = response.json()
+    if not response.ok:
+        raise RuntimeError(data.get("error", "Resolve failed"))
+    return data
+
+
 def hex_to_rgb(hex_color):
     hex_color = hex_color.lstrip('#')
     return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))

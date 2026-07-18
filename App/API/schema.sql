@@ -231,12 +231,16 @@ INSERT INTO permissions (key, description) VALUES
     ('roles.manage', 'Create, edit, or delete roles and their permission bundles')
 ON CONFLICT (key) DO NOTHING;
 
--- Default bundle for the 'admin' role - exactly the set of actions the
--- old hardcoded check used to gate. Deliberately does NOT include any
--- users.*/roles.* permission - an admin promoted under this default
--- bundle can manage categories but not other people's access; granting
--- that needs an explicit per-user override or a custom role, not a
--- silent side effect of being "admin."
+-- Default bundle for the 'admin' role - originally exactly the set of
+-- actions the old hardcoded check used to gate (categories.*), plus
+-- four direct account-management actions (users.create/edit/delete/
+-- impersonate) added afterward - see the block below. Deliberately
+-- still does NOT include users.view/users.assign_role/
+-- users.manage_permissions or either roles.* permission - managing
+-- other people's ROLES and PERMISSIONS (as opposed to their account
+-- itself) stays owner-only unless explicitly granted via a custom
+-- role or per-user override, not a silent side effect of being
+-- "admin."
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'admin'
@@ -246,6 +250,29 @@ WHERE r.name = 'admin'
   )
 ON CONFLICT DO NOTHING;
 
+-- Added after the initial round: direct account-lifecycle actions
+-- (create/edit/delete an account, or borrow its session) for
+-- admin-and-up, per explicit request. These are distinct from the
+-- users.*/roles.* keys above (which govern managing ROLES and
+-- PERMISSIONS, and remain owner-only by default) - these four act on
+-- the account itself.
+INSERT INTO permissions (key, description) VALUES
+    ('users.create', 'Create a new user account directly, without them signing up themselves'),
+    ('users.edit', 'Edit a user''s username and/or password'),
+    ('users.delete', 'Delete a user account (cascades to their transactions, uploads, and personal category data)'),
+    ('users.impersonate', 'Generate a valid login session for another user''s account without their password')
+ON CONFLICT (key) DO NOTHING;
+
+-- Bundled into 'admin' by default, unlike users.view/assign_role/
+-- manage_permissions/roles.* above - see this block's own comment for
+-- why account-lifecycle actions and role/permission-management
+-- actions are treated differently.
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r, permissions p
+WHERE r.name = 'admin'
+  AND p.key IN ('users.create', 'users.edit', 'users.delete', 'users.impersonate')
+ON CONFLICT DO NOTHING;
+
 -- ONE-TIME: renames the pre-existing account (username 'admin') to
 -- 'owner', so the account itself isn't confusingly named the same
 -- thing as the separate 'admin' ROLE this migration also creates below
@@ -253,15 +280,7 @@ ON CONFLICT DO NOTHING;
 -- happened to share a name before this round. Only matches a row that
 -- still has the old username, so it's a no-op on every run after the
 -- first (there's nothing left named 'admin' to match).
---
--- AFTER YOU'VE RUN THIS ONCE against your live database: delete this
--- UPDATE block entirely. It's permanently dead weight from that point
--- on - keeping it around forever just to remain a no-op adds nothing.
--- The role backfill directly below already searches for 'owner'
--- (not 'admin') for exactly this reason - once you remove this block,
--- no further edit is needed there, it already assumes the rename has
--- happened.
-UPDATE users SET username = 'owner' WHERE username = 'admin';
+
 
 -- One-time backfill for accounts that existed before role_id did. The
 -- pre-existing single admin account (now renamed to 'owner', see the

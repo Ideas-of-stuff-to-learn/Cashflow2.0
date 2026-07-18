@@ -145,3 +145,61 @@ All four are wired into `categoryAdminCli.py`'s `MENU`, same pattern as every pr
 - **In-app UI for anything beyond the read-only role badge** - explicitly out of scope this round (see the "Should regular users ever see role-gated stuff in the app UI" decision at the top of this project). If that changes, `userRole.permissions` (already fetched into `AppContext`) is the array to gate any new in-app admin controls on - no new backend work needed to expose it, it's already there.
 - **No UI badge/indicator for WHICH individual overrides a user has**, beyond `listUsersAdmin.py`'s flat `permissions` list (which already reflects role + overrides combined) - there's currently no way to see "this permission came from the role, that one's an override" without cross-referencing `fetch_roles()`'s bundle against a user's effective list by hand. A dedicated diff view would be a nice addition to `listUsersAdmin.py` if this gets used heavily.
 - **No automated tests exist yet for any of this** - same gap every prior handoff doc flagged for its own scope. This round's logic (`get_user_role_and_permissions`, the override grant/revoke/clear semantics, the level-ceiling guards) was verified with mocked-cursor/mocked-request unit tests during development, not against a real database - worth turning those into a real pytest suite before this area gets touched again by someone unfamiliar with it, given how much more consequential a mistake here is than in, say, the chart-rendering code.
+
+---
+
+## Round 2: CLI grouping, account-lifecycle actions for admin-and-up
+
+**Scope addition:** `App/API/schema.sql`, `App/API/permissions.py`, `App/API/backend.py`, `App/categoryAdminCli.py` (restructured), plus four new scripts - `App/createUserAdmin.py`, `App/deleteUserAdmin.py`, `App/editUserAdmin.py`, `App/impersonateUserAdmin.py`.
+
+### CLI menu restructured into groups
+
+`categoryAdminCli.py`'s flat 14-item `MENU` became an 18-item, two-level `GROUPS` structure once the fourth group (below) was added - one flat list was getting unwieldy. Pick a group first (**Work with categories** / **Work with category colours** / **Work with permissions** / **Work with users**), then an action within it; picking an action loops back to that SAME group's action list (not all the way out to the group picker), so doing several actions of the same kind doesn't mean re-navigating every time. "Back to groups" from an action list returns to the top level. Grouping is purely organizational - every individual action still enforces its own specific permission server-side exactly as before, nothing about access control changed here.
+
+### Four new account-lifecycle permissions, bundled into 'admin' by default
+
+Added per explicit request, distinct from the users.*/roles.* permissions from Round 1 (which govern managing ROLES and PERMISSIONS, and remain owner-only by default): these four act on the account itself.
+
+- **`users.create`** - `POST /admin/users`. Creates an account directly (admin-side), as opposed to the public, unauthenticated `/auth/signup`. New accounts still get the plain `user` role at creation - use "Assign a role" afterward to elevate one.
+- **`users.delete`** - `DELETE /admin/users/<id>`. Deletes the account outright - cascades to their `transactions`, `uploaded_files`, personal `category_records`, and any `user_permission_overrides` row for them, via each table's existing `ON DELETE CASCADE` foreign key. No soft-delete, no undo. Two guards: the usual level-ceiling (can't delete someone at or above your own level, owner exempt) AND a hard refusal to let anyone delete their own account through this endpoint at all, even the owner - there's no upside to allowing that versus the risk of an unrecoverable self-lockout.
+- **`users.edit`** - `PATCH /admin/users/<id>/credentials`. Changes a username and/or password. Both go through the same `validate_username()`/`validate_password()` functions `/auth/signup` uses (extracted into standalone functions specifically so the two paths can't drift apart). Level-ceiling guard applies (can't edit someone at or above your own level) - otherwise a lower-tier admin with this permission could take over a higher account by just setting a password they know.
+- **`users.impersonate`** - `POST /admin/users/<id>/impersonate`. Issues a fresh, valid access token for the target account, no password needed. Level-ceiling guard applies. **Deliberately loud warning, both in code comments and in `impersonateUserAdmin.py`'s own docstring/CLI prompt:** this app's JWTs never expire (`JWT_ACCESS_TOKEN_EXPIRES = False`) and there's no server-side revocation anywhere - a generated token is valid indefinitely, exactly like an ordinary login token, with no way for the impersonated person to independently end it, and no audit trail beyond backend logs. This is real, load-bearing risk, not a formality - use it deliberately.
+
+All four are bundled into the `admin` role's default permission set in `schema.sql` (unlike Round 1's users.view/assign_role/manage_permissions/roles.*, which stay owner-only by default) - `admin`-and-up gets these automatically, owner always bypasses regardless of bundles.
+
+**Shared validation extracted:** `validate_username(username)` / `validate_password(password)` in `backend.py`, each returning an error string or `None`. `/auth/signup` and the new `users.create`/`users.edit` endpoints all call the same two functions now, rather than three copies of the same length/charset checks slowly drifting apart over time.
+
+**New `permissions.py` helpers:** `get_user_level(conn, user_id)` (lightweight single-row lookup for the hierarchy guards, versus pulling the full `list_all_users()` result just to check one row), `delete_user(conn, target_user_id)`, `update_user_credentials(conn, target_user_id, new_username=None, new_password_hash=None)`. Hierarchy/self-deletion guards live in `backend.py` at the route level in all three cases, same convention as `assign_user_role` - these functions just perform the already-decided action.
+
+**Verification this round:** all four hierarchy guards (same-level block, self-delete block, owner-exempt, cross-level edit/impersonate block) tested through a real Flask test client with mocked permission lookups; all four new CLI scripts simulated end-to-end with mocked HTTP, including confirming `deleteUserAdmin.py`'s picker never even offers your own account and its type-the-username-to-confirm step (added as a deliberate extra safety step beyond a plain y/n, given the action is a cascading, irreversible delete) works correctly; the full grouped-menu navigation (group → action → same group's list → different action → back to groups → different group → quit) walked through with a scripted input sequence.
+
+---
+
+## Round 3: acting on a user's own transactions (view/filter/group/delete/recategorise)
+
+**Scope addition:** `App/adminCliCommon.py` (three new helpers), `App/categoryAdminCli.py` (one new action wired into "Work with users"), plus one new script, `App/manageUserTransactionsAdmin.py`. **No backend or schema changes at all this round** - see why below.
+
+### The key realization: impersonation already IS the mechanism needed here
+
+Once you've picked a user via the existing `users.impersonate` permission (same guard, same picker filtering as `impersonateUserAdmin.py`), you get back a fully valid access token FOR THAT USER. The app's own `GET /transactions`, `DELETE /transactions`, and `POST /categorize/resolve` endpoints are all plain `@jwt_required()` routes scoped to whoever's identity is in the token - they were never "admin-only," they're ordinary personal actions any signed-in account can do for itself. So calling them with an impersonated token does exactly what the app itself would do if that person were sitting at their own device, with zero new backend surface required. `adminCliCommon.py` gained three thin wrappers around these existing endpoints - `fetch_transactions(token)`, `delete_transactions(token, ids)`, `resolve_categories(token, resolutions)` - each explicitly documented as "acts as whoever the token belongs to," since that's the entire trick.
+
+### One CLI action covers both "resolve manual review" and "change category"
+
+Confirmed directly from `ContentsScreen.js`: `handleCategoryPick()` calls the exact same `resolveCategories()` → `POST /categorize/resolve` whether the transaction it's acting on currently sits at the `NEEDS_MANUAL_REVIEW` ("MANUALLY CATEGORISE") sentinel or already has a real category assigned - the app itself doesn't distinguish these as different backend actions, so `manageUserTransactionsAdmin.py`'s "Set category for transactions" doesn't either. One action, works for either starting state.
+
+### What `manageUserTransactionsAdmin.py` actually does
+
+Pick a user (hierarchy-filtered exactly like impersonate) → get a session for them → enter a sub-menu that stays live until you're done:
+1. **View filtered transactions** - numbered list, respects whatever filter is currently set.
+2. **Category filter** - toggle-checklist multi-select (same interaction shape as `manageRolesAdmin.py`'s permission checklist), empty = no filter.
+3. **Date range filter** - `DD/MM/YYYY` from/to, parsed the same tolerant way `ContentsScreen.js` does (`txn_date` is free-form bank-export text, not a real date column - a malformed value is silently excluded from range comparisons rather than crashing).
+4. **Grouped-by-category summary** of whatever's currently filtered - count + total, sorted by total descending.
+5. **Delete** - either the entire filtered set, or hand-pick specific rows via a numbered multi-select; confirms with a count and "cannot be undone" before calling through.
+6. **Set category** - same "all filtered, or hand-pick specific rows" shape as delete, then a category picker, then one `resolve_categories()` call for whatever was selected. The result message explicitly notes that the backend's own resolve logic can silently update OTHER transactions sharing the same description text elsewhere in that user's history (documented, pre-existing behavior from `handoff.txt`'s categorization-pipeline round, not something this tool introduces) and points at "Refresh from server" to see the true state afterward.
+7. **Refresh from server** - refetches transactions fresh; the active category/date filter is preserved across a refresh (it's client-side state, not re-derived from the fetch).
+8. **Done** - back to the "Work with users" group.
+
+Category names for the filter/recategorize pickers come from `GET /categories` using the ADMIN'S OWN token, not the impersonated one - categories are global, shared data (see `schema.sql`), not scoped per-user, so there's no need to fetch them "as" the target user.
+
+**Verification this round:** full simulated session (pick user → filter by category → view → group → delete one specific row → recategorise the rest → refresh → confirm filter state survives the refresh → done) with mocked HTTP, confirming exact call arguments at each step; separately verified the date-range filter's tolerant parsing (a malformed date is excluded, not a crash) and that a non-owner admin's user picker correctly excludes same-level and higher-level accounts, consistent with every other hierarchy-guarded picker in this system.
+

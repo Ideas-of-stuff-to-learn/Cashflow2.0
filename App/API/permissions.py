@@ -297,6 +297,78 @@ def delete_role(conn, role_id):
         cur.execute("DELETE FROM roles WHERE id = %s", (role_id,))
 
 
+def get_user_level(conn, user_id):
+    """Returns {username, role, level} for a user, or None if not
+    found. Lighter-weight than list_all_users() for routes that only
+    need to check ONE target user's level for a hierarchy guard
+    (delete/edit/impersonate below) - no point fetching everyone's
+    full permission set just to read one row's level."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """SELECT u.username, r.name, r.level
+               FROM users u LEFT JOIN roles r ON u.role_id = r.id
+               WHERE u.id = %s""",
+            (user_id,),
+        )
+        row = cur.fetchone()
+    if not row:
+        return None
+    username, role_name, level = row
+    return {'username': username, 'role': role_name or 'user', 'level': level if level is not None else 0}
+
+
+def delete_user(conn, target_user_id):
+    """Deletes a user account outright. Cascades to their
+    transactions, uploaded_files, personal category_records, and any
+    user_permission_overrides row for them, via each table's own
+    ON DELETE CASCADE foreign key (see schema.sql) - there is no
+    soft-delete or undo built into this. Returns the deleted username.
+    Hierarchy and self-deletion guards are enforced in backend.py at
+    the route level, same convention as assign_user_role - this
+    function just performs the delete once that's already been
+    decided."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT username FROM users WHERE id = %s", (target_user_id,))
+        row = cur.fetchone()
+        if not row:
+            raise ValueError('User not found')
+        username = row[0]
+        cur.execute("DELETE FROM users WHERE id = %s", (target_user_id,))
+    return username
+
+
+def update_user_credentials(conn, target_user_id, new_username=None, new_password_hash=None):
+    """Updates a user's username and/or password hash - at least one
+    of the two must be given (the caller in backend.py enforces this
+    before calling in, but it's checked again here too since this
+    function might reasonably be called from elsewhere later). Raises
+    ValueError if the user doesn't exist, or the new username is
+    already taken by a DIFFERENT user (matching your own current
+    username back is not an error - that's just "the username didn't
+    actually change")."""
+    if new_username is None and new_password_hash is None:
+        raise ValueError('Provide a new username and/or password')
+
+    with conn.cursor() as cur:
+        cur.execute("SELECT 1 FROM users WHERE id = %s", (target_user_id,))
+        if not cur.fetchone():
+            raise ValueError('User not found')
+
+        if new_username is not None:
+            cur.execute(
+                "SELECT 1 FROM users WHERE username = %s AND id != %s",
+                (new_username, target_user_id),
+            )
+            if cur.fetchone():
+                raise ValueError(f'Username "{new_username}" is already taken')
+            cur.execute("UPDATE users SET username = %s WHERE id = %s", (new_username, target_user_id))
+
+        if new_password_hash is not None:
+            cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (new_password_hash, target_user_id))
+
+    return next(u for u in list_all_users(conn) if u['id'] == target_user_id)
+
+
 def assign_user_role(conn, target_user_id, role_name):
     """Sets a user's role_id by role name. Returns the updated user
     dict (see list_all_users' shape, one entry). Raises ValueError if

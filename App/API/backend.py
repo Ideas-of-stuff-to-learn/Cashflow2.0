@@ -24,6 +24,7 @@ from permissions import (
     list_all_permissions, list_all_roles, list_all_users,
     get_role_by_name, create_role, update_role, delete_role,
     assign_user_role, set_user_permission_override,
+    get_user_level, delete_user, update_user_credentials,
 )
 
 
@@ -806,6 +807,198 @@ def admin_set_permission_override(target_user_id):
         release_connection(conn)
 
 
+# --- Direct account-lifecycle actions (create/edit/delete/impersonate) ---
+# Distinct from the role/permission-management endpoints above - these
+# act on the ACCOUNT itself (does it exist, what are its credentials,
+# can you borrow its session), not on what role/permissions it has.
+# Added after the initial round of this system, per explicit request;
+# bundled into the 'admin' role by default (see schema.sql) rather
+# than owner-only, unlike users.view/assign_role/manage_permissions
+# and roles.* above.
+@app.route('/admin/users', methods=['POST'])
+@jwt_required()
+@require_permission('users.create')
+@limiter.limit("20 per day")
+def admin_create_user():
+    """Creates a new user account directly, as an elevated action -
+    distinct from the public, self-service /auth/signup (no permission
+    check at all, rate-limited separately). Assigned the plain 'user'
+    role at creation, same as any ordinary signup - use the "assign a
+    role" action afterward if this account should start out elevated.
+    Same validation rules as /auth/signup via the shared
+    validate_username()/validate_password() helpers, so the two paths
+    can never quietly drift into accepting different things."""
+    data = request.get_json() or {}
+    username = (data.get('username') or '').strip()
+    password = data.get('password') or ''
+
+    error = validate_username(username) or validate_password(password)
+    if error:
+        return jsonify({'error': error}), 400
+
+    conn = get_connection()
+    try:
+        if username_exists(conn, username):
+            return jsonify({'error': 'Username already taken'}), 409
+
+        hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=12))
+        new_id = create_user(conn, username, hashed.decode('utf-8'))
+        user = next(u for u in list_all_users(conn) if u['id'] == new_id)
+        return jsonify({'user': user}), 201
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Admin user creation failed: {e}')
+        return jsonify({'error': 'User creation failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/admin/users/<int:target_user_id>', methods=['DELETE'])
+@jwt_required()
+@require_permission('users.delete')
+@limiter.limit("20 per day")
+def admin_delete_user(target_user_id):
+    """Deletes a user account outright - CASCADES to their
+    transactions, uploaded_files, personal category_records, and any
+    user_permission_overrides row for them (see schema.sql's
+    ON DELETE CASCADE foreign keys). No soft-delete or undo.
+
+    Same level-ceiling guard as role assignment: cannot delete a user
+    at or above your own level, unless you're the owner. Also refuses
+    to let anyone delete their OWN account through this endpoint -
+    there's no upside to allowing that here versus the real risk of an
+    unrecoverable mistake locking someone out of their only elevated
+    account.
+    """
+    current_user = int(get_jwt_identity())
+    if target_user_id == current_user:
+        return jsonify({'error': 'Cannot delete your own account through this endpoint'}), 400
+
+    conn = get_connection()
+    try:
+        caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
+        target = get_user_level(conn, target_user_id)
+        if not target:
+            return jsonify({'error': 'User not found'}), 404
+        if caller_role != 'owner' and target['level'] >= caller_level:
+            return jsonify({'error': f'Cannot delete a user at or above your own level ({caller_level})'}), 403
+
+        deleted_username = delete_user(conn, target_user_id)
+        conn.commit()
+        return jsonify({'status': 'ok', 'deleted_username': deleted_username}), 200
+    except ValueError as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'User deletion failed: {e}')
+        return jsonify({'error': 'User deletion failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/admin/users/<int:target_user_id>/credentials', methods=['PATCH'])
+@jwt_required()
+@require_permission('users.edit')
+@limiter.limit("20 per day")
+def admin_edit_user_credentials(target_user_id):
+    """Changes a user's username and/or password - at least one of the
+    two must be given, the other is left untouched. New values go
+    through the same validate_username()/validate_password() rules as
+    signup. Same level-ceiling guard as delete/impersonate: cannot edit
+    a user at or above your own level unless you're the owner -
+    otherwise a level-50 admin with users.edit could take over the
+    owner's account by simply setting a password they know.
+    """
+    data = request.get_json() or {}
+    new_username = data.get('username')
+    new_password = data.get('password')
+
+    if new_username is None and new_password is None:
+        return jsonify({'error': 'Provide username and/or password'}), 400
+
+    if new_username is not None:
+        new_username = new_username.strip()
+        error = validate_username(new_username)
+        if error:
+            return jsonify({'error': error}), 400
+    if new_password is not None:
+        error = validate_password(new_password)
+        if error:
+            return jsonify({'error': error}), 400
+
+    current_user = int(get_jwt_identity())
+    conn = get_connection()
+    try:
+        caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
+        target = get_user_level(conn, target_user_id)
+        if not target:
+            return jsonify({'error': 'User not found'}), 404
+        if caller_role != 'owner' and target['level'] >= caller_level:
+            return jsonify({'error': f'Cannot edit a user at or above your own level ({caller_level})'}), 403
+
+        new_password_hash = None
+        if new_password is not None:
+            new_password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt(rounds=12)).decode('utf-8')
+
+        user = update_user_credentials(
+            conn, target_user_id,
+            new_username=new_username, new_password_hash=new_password_hash,
+        )
+        conn.commit()
+        return jsonify({'user': user}), 200
+    except ValueError as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'User credential update failed: {e}')
+        return jsonify({'error': 'Update failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/admin/users/<int:target_user_id>/impersonate', methods=['POST'])
+@jwt_required()
+@require_permission('users.impersonate')
+@limiter.limit("20 per day")
+def admin_impersonate_user(target_user_id):
+    """Issues a fresh, fully valid access token for another user's
+    account, without needing or ever seeing their password - "log in
+    as them." Same level-ceiling guard as delete/edit: cannot
+    impersonate a user at or above your own level, unless you're the
+    owner.
+
+    WORTH KNOWING: this app's JWTs never expire
+    (JWT_ACCESS_TOKEN_EXPIRES = False, top of this file) and there is
+    no server-side token revocation/blacklist anywhere in this app -
+    logging "out" only deletes the token from the device's local
+    SecureStore, it does not invalidate the token itself. A token
+    generated here is therefore valid indefinitely, exactly like an
+    ordinary login token, with no separate expiry the impersonated
+    person could rely on to end it, and no audit trail beyond backend
+    logs of when this was used or by whom. Use deliberately, not
+    casually.
+    """
+    current_user = int(get_jwt_identity())
+    conn = get_connection()
+    try:
+        caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
+        target = get_user_level(conn, target_user_id)
+        if not target:
+            return jsonify({'error': 'User not found'}), 404
+        if caller_role != 'owner' and target['level'] >= caller_level:
+            return jsonify({'error': f'Cannot impersonate a user at or above your own level ({caller_level})'}), 403
+
+        token = create_access_token(identity=str(target_user_id))
+        return jsonify({'access_token': token, 'username': target['username']}), 200
+    except Exception as e:
+        app.logger.error(f'Impersonation failed: {e}')
+        return jsonify({'error': 'Impersonation failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
+
 @app.route('/auth/login', methods=['POST'])
 @limiter.limit("10 per minute")
 def login():
@@ -841,6 +1034,30 @@ def login():
         release_connection(conn)
 
 
+def validate_username(username):
+    """Returns an error message string, or None if valid. Shared by
+    /auth/signup and PATCH /admin/users/<id>/credentials so both
+    paths - self-signup and an admin editing someone else's account -
+    enforce identical rules and can never quietly drift apart."""
+    if not username:
+        return 'Username cannot be empty'
+    if len(username) < 3:
+        return 'Username must be at least 3 characters'
+    if len(username) > 30:
+        return 'Username must be under 30 characters'
+    if not username.replace('_', '').replace('-', '').isalnum():
+        return 'Username can only contain letters, numbers, hyphens and underscores'
+    return None
+
+
+def validate_password(password):
+    """Returns an error message string, or None if valid. Same sharing
+    reasoning as validate_username above."""
+    if not password or len(password) < 8:
+        return 'Password must be at least 8 characters'
+    return None
+
+
 @app.route('/auth/signup', methods=['POST'])
 @limiter.limit("5 per minute")
 def signup():
@@ -851,17 +1068,9 @@ def signup():
     username = data['username'].strip()
     password = data['password']
 
-    if not username:
-        return jsonify({'error': 'Username cannot be empty'}), 400
-    if len(username) < 3:
-        return jsonify({'error': 'Username must be at least 3 characters'}), 400
-    if len(username) > 30:
-        return jsonify({'error': 'Username must be under 30 characters'}), 400
-    if not username.replace('_', '').replace('-', '').isalnum():
-        return jsonify({'error': 'Username can only contain letters, numbers, hyphens and underscores'}), 400
-
-    if len(password) < 8:
-        return jsonify({'error': 'Password must be at least 8 characters'}), 400
+    error = validate_username(username) or validate_password(password)
+    if error:
+        return jsonify({'error': error}), 400
 
     conn = get_connection()
     try:
