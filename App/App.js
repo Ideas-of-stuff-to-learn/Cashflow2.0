@@ -17,7 +17,6 @@ Solve major JWT never expiry issue DONE
 */
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AppProvider } from './AppContext.js';
 import RoleBadge from './components/RoleBadge.js';
 

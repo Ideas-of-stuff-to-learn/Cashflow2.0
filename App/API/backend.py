@@ -1531,25 +1531,55 @@ def parse_csv():
 @jwt_required()
 @limiter.limit("100 per day")
 def get_transactions():
-    """Returns every transaction ever stored for the logged-in user, so
-    the app can restore history on open instead of starting empty every
-    session. Ordered by id (insertion order) rather than date, since
-    txn_date is stored as free-form text (whatever format the bank
-    export used) and doesn't sort chronologically as a string - the
-    frontend already re-sorts by parsed date for display anyway.
+    """Returns transactions for the logged-in user. Supports optional
+    pagination via ?offset=N&limit=N query params - if neither is given,
+    returns all rows (the old behaviour, kept for CLI callers and any
+    other client that fetches in one shot). When limit is given, also
+    returns a `total` count in the response so the client knows when it
+    has fetched everything without needing a separate request.
+
+    Ordered by id (insertion order) rather than date, since txn_date is
+    stored as free-form text and doesn't sort chronologically as a string
+    - the frontend re-sorts by parsed date for display anyway.
     """
     current_user = int(get_jwt_identity())
+
+    raw_offset = request.args.get('offset')
+    raw_limit = request.args.get('limit')
+    paginated = raw_limit is not None
+
+    try:
+        offset = max(0, int(raw_offset)) if raw_offset is not None else 0
+        limit = min(max(1, int(raw_limit)), 2000) if raw_limit is not None else None
+    except (TypeError, ValueError):
+        return jsonify({'error': 'offset and limit must be integers'}), 400
 
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                """SELECT id, txn_date, description, amount, category
-                   FROM transactions
-                   WHERE user_id = %s
-                   ORDER BY id""",
-                (current_user,),
-            )
+            if paginated:
+                cur.execute(
+                    "SELECT COUNT(*) FROM transactions WHERE user_id = %s",
+                    (current_user,),
+                )
+                total = cur.fetchone()[0]
+                cur.execute(
+                    """SELECT id, txn_date, description, amount, category
+                       FROM transactions
+                       WHERE user_id = %s
+                       ORDER BY id
+                       LIMIT %s OFFSET %s""",
+                    (current_user, limit, offset),
+                )
+            else:
+                total = None
+                cur.execute(
+                    """SELECT id, txn_date, description, amount, category
+                       FROM transactions
+                       WHERE user_id = %s
+                       ORDER BY id""",
+                    (current_user,),
+                )
             rows = cur.fetchall()
 
         transactions = [
@@ -1562,7 +1592,13 @@ def get_transactions():
             }
             for row in rows
         ]
-        return jsonify({'transactions': transactions}), 200
+
+        response = {'transactions': transactions}
+        if paginated:
+            response['total'] = total
+            response['offset'] = offset
+            response['limit'] = limit
+        return jsonify(response), 200
     except Exception as e:
         app.logger.error(f'Fetching transaction history failed for user {current_user}: {e}')
         return jsonify({'error': 'Failed to fetch transaction history'}), 500

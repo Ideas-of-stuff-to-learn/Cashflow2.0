@@ -232,15 +232,6 @@ export default function ContentsScreen({ navigation, route }) {
         );
     }
 
-    // Stable Set reference for selectedIds - useCallback on renderRow
-    // depends on this not changing identity on every render, so we
-    // keep a ref that always points at the current value and read from
-    // it inside the callback instead.
-    const selectedIdsRef = useRef(selectedIds);
-    useEffect(() => { selectedIdsRef.current = selectedIds; }, [selectedIds]);
-    const selectionModeRef = useRef(selectionMode);
-    useEffect(() => { selectionModeRef.current = selectionMode; }, [selectionMode]);
-
     const toggleSelected = useCallback((id) => {
         setSelectedIds(prev => {
             const next = new Set(prev);
@@ -430,19 +421,27 @@ export default function ContentsScreen({ navigation, route }) {
         toggleSelected(id);
     }, [toggleSelected]);
 
+    // renderRow reads selectedIds and selectionMode from state directly -
+    // no stale refs. renderRow recreates when either changes, but that's
+    // fine: renderRow itself is cheap. What matters is that TransactionRow
+    // (React.memo) gets accurate isSelected/inSelectionMode booleans so it
+    // can correctly skip re-rendering rows whose values didn't change.
+    // Tapping a checkbox: selectedIds changes -> renderRow recreates ->
+    // FlatList calls it for visible rows -> memo compares per-row booleans
+    // -> only the one row whose isSelected flipped actually re-renders.
     const renderRow = useCallback(({ item, index }) => {
         return (
             <TransactionRow
                 item={item}
                 index={index}
-                isSelected={selectedIdsRef.current.has(item.id)}
-                inSelectionMode={selectionModeRef.current}
+                isSelected={selectedIds.has(item.id)}
+                inSelectionMode={selectionMode}
                 onToggle={onToggle}
                 onOpenPicker={onOpenPicker}
                 onEnterSelectionMode={onEnterSelectionMode}
             />
         );
-    }, [onToggle, onOpenPicker, onEnterSelectionMode]);
+    }, [selectedIds, selectionMode, onToggle, onOpenPicker, onEnterSelectionMode]);
 
     return (
     <View style={[styles.container, { paddingBottom: insets.bottom}]}>

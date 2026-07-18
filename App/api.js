@@ -256,11 +256,26 @@ export async function updateCategory(categoryName, { newName, color } = {}) {
     return await parseJsonResponse(response, 'Failed to update category');
 }
 
-export async function getTransactionHistory() {
-    const response = await authorizedFetch(`${BASE_URL}/transactions`, { method: 'GET' });
+// Without arguments: fetches all transactions in one shot (CLI callers,
+// manageUserTransactionsAdmin.py, etc. - the old behaviour preserved).
+// With { offset, limit }: fetches one page and returns
+// { transactions, total, offset, limit } so the caller knows the full
+// count and can loop for subsequent pages.
+export async function getTransactionHistory({ offset, limit } = {}) {
+    const params = new URLSearchParams();
+    if (offset !== undefined) params.set('offset', offset);
+    if (limit !== undefined) params.set('limit', limit);
+    const qs = params.toString();
+
+    const response = await authorizedFetch(
+        `${BASE_URL}/transactions${qs ? '?' + qs : ''}`,
+        { method: 'GET' },
+    );
 
     const data = await parseJsonResponse(response, 'Failed to fetch transaction history');
-    return data.transactions;
+    // Paginated call: return the full envelope so caller has total/offset/limit.
+    // Non-paginated call: return just the array, same as before.
+    return limit !== undefined ? data : data.transactions;
 }
 
 export async function deleteTransactions(ids) {

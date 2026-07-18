@@ -39,38 +39,74 @@ export function useInitialLoadLogic(){
         let cancelled = false;
         setInitialLoadError(null);
 
+        const BATCH_SIZE = 500;
+
         async function loadInitialData() {
             try {
-                // Fetch in parallel - unrelated data, no reason to wait
-                // on one before starting the other
-                const [history, cats, count] = await Promise.all([
-                    getTransactionHistory(),
+                // Step 1: categories and upload count first - these are
+                // small, fast requests that make the home screen info
+                // (date range, upload count) appear immediately. Fetched
+                // in parallel since they're independent.
+                const [cats, count] = await Promise.all([
                     getCategories(),
                     getUploadCount(),
                 ]);
-                if (!cancelled) {
-                    setTransactions(history);
-                    setCategories(cats);
-                    setUploadCount(count);
+                if (cancelled) return;
+                setCategories(cats);
+                setUploadCount(count);
+
+                // Step 2: transactions in batches. The first batch makes
+                // the Contents/Charts screens usable right away (and the
+                // date range on home updates as each batch lands). Remaining
+                // batches stream in progressively. setInitialLoading(false)
+                // fires after the first batch so UI spinners clear as soon
+                // as something is visible, not after all thousands of rows.
+                let offset = 0;
+                let total = null;
+                let firstBatch = true;
+
+                while (true) {
+                    const page = await getTransactionHistory({
+                        offset,
+                        limit: BATCH_SIZE,
+                    });
+                    if (cancelled) return;
+
+                    total = page.total;
+                    setTransactions(prev => {
+                        // Merge rather than replace - preserves any
+                        // rows added by an upload that happened to land
+                        // while a long batch-load was still in progress.
+                        const byId = new Map(prev.map(t => [t.id, t]));
+                        for (const t of page.transactions) {
+                            byId.set(t.id, t);
+                        }
+                        return Array.from(byId.values());
+                    });
+
+                    if (firstBatch) {
+                        // Clear the loading spinner after the first batch
+                        // so the UI is usable immediately, even if more
+                        // batches are still coming.
+                        setInitialLoading(false);
+                        firstBatch = false;
+                    }
+
+                    offset += page.transactions.length;
+                    if (offset >= total) break;
                 }
             } catch (e) {
                 if (cancelled) return;
                 const msg = e.message || '';
                 if (msg.includes('starting up')) {
-                    // Cold-start timeout - surface to UI so user sees
-                    // a message + retry button rather than just a
-                    // spinner that never resolves.
                     setInitialLoadError(msg);
                 } else {
-                    // Other failure - not fatal, user can still upload
-                    // fresh data, just starts from empty instead of
-                    // restored history/categories.
                     console.warn('Failed to load initial data:', msg);
                 }
             } finally {
-                if (!cancelled) {
-                    setInitialLoading(false);
-                }
+                // Always clear the loading spinner on exit, even if
+                // the first batch never landed (error path).
+                if (!cancelled) setInitialLoading(false);
             }
         }
         loadInitialData();

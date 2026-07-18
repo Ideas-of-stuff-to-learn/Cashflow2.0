@@ -1,0 +1,135 @@
+# Handoff — Multiselect Fix, Batch Transaction Loading, JWT Blocklist Clarification
+
+**Scope:** `App/screens/ContentsScreen.js`, `App/api.js`, `App/API/backend.py`, `App/customHooks/homescreen/useInitialLoadLogic.js`.
+
+This document covers three things from the same session: a clarification on how the JWT blocklist works (not a code change), a fix for the multiselect bugs in ContentsScreen, and a new batch-loading approach for transactions. The repo is the source of truth; this document can become stale.
+
+---
+
+## READ THIS FIRST
+
+**The repo is the source of truth. This document can be, and eventually will be, stale.**
+
+1. Pull the current version of every file listed above directly from `main` before changing anything here.
+2. If the repo contradicts this doc, **the repo wins.**
+
+---
+
+## How the JWT blocklist actually works (clarification, not a code change)
+
+From handoff6.txt, the `@jwt.token_in_blocklist_loader` decorator was described without explaining who defines what. Clarifying because it came up:
+
+`flask_jwt_extended` provides the hook point — a decorator that registers a callback the library promises to call on every authenticated request, after signature verification succeeds. We provide the function that runs inside that hook. Concretely:
+
+```python
+@jwt.token_in_blocklist_loader
+def check_if_token_revoked(jwt_header, jwt_payload):
+    jti = jwt_payload["jti"]
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM revoked_tokens WHERE jti = %s", (jti,))
+            return cur.fetchone() is not None
+    finally:
+        release_connection(conn)
+```
+
+The library calls `check_if_token_revoked` automatically. If it returns `True`, the library rejects the request with 401, same as if the signature had failed. If `False`, the request continues. We built the Postgres check; the library built the mechanism that calls it. Nothing here is magic — it's a registered callback, same concept as an event listener.
+
+---
+
+## Multiselect bugs (ContentsScreen.js)
+
+### What was wrong
+
+Four visible bugs, all caused by the same root: **stale refs**.
+
+The previous optimization used `useRef` to hold copies of `selectedIds` and `selectionMode`, kept current via `useEffect`. The idea was to stabilize `renderRow`'s `useCallback` deps (avoiding `selectedIds` as a dep since it's a new `Set` reference on every state change). But `useEffect` runs **after paint** — after React has already committed the render and shown it on screen. So the sequence was:
+
+1. User taps a checkbox.
+2. `toggleSelected` fires → `selectedIds` state updates.
+3. React schedules a re-render.
+4. React calls `renderRow` for visible rows → reads `selectedIdsRef.current` → **stale**, still the old Set from before the tap.
+5. `isSelected` computed as `false` even though state says `true`.
+6. `TransactionRow` renders with wrong `isSelected`.
+7. *Then* the `useEffect` fires, updating the ref — but nothing triggers another render for that row, because `memo` already decided "nothing changed" based on the stale prop.
+
+This produced all four observed bugs:
+- **Random deselection when selecting multiple:** each tap read stale state.
+- **Deselects the first when selecting a third:** ref was always one state update behind.
+- **Cancel doesn't remove checkboxes:** `selectionModeRef.current` was still `true` when `renderRow` ran, so `inSelectionMode` passed `true` to all rows; checkboxes stayed.
+- **Slowness during multiselect:** memo comparisons were inconsistent, React Native fell back to re-rendering more rows than necessary to catch up.
+
+### The fix
+
+Removed both refs and both update-effects entirely. `renderRow` now reads `selectedIds` and `selectionMode` directly from state, and lists them as dependencies:
+
+```js
+const renderRow = useCallback(({ item, index }) => {
+    return (
+        <TransactionRow
+            item={item}
+            index={index}
+            isSelected={selectedIds.has(item.id)}   // state, not stale ref
+            inSelectionMode={selectionMode}           // state, not stale ref
+            onToggle={onToggle}
+            onOpenPicker={onOpenPicker}
+            onEnterSelectionMode={onEnterSelectionMode}
+        />
+    );
+}, [selectedIds, selectionMode, onToggle, onOpenPicker, onEnterSelectionMode]);
+```
+
+`renderRow` now recreates when `selectedIds` or `selectionMode` changes. That's fine — `renderRow` is a tiny function, cheap to recreate. What matters is that `TransactionRow` (still `React.memo`) gets **accurate** `isSelected`/`inSelectionMode` booleans. When you tap one checkbox, `selectedIds` changes → `renderRow` recreates → FlatList calls it for visible rows → memo compares the `isSelected` boolean per row → only the one row whose boolean actually flipped re-renders. Everything else is skipped. This is correct, accurate, and fast — unlike the stale-ref approach which was inaccurate.
+
+`resolvingRef` and `resyncInFlight` (also refs) are **unchanged** — those serve a different, legitimate purpose (guarding against double-taps and concurrent resync requests) and don't have the stale-read problem because they're not read inside a memoised render path.
+
+---
+
+## Batch transaction loading
+
+### What changed and why
+
+Previously `useInitialLoadLogic` fetched all three things in one `Promise.all`: categories, upload count, and the entire transaction history. For users with several years of data, "entire transaction history" can be thousands of rows. That single request blocked everything — no date range, no upload count, no transaction list — until the whole fetch completed.
+
+### New load order
+
+**Step 1 (fast):** categories and upload count, in parallel. These are small, bounded responses regardless of transaction history length. Once they land, the home screen info (date range is empty until transactions arrive, but upload count is live) displays immediately. `setInitialLoading(false)` does NOT fire here — the loading spinner stays until at least the first transaction batch lands.
+
+**Step 2 (batched):** transactions in pages of 500, sequentially. After the first batch lands, `setInitialLoading(false)` fires — the UI becomes usable immediately with whatever's arrived. Remaining batches stream in, each one merged into existing state via the same `byId` Map merge used everywhere else in this app (so a transaction that landed from an upload while a batch-load was still running isn't overwritten). The date range on the home screen updates as each batch lands since `getDateRangeInfo` runs on whatever's currently in state.
+
+### Backend change (`GET /transactions`)
+
+Added optional `?offset=N&limit=N` query parameters. Without them, the endpoint returns all rows exactly as before (preserving backward compatibility for CLI tools and `manageUserTransactionsAdmin.py`). With `limit` given, it also returns `total`, `offset`, and `limit` in the response so the client knows when it's fetched everything without a separate count request.
+
+Limit is capped at 2000 server-side regardless of what's sent. Offset below 0 is normalised to 0. Non-integer values return 400.
+
+### Frontend change (`api.js`)
+
+`getTransactionHistory()` still works identically when called without arguments — returns the plain array of transactions, same as always. Called with `{ offset, limit }`, returns the full paginated envelope `{ transactions, total, offset, limit }`. Callers that don't pass pagination args get the old behaviour with no changes needed on their end.
+
+### What this means for the UX
+
+- Home screen info (upload count) appears as soon as categories/count land — typically fast since those are small.
+- First 500 transactions appear and the loading spinner clears — the Contents and Charts screens are usable.
+- Remaining transactions stream in progressively, the date range on home extending as earlier transactions arrive.
+- On retry (cold-start recovery), the whole sequence restarts cleanly.
+
+---
+
+## Files changed this session
+
+| File | What changed |
+|---|---|
+| `App/screens/ContentsScreen.js` | Removed `selectedIdsRef`/`selectionModeRef` refs and their update effects; `renderRow` now reads `selectedIds`/`selectionMode` directly from state. All four multiselect bugs fixed. |
+| `App/api.js` | `getTransactionHistory` now accepts optional `{ offset, limit }` — returns full paginated envelope when called with `limit`, plain array without (backward compatible). |
+| `App/API/backend.py` | `GET /transactions` now accepts optional `?offset=N&limit=N` query params; returns `{ transactions, total, offset, limit }` when paginated, plain `{ transactions }` without. Limit capped at 2000. |
+| `App/customHooks/homescreen/useInitialLoadLogic.js` | New two-step load: categories + upload count first (parallel, fast), then transactions in batches of 500 with progressive UI updates. Loading spinner clears after first transaction batch. |
+
+---
+
+## Known gaps / not done this session
+
+- **Batch size (500) is not tunable from the frontend** — it's hardcoded in `useInitialLoadLogic`. If transactions are very large and 500 still feels slow, this is the number to lower. If it's fast and network round trips are the bottleneck, raise it.
+- **The retry path (cold-start recovery) restarts from offset 0** — if batch 3 of 6 times out, you retry from the beginning, not from batch 3. For most people's transaction counts this is fine; it would matter for someone with tens of thousands of rows.
+- **No automated tests exist for any of this** — same gap every prior handoff doc has flagged. The multiselect fix in particular is worth a proper test since it's easy to reintroduce the stale-ref pattern; the batch loading is worth testing against a real DB with large datasets.
