@@ -1,18 +1,18 @@
 /*
 
-Combination of groceries, households and medicines and stationary DONE
-Remove transfers DONE
-Add others DONE
-Fix the upload files counter for non same files DONE
-Permission system DONE
-Road map accurate to deployed to play store and app store
-Make into windows app wrapped
-Able to move the stakes around DONE
-Show a colour scheme and make an admin colour changer. No user colour picker DONE
-Dummy files for many years DONE
-Scroll horizontal view on month chart DONE
-If month chart doesn't have 12 months of data it' backfill remaining months data from previous yr DONE
-Solve major JWT never expiry issue DONE
+Tasks to do:
+  Road map accurate to deployed to play store and app store
+    Actual process
+    And costs to maintain like backend free tier, google Gemini Api payment plan, google play store price
+    Research what is needed to pass the review
+  Make into windows app wrapped
+  Deploying to Microsoft store
+    process and price
+  Manually categorise pop resolve feature should say top right the number of manually categorise things left to manually categorise
+  Homepage should say processing will take this long [approx.] you can close the app and come back in a bit
+  Backfill should only work for adjacent years. If there is a gap there is the previous month with blank bars or no bars
+  Organise code into more structured format
+  Test higher cache and batch size to speed up potentially
 
 */
 import { NavigationContainer } from '@react-navigation/native';
