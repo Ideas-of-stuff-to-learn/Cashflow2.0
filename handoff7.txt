@@ -1,8 +1,8 @@
-# Handoff — Multiselect Fix, Batch Transaction Loading, JWT Blocklist Clarification
+# Handoff — Multiselect Fix, Batch Transaction Loading, JWT Blocklist Clarification, Chart Optimisations
 
-**Scope:** `App/screens/ContentsScreen.js`, `App/api.js`, `App/API/backend.py`, `App/customHooks/homescreen/useInitialLoadLogic.js`.
+**Scope:** `App/screens/ContentsScreen.js`, `App/api.js`, `App/API/backend.py`, `App/customHooks/homescreen/useInitialLoadLogic.js`, `App/customHooks/charts/useChartData.js`, `App/components/charts/SpendingStackedChart.js`.
 
-This document covers three things from the same session: a clarification on how the JWT blocklist works (not a code change), a fix for the multiselect bugs in ContentsScreen, and a new batch-loading approach for transactions. The repo is the source of truth; this document can become stale.
+This document covers five things from the same session: a clarification on how the JWT blocklist works (not a code change), a fix for the multiselect bugs in ContentsScreen, a new batch-loading approach for transactions, an instant-logout fix, and chart screen re-render optimisations. The repo is the source of truth; this document can become stale.
 
 ---
 
@@ -117,19 +117,87 @@ Limit is capped at 2000 server-side regardless of what's sent. Offset below 0 is
 
 ---
 
+## Instant logout (`api.js`)
+
+Previously `logout()` cleared local tokens in the `finally` block — meaning it waited for the server-side revocation network call to complete before the UI could respond. On a cold Render instance that pause was noticeable.
+
+Fix: clear tokens first (instant), then fire the revocation request in the background without awaiting it:
+
+```js
+// Clear first - instant UI response.
+await clearTokens();
+
+// Revoke in the background - fire-and-forget.
+if (token) {
+    fetch(`${BASE_URL}/auth/logout`, { ... }).catch(() => {});
+}
+```
+
+**The race condition concern** (what if you log back in before the background call lands): not an issue. Each token has a unique `jti` baked in at creation. Revoking a token inserts *that specific `jti`* into `revoked_tokens`. A new login issues tokens with entirely new `jti`s — the background revocation of the old `jti` never touches the new session's tokens. The two are completely independent rows.
+
+---
+
+## Chart screen re-render optimisations
+
+`InteractionManager.runAfterInteractions` (already in `useDetailedChartReveal`) and `chartSummary` living in `AppContext` were already doing the main work. These are smaller gains on top — they affect re-renders after the initial mount rather than the mount itself.
+
+### `useChartData.js` — unstable `onPress` in `allTimeChartData2`
+
+```js
+// Before: new arrow function on every memo run
+onPress: () => setSelectedBar({ category, total }),
+```
+
+This inline arrow was a new function reference every time `allTimeChartData2` recomputed, so `allTimeChartData2`'s array reference always changed even when the underlying totals hadn't. `SpendingStackedChart` is `React.memo` — but memo only skips re-renders when props are stable references. With `allTimeChartData2` always changing, the chart re-rendered on every unrelated parent update.
+
+Fix: extracted to a stable `useCallback` with empty deps, called with `(category, total)` by the bar chart:
+
+```js
+const onBarPress = useCallback((category, total) => {
+    setSelectedBar({ category, total });
+}, []);
+
+// useMemo now only recomputes when yearly data actually changes
+const allTimeChartData2 = useMemo(() => {
+    ...
+    onPress: () => onBarPress(category, total),
+    ...
+}, [yearly, onBarPress]);
+```
+
+### `SpendingStackedChart.js` — bar-level memoisation
+
+Previously all bars were rendered inline in one function. When `maxValue` changed (which it does whenever any totals change — selecting a category filter, for example), every bar re-rendered even if its own segments were identical.
+
+Extracted the per-bar rendering into a `StackBar` component wrapped in `React.memo`, placed outside `SpendingStackChart`. Each `StackBar` now only re-renders when its own `bar`, `maxValue`, `chartHeight`, or `columnWidth` props change. For typical interactions (toggling a category filter, tapping a segment) most bars are skipped entirely.
+
+```js
+const StackBar = React.memo(function StackBar({ bar, barIndex, maxValue, chartHeight, columnWidth }) {
+    // ... segment rendering ...
+});
+```
+
+The outer `SpendingStackChart` itself remains `React.memo` — this is an additional layer of granularity inside it.
+
+---
+
 ## Files changed this session
 
 | File | What changed |
 |---|---|
 | `App/screens/ContentsScreen.js` | Removed `selectedIdsRef`/`selectionModeRef` refs and their update effects; `renderRow` now reads `selectedIds`/`selectionMode` directly from state. All four multiselect bugs fixed. |
-| `App/api.js` | `getTransactionHistory` now accepts optional `{ offset, limit }` — returns full paginated envelope when called with `limit`, plain array without (backward compatible). |
+| `App/api.js` | `getTransactionHistory` now accepts optional `{ offset, limit }`. `logout()` now clears tokens first then revokes in background — instant UI response. |
 | `App/API/backend.py` | `GET /transactions` now accepts optional `?offset=N&limit=N` query params; returns `{ transactions, total, offset, limit }` when paginated, plain `{ transactions }` without. Limit capped at 2000. |
 | `App/customHooks/homescreen/useInitialLoadLogic.js` | New two-step load: categories + upload count first (parallel, fast), then transactions in batches of 500 with progressive UI updates. Loading spinner clears after first transaction batch. |
+| `App/customHooks/charts/useChartData.js` | Extracted stable `onBarPress` useCallback so `allTimeChartData2` no longer changes identity on every render. |
+| `App/components/charts/SpendingStackedChart.js` | Extracted `StackBar` as a `React.memo` component so individual bars skip re-rendering when their own segments haven't changed. |
 
 ---
 
 ## Known gaps / not done this session
 
-- **Batch size (500) is not tunable from the frontend** — it's hardcoded in `useInitialLoadLogic`. If transactions are very large and 500 still feels slow, this is the number to lower. If it's fast and network round trips are the bottleneck, raise it.
-- **The retry path (cold-start recovery) restarts from offset 0** — if batch 3 of 6 times out, you retry from the beginning, not from batch 3. For most people's transaction counts this is fine; it would matter for someone with tens of thousands of rows.
-- **No automated tests exist for any of this** — same gap every prior handoff doc has flagged. The multiselect fix in particular is worth a proper test since it's easy to reintroduce the stale-ref pattern; the batch loading is worth testing against a real DB with large datasets.
+- **Batch size (500) is not tunable from the frontend** — it's hardcoded in `useInitialLoadLogic`. If transactions are very large and 500 still feels slow, lower it. If network round trips are the bottleneck, raise it.
+- **The retry path (cold-start recovery) restarts from offset 0** — if batch 3 of 6 times out, you retry from the beginning, not from batch 3. Fine for most transaction counts; would matter for tens of thousands of rows.
+- **Logout revocation is now best-effort** — if the background revocation call never lands (server down, network dropped), the token remains valid server-side until its natural 24h expiry. Acceptable tradeoff given the freshness requirement on sensitive routes (impersonate, delete, edit-credentials) means a stolen token still can't trigger those regardless.
+- **No automated tests exist for any of this** — same gap every prior handoff doc has flagged.
+
