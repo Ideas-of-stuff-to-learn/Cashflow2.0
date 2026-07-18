@@ -27,9 +27,9 @@ export default function DetailedChartSection({
             <Slider
                 style={{ width: '100%', height: 40 }}
                 minimumValue={1}
-                maximumValue={15}
+                maximumValue={5}
                 value={1}
-                step={1}
+                step={0.5}
                 onValueChange={(val) => setHeightScale(val)}
                 minimumTrackTintColor="#2E5C8A"
                 maximumTrackTintColor="#ccc"

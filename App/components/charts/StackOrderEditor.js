@@ -50,30 +50,35 @@ export default function StackOrderEditor({
             {open && (
                 <View>
                     <Text style={styles.hint}>
-                        Top of list = bottom of bar. Use ↑ ↓ to reorder.
+                        Top of list = top of bar. Use ↑ ↓ to reorder.
                     </Text>
 
-                    {effectiveOrder.map((cat, index) => (
+                    {[...effectiveOrder].reverse().map((cat, reversedIndex) => {
+                        // reversedIndex 0 = top of display = last item in effectiveOrder (top of bar)
+                        // translate back to the real index in effectiveOrder for moveUp/moveDown
+                        const index = effectiveOrder.length - 1 - reversedIndex;
+                        return (
                         <View key={cat} style={styles.row}>
                             <Text style={styles.label} numberOfLines={1}>{cat}</Text>
                             <View style={styles.buttons}>
-                                <TouchableOpacity
-                                    style={[styles.btn, index === 0 && styles.btnDisabled]}
-                                    onPress={() => moveUp(index)}
-                                    disabled={index === 0}
-                                >
-                                    <Text style={[styles.btnText, index === 0 && styles.btnTextDisabled]}>↑</Text>
-                                </TouchableOpacity>
                                 <TouchableOpacity
                                     style={[styles.btn, index === effectiveOrder.length - 1 && styles.btnDisabled]}
                                     onPress={() => moveDown(index)}
                                     disabled={index === effectiveOrder.length - 1}
                                 >
-                                    <Text style={[styles.btnText, index === effectiveOrder.length - 1 && styles.btnTextDisabled]}>↓</Text>
+                                    <Text style={[styles.btnText, index === effectiveOrder.length - 1 && styles.btnTextDisabled]}>↑</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.btn, index === 0 && styles.btnDisabled]}
+                                    onPress={() => moveUp(index)}
+                                    disabled={index === 0}
+                                >
+                                    <Text style={[styles.btnText, index === 0 && styles.btnTextDisabled]}>↓</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
-                    ))}
+                        );
+                    })}
 
                     <View style={styles.controls}>
                         <View style={styles.persistRow}>

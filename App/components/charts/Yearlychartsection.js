@@ -50,9 +50,9 @@ export default function YearlyChartSection({
                 <Slider
                     style={{ flex: 1, height: 32 }}
                     minimumValue={1}
-                    maximumValue={15}
+                    maximumValue={5}
                     value={1}
-                    step={1}
+                    step={0.5}
                     onValueChange={setHeightScale}
                     minimumTrackTintColor="#2E5C8A"
                     maximumTrackTintColor="#ccc"
