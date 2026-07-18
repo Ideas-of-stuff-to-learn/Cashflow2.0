@@ -9,25 +9,36 @@ export function useInitialLoadLogic(){
         setTransactions,
         setCategories,
         setInitialLoading,
+        setInitialLoadError,
+        setRetryInitialLoad,
     } = useApp();
 
     const [uploadCount, setUploadCount] = useState(0);
+    const [loadRetryCount, setLoadRetryCount] = useState(0);
 
     const dateRangeInfo = useMemo(() => getDateRangeInfo(transactions), [transactions]);
 
-    // Exposed so HomeScreen can call this right after a fresh upload
-    // finishes - the initial fetch below only runs once on mount, so
-    // without this, the displayed count would sit stale (showing
-    // whatever it was when the app opened) until the app was fully
-    // restarted, even though a new upload just changed the real number.
     const refetchUploadCount = useCallback(() => {
         getUploadCount()
             .then(setUploadCount)
             .catch(e => console.warn('Failed to load upload count:', e.message));
     }, []);
 
+    const retryInitialLoad = useCallback(() => {
+        setLoadRetryCount(c => c + 1);
+    }, []);
+
+    // Register retryInitialLoad into context immediately on mount so
+    // ContentsScreen (and any future screen) can call it via useApp()
+    // without needing to import this hook directly.
+    useEffect(() => {
+        setRetryInitialLoad(() => retryInitialLoad);
+    }, [retryInitialLoad]);
+
     useEffect(() => {
         let cancelled = false;
+        setInitialLoadError(null);
+
         async function loadInitialData() {
             try {
                 // Fetch in parallel - unrelated data, no reason to wait
@@ -43,9 +54,19 @@ export function useInitialLoadLogic(){
                     setUploadCount(count);
                 }
             } catch (e) {
-                // Not fatal - user can still upload fresh, just starts
-                // from empty instead of restored history/categories
-                console.warn('Failed to load initial data:', e.message);
+                if (cancelled) return;
+                const msg = e.message || '';
+                if (msg.includes('starting up')) {
+                    // Cold-start timeout - surface to UI so user sees
+                    // a message + retry button rather than just a
+                    // spinner that never resolves.
+                    setInitialLoadError(msg);
+                } else {
+                    // Other failure - not fatal, user can still upload
+                    // fresh data, just starts from empty instead of
+                    // restored history/categories.
+                    console.warn('Failed to load initial data:', msg);
+                }
             } finally {
                 if (!cancelled) {
                     setInitialLoading(false);
@@ -54,11 +75,12 @@ export function useInitialLoadLogic(){
         }
         loadInitialData();
         return () => { cancelled = true; };
-    }, []);
+    }, [loadRetryCount]);
 
     return {
         dateRangeInfo,
         uploadCount,
         refetchUploadCount,
+        retryInitialLoad,
     };
 }

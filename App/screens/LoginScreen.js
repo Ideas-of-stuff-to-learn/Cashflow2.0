@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
-import { login } from '../api';
+import { login, getToken, getMe } from '../api';
 import { useApp } from '../AppContext.js';
 
 export default function LoginScreen({ navigation }) {
@@ -8,7 +8,75 @@ export default function LoginScreen({ navigation }) {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    // True while the on-mount stored-session check below is running -
+    // shows a spinner INSTEAD of the login form, so someone with a
+    // perfectly good saved session never sees a login form flash up
+    // and vanish (or worse, starts typing into it) during the check.
+    const [checkingStoredSession, setCheckingStoredSession] = useState(true);
+    const [retryCount, setRetryCount] = useState(0);
     const { completeLogin } = useApp();
+
+    // The piece that makes "stay logged in across app restarts"
+    // actually WORK. Tokens were already being saved to SecureStore
+    // (persistent, survives the app fully closing) and the 24h/30-day
+    // expiry + silent-refresh machinery already existed in api.js -
+    // but App.js unconditionally starts at this Login screen, and
+    // nothing ever checked for an existing session, so every cold
+    // start demanded a fresh password no matter what. This checks.
+    //
+    // getMe() rather than just "does a token exist locally" on
+    // purpose: a locally-present token can still be DEAD (revoked via
+    // logout elsewhere, or the 30-day refresh window ran out). getMe()
+    // goes through api.js's authorizedFetch, which on a 401
+    // automatically attempts the silent refresh-and-retry - so this
+    // one call validates the ENTIRE chain: access token still good ->
+    // straight in; access expired but refresh good -> silently renewed,
+    // straight in; everything dead -> throws, and the normal login
+    // form is shown, exactly as before.
+    //
+    // retryCount in the dependency array re-runs this effect when the
+    // user taps Retry after a cold-start timeout.
+    useEffect(() => {
+        let cancelled = false;
+        setError(null);
+        setCheckingStoredSession(true);
+
+        async function checkStoredSession() {
+            try {
+                const token = await getToken();
+                if (!token) return; // nothing saved - show the form
+
+                const me = await getMe();
+                if (cancelled) return;
+
+                // Same call-order requirement as handleLogin below:
+                // completeLogin BEFORE navigating - see that comment.
+                completeLogin(me.username);
+                navigation.replace('Home');
+            } catch (e) {
+                if (cancelled) return;
+                const msg = e.message || '';
+                if (msg.includes('starting up')) {
+                    // The server is cold-starting, not the session being
+                    // dead - surface the message so the user knows to
+                    // wait, and show a retry button rather than just
+                    // the login form (which would demand a password for
+                    // a session that's actually still valid).
+                    setError(msg);
+                } else {
+                    // Genuinely dead session (revoked, expired past
+                    // refresh window, etc.) - silently show the login
+                    // form, needing to log in is normal behaviour here.
+                    console.log('[startup] No usable stored session:', msg);
+                }
+            } finally {
+                if (!cancelled) setCheckingStoredSession(false);
+            }
+        }
+
+        checkStoredSession();
+        return () => { cancelled = true; };
+    }, [retryCount]);
 
     async function handleLogin() {
         if (!username.trim() || !password.trim()) {
@@ -36,6 +104,32 @@ export default function LoginScreen({ navigation }) {
         } finally {
             setLoading(false);
         }
+    }
+
+    // Still checking for a saved session - spinner only, no form yet.
+    // Brief when the server's awake; can last longer if this request
+    // is the one that wakes a spun-down free-tier instance, which is
+    // exactly when a login form flashing up mid-check would be most
+    // confusing ("do I type my password or not?").
+    if (checkingStoredSession) {
+        return (
+            <View style={styles.container}>
+                <Text style={styles.title}>Transaction Categorizer</Text>
+                {error ? (
+                    <>
+                        <Text style={[styles.error, { textAlign: 'center', marginTop: 24 }]}>{error}</Text>
+                        <TouchableOpacity
+                            style={[styles.button, { marginTop: 16 }]}
+                            onPress={() => setRetryCount(c => c + 1)}
+                        >
+                            <Text style={styles.buttonText}>Retry</Text>
+                        </TouchableOpacity>
+                    </>
+                ) : (
+                    <ActivityIndicator size="large" color="#2E5C8A" style={{ marginTop: 24 }} />
+                )}
+            </View>
+        );
     }
 
     return (

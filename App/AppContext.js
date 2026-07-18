@@ -9,6 +9,17 @@ export function AppProvider({ children }) {
     const [parseError, setParseError] = useState(null);
     const [categories, setCategories] = useState([]);
     const [initialLoading, setInitialLoading] = useState(true);
+    // Set by useInitialLoadLogic when the initial fetch specifically
+    // times out (a cold-start on Render's free tier) rather than
+    // failing for another reason. Shown in place of the normal
+    // spinner so the user knows to wait and retry, not that the app
+    // is broken. useInitialLoadLogic clears this before each attempt.
+    const [initialLoadError, setInitialLoadError] = useState(null);
+    // Set by useInitialLoadLogic once it mounts, so any screen can
+    // trigger a retry without needing to import the hook directly.
+    // Starts as a no-op so destructuring it is always safe even before
+    // the hook has registered itself.
+    const [retryInitialLoad, setRetryInitialLoad] = useState(() => () => {});
     const [processingStage, setProcessingStage] = useState('idle');
 
     // processingStage only has a handful of values for an entire run
@@ -209,6 +220,10 @@ export function AppProvider({ children }) {
             categoryColors,
             initialLoading,
             setInitialLoading,
+            initialLoadError,
+            setInitialLoadError,
+            retryInitialLoad,
+            setRetryInitialLoad,
             processingStage,
             setProcessingStage,
             chartDataVersion,

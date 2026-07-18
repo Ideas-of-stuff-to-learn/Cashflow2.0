@@ -22,7 +22,7 @@ function isStale(transaction, categoryNames) {
 
 export default function ContentsScreen({ navigation, route }) {
     const insets = useSafeAreaInsets();
-    const { transactions, setTransactions, categorising, categoryNames, initialLoading, setCategories, bumpChartDataVersion } = useApp();
+    const { transactions, setTransactions, categorising, categoryNames, initialLoading, setCategories, bumpChartDataVersion, initialLoadError, setInitialLoadError, retryInitialLoad } = useApp();
 
     const [searchText, setSearchText] = useState('');
     const [selectedCategories, setSelectedCategories] = useState(new Set());
@@ -479,12 +479,25 @@ export default function ContentsScreen({ navigation, route }) {
             )}
 
             {/* Initial data loading banner - shown while transaction
-                history and categories are still being fetched */}
+                history and categories are still being fetched. If the
+                fetch timed out waiting for a cold Render start,
+                initialLoadError is set and we swap the spinner for a
+                message + retry button instead of just hanging. */}
             {initialLoading && (
                 <View style={styles.banner}>
-                    <Text style={styles.bannerText}>
-                        ⏳ Loading your data...
-                    </Text>
+                    {initialLoadError ? (
+                        <>
+                            <Text style={styles.bannerText}>{initialLoadError}</Text>
+                            <TouchableOpacity
+                                style={[styles.button, { marginTop: 8 }]}
+                                onPress={() => { setInitialLoadError(null); retryInitialLoad(); }}
+                            >
+                                <Text style={styles.buttonText}>Retry</Text>
+                            </TouchableOpacity>
+                        </>
+                    ) : (
+                        <Text style={styles.bannerText}>⏳ Loading your data...</Text>
+                    )}
                 </View>
             )}
 

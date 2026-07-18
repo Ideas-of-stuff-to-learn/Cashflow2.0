@@ -8,7 +8,7 @@ import { NOT_YET_CATEGORISED } from '../checkingName.js';
 import HomepageInfo from '../components/homepage/homepageInfo.js';
 import { styles } from '../styles/homepageStyles.js';
 export default function HomeScreen({ navigation }) {
-    const {categorising, transactions} = useApp();
+    const {categorising, transactions, initialLoadError, retryInitialLoad} = useApp();
 
     const {dateRangeInfo, uploadCount, refetchUploadCount} = useInitialLoadLogic();
 
@@ -42,6 +42,22 @@ export default function HomeScreen({ navigation }) {
             uploadCount={uploadCount}
         >
         </HomepageInfo>
+
+        {/* Cold-start / initial load error - shown instead of (not
+            alongside) the normal loading spinner when the very first
+            fetch after app open timed out waiting for Render to wake up.
+            Cleared automatically when retryInitialLoad re-runs the fetch. */}
+        {initialLoadError && (
+            <View style={styles.banner}>
+                <Text style={styles.bannerText}>{initialLoadError}</Text>
+                <TouchableOpacity
+                    style={[styles.button, { marginTop: 8 }]}
+                    onPress={retryInitialLoad}
+                >
+                    <Text style={styles.buttonText}>Retry</Text>
+                </TouchableOpacity>
+            </View>
+        )}
 
         {/* CSV file uploader */}
         <TouchableOpacity style={[styles.button, (loading || categorising) && styles.buttonDisabled]} onPress={pickFiles} disabled={loading || categorising}>

@@ -8,6 +8,14 @@ const BASE_URL = "https://cashflow2-0.onrender.com";
 // doesn't.
 const DEFAULT_REQUEST_TIMEOUT_MS = 110000;
 
+// How long a normal (non-categorization) request waits before giving
+// up with a user-friendly "server is starting up" message. Set to 70s
+// to give Render's free tier enough room to cold-start (~30-60s
+// typical) while still failing clearly rather than hanging forever.
+// Distinct from DEFAULT_REQUEST_TIMEOUT_MS which is for categorization
+// requests specifically, where the worker timeout governs timing.
+const COLD_START_TIMEOUT_MS = 70000;
+
 function now() {
     return (typeof performance !== 'undefined' && performance.now)
         ? performance.now()
@@ -153,22 +161,45 @@ async function authorizedFetch(url, options = {}, timeoutMs, onTiming) {
     const token = await getToken();
     if (!token) throw new Error('Not logged in');
 
+    // Always use fetchWithTimeout now - callers that explicitly pass
+    // timeoutMs (categorization) get their own value; everything else
+    // (categories, transactions, charts, auth/me, etc.) gets
+    // COLD_START_TIMEOUT_MS. Before this change, callers that didn't
+    // pass timeoutMs used plain fetch() with no timeout at all, so a
+    // Render free-tier cold start (~30-60s) just hung silently with
+    // no feedback and no way to recover. Now it fails clearly after
+    // 70s with the message below, which the caller's own error
+    // handling (typically a console.warn or a status text) surfaces
+    // to the user.
+    const effectiveTimeout = timeoutMs ?? COLD_START_TIMEOUT_MS;
+
     const withAuth = (t) => ({
         ...options,
         headers: { ...(options.headers || {}), 'Authorization': `Bearer ${t}` },
     });
 
-    let response = timeoutMs
-        ? await fetchWithTimeout(url, withAuth(token), timeoutMs, onTiming)
-        : await fetch(url, withAuth(token));
+    let response;
+    try {
+        response = await fetchWithTimeout(url, withAuth(token), effectiveTimeout, onTiming);
+    } catch (err) {
+        if (err.isTimeout) {
+            throw new Error('The server is taking a while to start up - please wait a moment and try again.');
+        }
+        throw err;
+    }
 
     if (response.status === 401) {
         const newAccessToken = await tryRefreshAccessToken();
         if (!newAccessToken) throw new Error('Not logged in');
 
-        response = timeoutMs
-            ? await fetchWithTimeout(url, withAuth(newAccessToken), timeoutMs, onTiming)
-            : await fetch(url, withAuth(newAccessToken));
+        try {
+            response = await fetchWithTimeout(url, withAuth(newAccessToken), effectiveTimeout, onTiming);
+        } catch (err) {
+            if (err.isTimeout) {
+                throw new Error('The server is taking a while to start up - please wait a moment and try again.');
+            }
+            throw err;
+        }
     }
 
     return response;
