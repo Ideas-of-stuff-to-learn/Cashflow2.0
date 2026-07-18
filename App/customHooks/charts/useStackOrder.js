@@ -1,5 +1,28 @@
 import { useState, useEffect, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// AsyncStorage is used for persistence but gracefully degrades when
+// unavailable (e.g. Expo Go without a dev build). Stack order still
+// works for the session - it just won't survive an app restart until
+// running on a real build with the native module present.
+// AsyncStorage for persistence - optional. In Expo Go the native module
+// isn't available so we skip it entirely. Stack order still works for
+// the session, it just won't survive app restarts until running on a
+// real/sideloaded build.
+let AsyncStorage = null;
+try {
+    const mod = require('@react-native-async-storage/async-storage');
+    // Check the native module is actually present before using it -
+    // some versions throw only on first method call, not on import.
+    if (mod && mod.default && mod.default.getItem) {
+        AsyncStorage = mod.default;
+    }
+} catch (e) {
+    // Not available - persistence disabled silently.
+}
+
+function safeStorage(fn) {
+    if (!AsyncStorage) return Promise.resolve(null);
+    return fn().catch(e => console.warn('AsyncStorage:', e.message));
+}
 
 const STORAGE_KEY = 'chartStackOrder';
 const PERSIST_KEY = 'chartStackOrderPersist';
@@ -32,8 +55,8 @@ export function useStackOrder(categoryNames) {
         async function load() {
             try {
                 const [savedOrder, savedPersist] = await Promise.all([
-                    AsyncStorage.getItem(STORAGE_KEY),
-                    AsyncStorage.getItem(PERSIST_KEY),
+                    safeStorage(() => AsyncStorage.getItem(STORAGE_KEY)),
+                    safeStorage(() => AsyncStorage.getItem(PERSIST_KEY)),
                 ]);
 
                 const shouldPersist = savedPersist === 'true';
@@ -62,9 +85,7 @@ export function useStackOrder(categoryNames) {
     useEffect(() => {
         if (!loaded) return;
         if (!persist || !stackOrder) return;
-        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stackOrder)).catch(
-            e => console.warn('Failed to save stack order:', e.message)
-        );
+        safeStorage(() => AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stackOrder)));
     }, [stackOrder, persist, loaded]);
 
     // The effective order: if the user has set a custom order, use it;
@@ -84,20 +105,20 @@ export function useStackOrder(categoryNames) {
         if (value && stackOrder) {
             // Turning ON: save the current order immediately.
             try {
-                await Promise.all([
+                await safeStorage(() => Promise.all([
                     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stackOrder)),
                     AsyncStorage.setItem(PERSIST_KEY, 'true'),
-                ]);
+                ]));
             } catch (e) {
                 console.warn('Failed to save stack order:', e.message);
             }
         } else if (!value) {
             // Turning OFF: clear the saved entry (not the in-session order).
             try {
-                await Promise.all([
+                await safeStorage(() => Promise.all([
                     AsyncStorage.removeItem(STORAGE_KEY),
                     AsyncStorage.setItem(PERSIST_KEY, 'false'),
-                ]);
+                ]));
             } catch (e) {
                 console.warn('Failed to clear saved stack order:', e.message);
             }
@@ -113,10 +134,10 @@ export function useStackOrder(categoryNames) {
         setStackOrder(null);
         setPersist(false);
         try {
-            await Promise.all([
+            await safeStorage(() => Promise.all([
                 AsyncStorage.removeItem(STORAGE_KEY),
                 AsyncStorage.setItem(PERSIST_KEY, 'false'),
-            ]);
+            ]));
         } catch (e) {
             console.warn('Failed to clear saved stack order:', e.message);
         }

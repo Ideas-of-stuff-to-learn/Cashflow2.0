@@ -22,6 +22,9 @@ export default function YearlyChartSection({
     selectedYearSegment,
     selectedYearTotal,
 }) {
+    // Hook must be before any early return - React rules of hooks.
+    const [heightScale, setHeightScale] = useState(1);
+
     if (!ready) return null;
 
     if (!hasData) {
@@ -31,8 +34,6 @@ export default function YearlyChartSection({
             </Text>
         );
     }
-
-    const [heightScale, setHeightScale] = useState(1);
 
     return (
         <>

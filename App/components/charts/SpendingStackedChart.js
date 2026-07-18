@@ -44,7 +44,7 @@ const TOP_PADDING = 10;
 // identical. Now each bar only re-renders when its own props change.
 // Props are all primitives or the bar object itself - memo's shallow
 // comparison skips a bar correctly when nothing about it changed.
-const StackBar = React.memo(function StackBar({ bar, barIndex, maxValue, chartHeight, columnWidth }) {
+const StackBar = React.memo(function StackBar({ bar, barIndex, maxValue, chartHeight, columnWidth, heightScale }) {
     let cumulativeBottom = 0;
     const visibleSegments = bar.stacks.filter(s => s.value > 0);
     const topSegmentIndex = visibleSegments.length > 0
@@ -184,6 +184,7 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
                                     maxValue={maxValue}
                                     chartHeight={chartHeight}
                                     columnWidth={columnWidth}
+                                    heightScale={heightScale}
                                 />
                             ))}
                         </View>
