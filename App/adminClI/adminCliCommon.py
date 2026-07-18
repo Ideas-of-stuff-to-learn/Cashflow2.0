@@ -35,9 +35,7 @@ def fetch_categories(token):
         f"{BASE_URL}/categories",
         headers={"Authorization": f"Bearer {token}"},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Failed to fetch categories"))
+    data = check_response(response, "Failed to fetch categories")
     return [c["name"] for c in data["categories"]]
 
 
@@ -52,10 +50,48 @@ def fetch_categories_full(token):
         f"{BASE_URL}/categories",
         headers={"Authorization": f"Bearer {token}"},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Failed to fetch categories"))
+    data = check_response(response, "Failed to fetch categories")
     return data["categories"]
+
+
+class SessionExpired(Exception):
+    """Raised when the backend rejects a request with 401 - the
+    token's expired, been revoked (via /auth/logout or
+    /admin/tokens/revoke), or is otherwise no longer valid. Distinct
+    from a plain permission failure (403, which check_response() below
+    still raises as a RuntimeError) - a 401 means "this SESSION is no
+    longer good," not "this account isn't allowed to do that." Callers
+    (categoryAdminCli.py's main loop) catch this specifically to
+    re-prompt login rather than just printing a generic failure and
+    looping back to a menu that will keep failing the same way on
+    every subsequent attempt with the same dead token."""
+    pass
+
+
+def check_response(response, fallback_message):
+    """Shared response-checking helper - every request-making function
+    in every admin*.py script routes through this instead of each
+    duplicating its own `if not response.ok: raise RuntimeError(...)`.
+    Two things this centralizes:
+
+    1. A 401 specifically raises SessionExpired, not a plain
+       RuntimeError - see that class's docstring for why the
+       distinction matters.
+    2. Falls back to `data.get("msg")` as well as `data.get("error")` -
+       every route THIS app writes itself uses `error`, but
+       flask_jwt_extended's OWN built-in error responses (expired
+       token, revoked token, missing fresh token) use `msg` instead.
+       Without this, those specific failures showed a generic
+       fallback message instead of their own real, more useful reason
+       ("Token has been revoked", "Fresh token required", etc).
+
+    Returns the parsed JSON body on success (2xx)."""
+    data = response.json()
+    if response.status_code == 401:
+        raise SessionExpired(data.get("error") or data.get("msg") or "Session expired - please log in again")
+    if not response.ok:
+        raise RuntimeError(data.get("error") or data.get("msg") or fallback_message)
+    return data
 
 
 def fetch_me(token):
@@ -71,10 +107,7 @@ def fetch_me(token):
         f"{BASE_URL}/auth/me",
         headers={"Authorization": f"Bearer {token}"},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Failed to fetch account info"))
-    return data
+    return check_response(response, "Failed to fetch account info")
 
 
 def fetch_users(token):
@@ -85,9 +118,7 @@ def fetch_users(token):
         f"{BASE_URL}/admin/users",
         headers={"Authorization": f"Bearer {token}"},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Failed to fetch users"))
+    data = check_response(response, "Failed to fetch users")
     return data["users"]
 
 
@@ -98,9 +129,7 @@ def fetch_roles(token):
         f"{BASE_URL}/admin/roles",
         headers={"Authorization": f"Bearer {token}"},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Failed to fetch roles"))
+    data = check_response(response, "Failed to fetch roles")
     return data["roles"]
 
 
@@ -114,9 +143,7 @@ def fetch_permissions(token):
         f"{BASE_URL}/admin/permissions",
         headers={"Authorization": f"Bearer {token}"},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Failed to fetch permissions"))
+    data = check_response(response, "Failed to fetch permissions")
     return data["permissions"]
 
 
@@ -182,6 +209,34 @@ def choose_multiple_permissions(all_permissions, preselected=None):
         print(f"Enter a number from 1 to {len(all_permissions)}, A, N, or blank.\n")
 
 
+def revoke_token(token, jti):
+    """POST /admin/tokens/revoke - kills one specific token by its jti,
+    regardless of how much of its natural expiry window is left. Used
+    to end an impersonation session early (see impersonateUserAdmin.py
+    and manageUserTransactionsAdmin.py, both of which offer this right
+    after finishing) rather than letting it sit valid for the rest of
+    its (short, but non-zero) 15-minute window."""
+    response = requests.post(
+        f"{BASE_URL}/admin/tokens/revoke",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"jti": jti},
+    )
+    return check_response(response, "Revoke failed")
+
+
+def fetch_impersonation_log(token):
+    """GET /admin/impersonation-log - every impersonation ever
+    performed (actor, target, jti, when), newest first. Powers
+    listImpersonationLogAdmin.py. Requires the 'audit.view' permission,
+    NOT bundled into 'admin' by default - see schema.sql."""
+    response = requests.get(
+        f"{BASE_URL}/admin/impersonation-log",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    data = check_response(response, "Failed to fetch impersonation log")
+    return data["log"]
+
+
 def fetch_transactions(token):
     """GET /transactions for whoever `token` belongs to. This is a
     plain per-user endpoint (jwt_required only, no special permission
@@ -192,9 +247,7 @@ def fetch_transactions(token):
         f"{BASE_URL}/transactions",
         headers={"Authorization": f"Bearer {token}"},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Failed to fetch transactions"))
+    data = check_response(response, "Failed to fetch transactions")
     return data["transactions"]
 
 
@@ -208,9 +261,7 @@ def delete_transactions(token, ids):
         headers={"Authorization": f"Bearer {token}"},
         json={"ids": ids},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Delete failed"))
+    data = check_response(response, "Delete failed")
     return data["deleted"]
 
 
@@ -226,10 +277,7 @@ def resolve_categories(token, resolutions):
         headers={"Authorization": f"Bearer {token}"},
         json={"resolutions": resolutions},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Resolve failed"))
-    return data
+    return check_response(response, "Resolve failed")
 
 
 def hex_to_rgb(hex_color):

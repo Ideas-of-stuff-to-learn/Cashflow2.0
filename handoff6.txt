@@ -1,0 +1,173 @@
+# Handoff — JWT Lifetime Fix (expiry, refresh, revocation, audit, freshness)
+
+**Scope of this doc:** `App/API/schema.sql` (revoked_tokens, impersonation_log, audit.view permission), `App/API/backend.py` (JWT config, blocklist loader, login/signup/refresh/logout, impersonate/delete-user/edit-credentials freshness), `App/api.js` (token-pair storage, silent refresh-on-401, real logout), `App/adminCliCommon.py` (SessionExpired, check_response, revoke_token, fetch_impersonation_log), `App/categoryAdminCli.py` (proactive session-expiry recovery), `App/impersonateUserAdmin.py`, `App/manageUserTransactionsAdmin.py` (silent re-impersonation on expiry), and a new script, `App/listImpersonationLogAdmin.py`.
+
+This is a separate document from `handoff.txt` through `handoff4.txt` - all four remain valid and untouched. It's the direct follow-up to `handoff5.txt`, which documented the problem only; this one is the fix.
+
+---
+
+## READ THIS FIRST
+
+**The repo is the source of truth. This document can be, and eventually will be, stale.**
+
+1. Pull the current version of every file listed above directly from `main` before changing anything here.
+2. If the repo contradicts this doc, **the repo wins.**
+3. This area is authentication/authorization - a mistake here is an access-control mistake, not a cosmetic one. Don't make large changes without explaining the impact first.
+4. **Run `schema.sql` against the live database before deploying the new `backend.py`.** The new code assumes `revoked_tokens`/`impersonation_log` exist and the blocklist loader can query them - deploying the code first means every authenticated request fails closed (rejected) rather than open, since a missing table causes an exception in `check_if_token_revoked`, not a silent "assume not revoked."
+
+---
+
+## What `handoff5.txt` identified, and what closes each gap
+
+| Gap (handoff5.txt) | Fix |
+|---|---|
+| No expiry - tokens valid forever | Access tokens now expire in 24h; refresh tokens in 30 days; impersonation tokens in 15 minutes |
+| No revocation - "logout" only cleared local storage | Real server-side blocklist (`revoked_tokens`, keyed by `jti`) checked on every request |
+| No audit trail | `impersonation_log` - every impersonation records actor, target, jti, timestamp |
+| (new, added during this round) A leaked ambient token could still trigger impersonation | `fresh=True` required on impersonate/delete-user/edit-credentials - only a token from an actual, recent password login satisfies this |
+
+---
+
+## How token expiry + refresh actually works now
+
+`backend.py`:
+```python
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
+app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
+IMPERSONATION_TOKEN_EXPIRES = timedelta(minutes=15)
+```
+
+`login()`/`signup()` now return **two** tokens:
+```python
+access_token = create_access_token(identity=str(user_id), fresh=True)
+refresh_token = create_refresh_token(identity=str(user_id))
+return jsonify({'access_token': access_token, 'refresh_token': refresh_token}), 200
+```
+`fresh=True` here specifically means "this token was just obtained via an actual password check" - see the freshness section below for why that distinction exists and where it's enforced.
+
+New endpoint, `POST /auth/refresh`, gated by `@jwt_required(refresh=True)` (only accepts a refresh token in the header, never an access token - the two are not interchangeable):
+```python
+@app.route('/auth/refresh', methods=['POST'])
+@jwt_required(refresh=True)
+def refresh():
+    current_user = get_jwt_identity()
+    new_access_token = create_access_token(identity=current_user, fresh=False)
+    return jsonify({'access_token': new_access_token}), 200
+```
+The new token is `fresh=False` - obtained via refresh, not a real login, so it does NOT satisfy the three `fresh=True`-gated routes.
+
+**`api.js` client-side (the part that answers "does this ask me to log in again"):** short answer, no - for as long as the refresh token itself is valid. `authorizedFetch()` is the one function every authenticated call in the file now goes through:
+```js
+async function authorizedFetch(url, options = {}, timeoutMs, onTiming) {
+    const token = await getToken();
+    if (!token) throw new Error('Not logged in');
+    let response = /* ...request with current access token... */;
+
+    if (response.status === 401) {
+        const newAccessToken = await tryRefreshAccessToken();
+        if (!newAccessToken) throw new Error('Not logged in');
+        response = /* ...retry once with the new access token... */;
+    }
+    return response;
+}
+```
+A 401 (expired or revoked access token) triggers exactly one silent refresh-and-retry. Only if the refresh call *itself* fails (refresh token also expired, or revoked) does the user actually see a "Not logged in" state and land back on the Login screen. In practice: open the app every few days, never see a login prompt again after the first one; leave it untouched for over a month, log in once.
+
+---
+
+## How revocation actually works now
+
+`revoked_tokens (jti TEXT PRIMARY KEY, revoked_at, expires_at)` - one row per killed token. Checked automatically on **every** `@jwt_required()` request via:
+```python
+@jwt.token_in_blocklist_loader
+def check_if_token_revoked(jwt_header, jwt_payload):
+    jti = jwt_payload["jti"]
+    ...
+    return cur.fetchone() is not None
+```
+This is what makes `POST /auth/logout` mean something for the first time - it inserts the *current* token's `jti` (and, if a `refresh_token` is included in the body, that one's `jti` too - so one logout call kills both halves of a session). `api.js`'s `logout()` now calls this, then always clears local storage regardless of whether the network call succeeded (best-effort - a device should always be able to "forget" its own session even offline).
+
+`POST /admin/tokens/revoke` (gated by `users.impersonate`) lets an admin kill one specific token by `jti` early - used by `impersonateUserAdmin.py` and `manageUserTransactionsAdmin.py`, both of which offer "revoke this session now?" right after finishing, rather than leaving an impersonation token to just expire naturally.
+
+**Verified directly** (Flask test client, mocked DB): login → fresh token can impersonate → refresh → the refreshed (non-fresh) token is correctly rejected from impersonate with `"Fresh token required"` → that same token still works fine for ordinary calls → logout revokes it → the same token is now rejected with `"Token has been revoked"` → the *original* still-valid token is completely unaffected by another token's revocation.
+
+---
+
+## How the audit trail works
+
+`impersonation_log (actor_user_id, target_user_id, jti, created_at)` - one row inserted inside `admin_impersonate_user()` itself, same transaction as the token's creation. `GET /admin/impersonation-log` (gated by the new `audit.view` permission - deliberately separate from `users.impersonate` itself, and NOT bundled into `admin`'s default set, same precedent as `users.view`/`roles.*`) returns every entry, newest first. `listImpersonationLogAdmin.py` (new script, wired into the CLI's "Work with permissions" group) is the read-only viewer.
+
+---
+
+## Freshness: closing the leaked-token risk
+
+This wasn't in `handoff5.txt`'s original three gaps - it came up directly in conversation as the honest answer to "how do we stop a stolen access token from being enough to impersonate someone." A server genuinely cannot tell *what client* sent a request (CLI vs. curl vs. anything else look identical over HTTP), so "only the CLI can impersonate" isn't actually enforceable. What **is** enforceable: whether the token making the request was obtained via an actual, recent password entry.
+
+```python
+@app.route('/admin/users/<int:target_user_id>/impersonate', methods=['POST'])
+@jwt_required(fresh=True)
+...
+```
+Same on `admin_delete_user` and `admin_edit_user_credentials` - the three actions where taking over or impersonating another account is the direct effect. A token obtained via `/auth/refresh` is never fresh, so an ambient, silently-refreshed session token - the kind a stolen device would actually be carrying most of the time - cannot trigger any of these three, regardless of what permissions its owner has. Only a token from a real, moments-ago login can.
+
+**This does not add any friction to the CLI.** `admin_login_prompt()` always performs a real username+password login every single run - there is no refresh flow in the CLI at all - so every CLI session's token is fresh for its entire lifetime. The constraint is invisible in practice for its intended use, and only actually bites the scenario it was built to stop.
+
+---
+
+## CLI-side: graceful recovery instead of a silently-repeating failure
+
+Two distinct problems, two distinct fixes, since they have different likely causes:
+
+**1. The admin's own CLI session token dies mid-run** (rare in practice - CLI access tokens last 24h, ample for one sitting - but possible if a session is left open a long time, or the same account is revoked from elsewhere). Every request-making function across every `admin*.py` script now routes through a shared `check_response()` (in `adminCliCommon.py`) that raises a distinct `SessionExpired` on a 401, instead of a generic `RuntimeError`. `categoryAdminCli.py`'s main loop checks session validity proactively, right before running whichever action was picked:
+```python
+def _session_still_valid(token):
+    try:
+        fetch_me(token)
+        return True
+    except SessionExpired:
+        return False
+    except Exception:
+        return True  # some other failure - don't force a re-login over a network blip
+```
+On a confirmed dead session: prints a clear message, calls `admin_login_prompt()` again, and continues with the fresh token - the same group's action list reappears, nothing crashes, nothing needs the whole script restarted.
+
+Checking here (centrally, once per action) rather than inside each of the ~19 individual scripts' own internals was a deliberate scope choice: each `run_X()` already wraps its own calls in a generic `except Exception`, which would otherwise silently swallow `SessionExpired` too and just print it as an ordinary-looking failure - technically not a crash, but a menu that would keep failing the exact same way, with no path back to a working session, until the person restarted the script by hand. Checking centrally, before the action even runs, avoids needing to touch the internal exception handling of every script individually while still fully closing the "stuck with a dead token" problem.
+
+**2. An impersonation token specifically expires mid-task** (the LIKELY case in practice - impersonation tokens live 15 minutes, and a genuine transaction-review session in `manageUserTransactionsAdmin.py` can easily run longer). Handled with actual silent renewal, not just a message, since the admin's *own* token (the one used to obtain the impersonation in the first place) is still sitting right there in scope:
+```python
+def _call_as_user(session, admin_token, target_user_id, fn, *args, **kwargs):
+    try:
+        return fn(session["token"], *args, **kwargs)
+    except SessionExpired:
+        print("(That impersonation session expired mid-task - getting a fresh one...)")
+        renewed = impersonate_user(admin_token, target_user_id)
+        session["token"] = renewed["access_token"]
+        session["jti"] = renewed["jti"]
+        return fn(session["token"], *args, **kwargs)
+```
+`session` is a mutable dict (`{'token', 'jti'}`), not a plain string, specifically so it can be swapped in place across every call site in that file without each one needing to know a renewal happened. **Verified directly**: simulated an impersonation token expiring on its very first use, confirmed the wrapper silently re-impersonated the same target user and successfully retried, with the person seeing only a one-line notice, not a failure.
+
+---
+
+## Key Discussion / Decisions Made Along the Way
+
+- **Why "only the CLI can impersonate" isn't the actual fix, and freshness is:** covered above under "Freshness" - a server cannot distinguish what software sent a request, only what that request's token can prove about itself (a real, recent login vs. an ambient refreshed session).
+- **Why impersonation tokens don't get their own refresh token:** deliberately non-renewable by design. If a task needs more than 15 minutes, re-impersonating re-runs the full permission + hierarchy check fresh each time - a good property to keep, not something to route around with a longer-lived renewal mechanism for this specific token type.
+- **Why the CLI's session-expiry check lives centrally in `categoryAdminCli.py` rather than inside all ~19 individual scripts:** a scope decision, explained in full above - centralizing gets the same user-facing outcome (no permanently-stuck dead session) without needing to touch the exception handling internals of every script.
+- **Why logout is best-effort client-side:** if the network call to revoke fails (offline, backend down), local tokens are still cleared - a person should always be able to make their own device "forget" a session even if the server can't be told to un-issue it right now.
+
+---
+
+## Architecture Notes / Things the Next Person Should Know
+
+- **`check_response()` in `adminCliCommon.py` is now the single place every CLI script's HTTP error handling goes through.** A new script's request-making functions should call this rather than reimplementing `if not response.ok: raise RuntimeError(...)` - that's exactly the duplication this round removed, and doing it again would silently lose both the `SessionExpired` distinction and the `msg`-vs-`error` fallback fix.
+- **`fresh=True` is now a real constraint any FUTURE account-takeover-adjacent action should also carry.** If a new endpoint is added later that could let one account take over or fully act as another (the same shape as impersonate/delete/edit-credentials), it should default to requiring freshness unless there's a specific reason not to - this is the pattern to extend, not a one-off.
+- **`revoked_tokens.expires_at` is populated but nothing prunes it yet.** Harmless at this app's scale (the table only grows by one row per logout/revoke, and tokens are short-lived anyway), but a cleanup job (`DELETE FROM revoked_tokens WHERE expires_at < now()`) would be a reasonable low-priority addition if this table's size ever becomes a concern.
+
+---
+
+## Future Plans / Roadmap (not yet done, not yet decided)
+
+- **No cleanup/pruning job for `revoked_tokens`** - see Architecture Notes above.
+- **No automated tests exist yet for any of this** - same gap every prior handoff doc flagged for its own scope. This round's logic (expiry, refresh, revocation, freshness, the CLI recovery paths) was verified via a real Flask test client with a mocked database and via scripted CLI simulations during development, not against a live database or a real device - worth turning into a real test suite before this area is touched again, more so than almost anywhere else in this project given what a mistake here would mean.
+- **Device binding, refresh-token rotation, anomaly detection, and hardware-backed signing keys** were discussed as the "next tier up" from what big companies with more resources typically add on top of this baseline, and deliberately left out as overkill for this app's current scale - noted here so a future reader knows they were considered and skipped, not overlooked.

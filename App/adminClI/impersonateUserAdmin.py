@@ -9,14 +9,21 @@ looks like.
 Hierarchy guard (also enforced server-side): you can only impersonate
 a user at a level BELOW your own. Owner has no ceiling.
 
-WORTH KNOWING: this app's access tokens never expire, and there is no
-server-side way to revoke one once issued - logging "out" only deletes
-the token from the device's local storage, it doesn't invalidate the
-token itself. A token generated here is valid indefinitely, exactly
-like a normal login token would be, with no separate expiry the
-impersonated person could rely on to end it on their own, and no audit
-trail beyond backend logs of when this was used or by whom. Use this
-deliberately, not casually.
+Requires a FRESH login - the backend rejects this action if your
+token was obtained via a silent refresh rather than an actual password
+entry (@jwt_required(fresh=True), see backend.py). Since
+admin_login_prompt() always does a real password login every time this
+CLI is run, this never adds friction in practice here - it's a real
+constraint, but one this tool's own login flow already satisfies by
+construction.
+
+The generated token is short-lived (15 minutes, not the normal 24h
+access-token lifetime - see IMPERSONATION_TOKEN_EXPIRES in backend.py)
+and every use of this action is recorded in the impersonation audit log
+(see listImpersonationLogAdmin.py) - who, whom, when. You can also
+revoke the token immediately once you're done with it, rather than
+leaving it valid for the rest of its 15-minute window - this tool
+offers that right after generating one.
 
 Requires the 'users.impersonate' permission (bundled into the 'admin'
 role by default, and always available to owner).
@@ -32,7 +39,7 @@ run_impersonate_user(token).
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_me, fetch_users, choose_from_list, admin_login_prompt
+from adminCliCommon import BASE_URL, fetch_me, fetch_users, choose_from_list, admin_login_prompt, check_response, revoke_token
 
 
 def impersonate_user(token, user_id):
@@ -40,10 +47,7 @@ def impersonate_user(token, user_id):
         f"{BASE_URL}/admin/users/{user_id}/impersonate",
         headers={"Authorization": f"Bearer {token}"},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Impersonation failed"))
-    return data
+    return check_response(response, "Impersonation failed")
 
 
 def run_impersonate_user(token):
@@ -76,7 +80,7 @@ def run_impersonate_user(token):
         print("Cancelled.")
         return
 
-    print(f'\nThis generates a real, indefinitely-valid login token for "{chosen["username"]}" - see the warning at the top of this file.')
+    print(f'\nThis generates a real login token for "{chosen["username"]}", valid for 15 minutes and logged to the impersonation audit trail.')
     confirm = input("Continue? (y/n): ").strip().lower()
     if confirm != "y":
         print("Cancelled.")
@@ -84,10 +88,23 @@ def run_impersonate_user(token):
 
     try:
         result = impersonate_user(token, chosen["id"])
-        print(f'\nAccess token for "{result["username"]}":\n\n  {result["access_token"]}\n')
-        print('Use this as the "Authorization: Bearer <token>" header to act as this account (e.g. via curl or Postman).')
     except Exception as e:
         print(f"Impersonation failed: {e}\n")
+        return
+
+    print(f'\nAccess token for "{result["username"]}" (expires in {result["expires_in_seconds"] // 60} minutes):\n')
+    print(f'  {result["access_token"]}\n')
+    print('Use this as the "Authorization: Bearer <token>" header to act as this account (e.g. via curl or Postman).')
+
+    done = input("\nDone with this session now? Revoke it immediately instead of waiting out the 15 minutes? (y/n): ").strip().lower()
+    if done == "y":
+        try:
+            revoke_token(token, result["jti"])
+            print("Revoked - that token no longer works.\n")
+        except Exception as e:
+            print(f"Revoke failed (the token will still expire naturally in 15 minutes regardless): {e}\n")
+    else:
+        print("Left active - it will expire on its own.\n")
 
 
 def main():

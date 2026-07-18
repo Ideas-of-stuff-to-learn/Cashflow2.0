@@ -8,29 +8,30 @@ action list (not all the way back to the group picker) so several
 actions of the same kind can be done in a row without re-navigating.
 Picking "back" from an action list returns to the group picker.
 
-Groups exist purely for navigability now that there are eighteen
+Groups exist purely for navigability now that there are twenty
 individual actions - grouping them keeps any single screenful of
 options short and organizes them by what kind of thing you're doing,
-rather than one long flat list of eighteen unrelated-looking items.
+rather than one long flat list of unrelated-looking items.
 
 This does NOT reimplement any of the actions - it imports and calls
 run_add(), run_rename(), run_combine(), run_delete(), run_audit(),
 run_list(), run_set_color(), run_set_default_color(),
 run_set_color_and_default(), run_reset_color(), run_list_users(),
 run_assign_role(), run_manage_permissions(), run_manage_roles(),
-run_create_user(), run_delete_user(), run_edit_user(),
-run_impersonate_user(), and run_manage_user_transactions() from the
-individual scripts (addCategoryAdmin.py, renameCategoryAdmin.py,
-combineCategoryAdmin.py, deleteCategoryAdmin.py,
-auditCategoryNamesAdmin.py, listCategoriesAdmin.py, setColorAdmin.py,
-setDefaultColorAdmin.py, setColorAndDefaultAdmin.py, resetColorAdmin.py,
-listUsersAdmin.py, assignRoleAdmin.py, managePermissionsAdmin.py,
-manageRolesAdmin.py, createUserAdmin.py, deleteUserAdmin.py,
+run_list_impersonation_log(), run_create_user(), run_delete_user(),
+run_edit_user(), run_impersonate_user(), and
+run_manage_user_transactions() from the individual scripts
+(addCategoryAdmin.py, renameCategoryAdmin.py, combineCategoryAdmin.py,
+deleteCategoryAdmin.py, auditCategoryNamesAdmin.py,
+listCategoriesAdmin.py, setColorAdmin.py, setDefaultColorAdmin.py,
+setColorAndDefaultAdmin.py, resetColorAdmin.py, listUsersAdmin.py,
+assignRoleAdmin.py, managePermissionsAdmin.py, manageRolesAdmin.py,
+listImpersonationLogAdmin.py, createUserAdmin.py, deleteUserAdmin.py,
 editUserAdmin.py, impersonateUserAdmin.py,
 manageUserTransactionsAdmin.py). Those scripts still work standalone
 too (`python renameCategoryAdmin.py` etc still does exactly what it
 always did) - this is just another way to reach the same logic,
-sharing one login instead of nineteen.
+sharing one login instead of twenty.
 
 The login itself no longer requires the literal username "admin" - see
 adminCliCommon.py's admin_login_prompt(), which now checks the real
@@ -40,16 +41,22 @@ still enforces its own specific permission server-side regardless of
 what this menu shows or lets you attempt - grouping is purely
 organizational, not a second access-control layer.
 
+If your session expires or gets revoked mid-run (see handoff6.txt for
+the token-lifetime work this closes a gap in), this menu notices right
+before running your next chosen action and prompts you to log back in,
+rather than silently repeating the same failure - see
+_session_still_valid() below.
+
 Usage:
     python categoryAdminCli.py
 
 Requires: pip install requests
 
-All nineteen action scripts, plus adminCliCommon.py, need to be in the
+All twenty action scripts, plus adminCliCommon.py, need to be in the
 same folder as this file for the imports below to work.
 """
 
-from adminCliCommon import BASE_URL, admin_login_prompt
+from adminCliCommon import BASE_URL, admin_login_prompt, fetch_me, SessionExpired
 from addCategoryAdmin import run_add
 from renameCategoryAdmin import run_rename
 from combineCategoryAdmin import run_combine
@@ -64,6 +71,7 @@ from listUsersAdmin import run_list_users
 from assignRoleAdmin import run_assign_role
 from managePermissionsAdmin import run_manage_permissions
 from manageRolesAdmin import run_manage_roles
+from listImpersonationLogAdmin import run_list_impersonation_log
 from createUserAdmin import run_create_user
 from deleteUserAdmin import run_delete_user
 from editUserAdmin import run_edit_user
@@ -93,6 +101,7 @@ GROUPS = [
         ("Assign a role to a user", run_assign_role),
         ("Grant/revoke an individual permission for one user", run_manage_permissions),
         ("Create, edit, or delete roles", run_manage_roles),
+        ("View the impersonation audit log (read-only)", run_list_impersonation_log),
     ]),
     ("Work with users", [
         ("Create a new user account", run_create_user),
@@ -148,6 +157,24 @@ def choose_action(group_label, actions):
         print(f"Enter a number from 1 to {len(actions) + 1}.\n")
 
 
+def _session_still_valid(token):
+    """Lightweight check via /auth/me (no permission gate beyond being
+    logged in at all) - specifically distinguishes SessionExpired
+    (token dead: expired, revoked, or otherwise no longer valid) from
+    any other failure. A generic exception here (network blip, backend
+    briefly down) does NOT force a re-login - that would be the wrong
+    reaction to a transient problem - only a confirmed SessionExpired
+    does. The actual action the user picks still has its own error
+    handling for anything else that goes wrong."""
+    try:
+        fetch_me(token)
+        return True
+    except SessionExpired:
+        return False
+    except Exception:
+        return True
+
+
 def main():
     print("Cashflow category admin tool")
     print(f"Backend: {BASE_URL}\n")
@@ -174,6 +201,25 @@ def main():
             action = choose_action(group_label, actions)
             if action is None:
                 break  # back to the group picker
+
+            # Checked HERE, right before running the chosen action,
+            # rather than relying on each run_X() to detect and
+            # propagate an expired session itself - every run_X()
+            # already wraps its own calls in a generic
+            # `except Exception`, which would otherwise silently
+            # swallow SessionExpired too and just print it as an
+            # ordinary failure message, leaving the same dead token in
+            # place for every subsequent attempt. Catching it centrally
+            # here means one clear message and an actual chance to log
+            # back in, instead of a menu that keeps failing the same
+            # way until the whole script is restarted by hand.
+            if not _session_still_valid(token):
+                print("\nYour session has expired or was revoked - please log in again.\n")
+                token = admin_login_prompt()
+                if token is None:
+                    print("Bye.")
+                    return
+                continue  # re-show this same group's action list with the fresh token
 
             label, run_fn = action
             print(f"\n--- {label} ---")

@@ -70,62 +70,145 @@ async function parseJsonResponse(response, fallbackMessage) {
         }
         throw new Error(`Unexpected server response (status ${response.status}) - please try again.`);
     }
-    if (!response.ok) throw new Error(data.error || fallbackMessage);
+    // flask_jwt_extended's OWN error responses (expired/invalid/revoked
+    // token, missing fresh token) use a `msg` field, not `error` -
+    // different from every route THIS app writes itself, which always
+    // uses `error`. Falling back to `data.msg` here means a 401 from
+    // the JWT layer itself ("Token has been revoked", "Fresh token
+    // required", etc.) surfaces its own real reason instead of the
+    // generic fallback message every caller passes in.
+    if (!response.ok) throw new Error(data.error || data.msg || fallbackMessage);
     return data;
 }
+
+// --- Token storage ---
+// Two tokens now, not one - see handoff6.txt. jwt_token is the
+// short-lived (24h) ACCESS token sent on every normal request.
+// jwt_refresh_token is the longer-lived (30 day) REFRESH token, only
+// ever sent to /auth/refresh, used to silently obtain a new access
+// token without asking for a password again.
+async function storeTokens({ accessToken, refreshToken } = {}) {
+    if (accessToken) await SecureStore.setItemAsync('jwt_token', accessToken);
+    if (refreshToken) await SecureStore.setItemAsync('jwt_refresh_token', refreshToken);
+}
+
+async function getRefreshToken() {
+    return await SecureStore.getItemAsync('jwt_refresh_token');
+}
+
+async function clearTokens() {
+    await SecureStore.deleteItemAsync('jwt_token');
+    await SecureStore.deleteItemAsync('jwt_refresh_token');
+}
+
+export async function getToken() {
+    return await SecureStore.getItemAsync('jwt_token');
+}
+
+// Exchanges the stored refresh token for a new access token. Returns
+// the new access token on success, or null if the refresh itself
+// failed (refresh token missing, expired, or revoked) - in which case
+// both stored tokens are cleared, since a dead refresh token left
+// sitting in SecureStore would just fail the exact same way again on
+// the next attempt. A network failure during the refresh call itself
+// (as opposed to the backend actually rejecting the token) does NOT
+// clear anything - that's a connectivity blip, not proof the refresh
+// token is bad, and the caller's original request will surface its
+// own error regardless.
+async function tryRefreshAccessToken() {
+    const refreshToken = await getRefreshToken();
+    if (!refreshToken) return null;
+
+    let response;
+    try {
+        response = await fetch(`${BASE_URL}/auth/refresh`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${refreshToken}` },
+        });
+    } catch (e) {
+        return null;
+    }
+
+    if (!response.ok) {
+        await clearTokens();
+        return null;
+    }
+
+    const data = await response.json();
+    await storeTokens({ accessToken: data.access_token });
+    return data.access_token;
+}
+
+// The one place every authenticated call in this file goes through.
+// Attaches the current access token, makes the request, and if the
+// backend answers 401 (expired access token, or revoked via
+// /auth/logout or /admin/tokens/revoke), transparently tries ONE
+// refresh-and-retry before giving up - the silent "stay logged in"
+// behaviour this app relies on instead of asking for a password every
+// 24 hours. Only throws "Not logged in" if that retry also fails,
+// matching the exact message every existing caller already checks for
+// - no call site elsewhere in this file needed to change its own
+// error handling for this.
+async function authorizedFetch(url, options = {}, timeoutMs, onTiming) {
+    const token = await getToken();
+    if (!token) throw new Error('Not logged in');
+
+    const withAuth = (t) => ({
+        ...options,
+        headers: { ...(options.headers || {}), 'Authorization': `Bearer ${t}` },
+    });
+
+    let response = timeoutMs
+        ? await fetchWithTimeout(url, withAuth(token), timeoutMs, onTiming)
+        : await fetch(url, withAuth(token));
+
+    if (response.status === 401) {
+        const newAccessToken = await tryRefreshAccessToken();
+        if (!newAccessToken) throw new Error('Not logged in');
+
+        response = timeoutMs
+            ? await fetchWithTimeout(url, withAuth(newAccessToken), timeoutMs, onTiming)
+            : await fetch(url, withAuth(newAccessToken));
+    }
+
+    return response;
+}
+
 // Resets `color` back to `default_color` for the given category names -
 // admin-only, same scoping convention as updateCategory (applies to a
 // selected set, not the whole table). Returns the full refreshed
 // category list, same shape as getCategories().
 export async function resetCategoryDefaults(names) {
-    const token = await getToken();
-    if (!token) throw new Error('Not logged in');
- 
-    const response = await fetch(`${BASE_URL}/categories/reset-defaults`, {
+    const response = await authorizedFetch(`${BASE_URL}/categories/reset-defaults`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ names }),
     });
- 
+
     return await parseJsonResponse(response, 'Reset to defaults failed');
 }
+
 // Total number of CSV files this user has ever uploaded - powers the
 // "you've uploaded N files" summary on the home screen.
 export async function getUploadCount() {
-    const token = await getToken();
-    if (!token) throw new Error('Not logged in');
- 
-    const response = await fetch(`${BASE_URL}/uploads/count`, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` },
-    });
- 
+    const response = await authorizedFetch(`${BASE_URL}/uploads/count`, { method: 'GET' });
+
     const data = await parseJsonResponse(response, 'Failed to fetch upload count');
     return data.count;
 }
-export async function getCategories() {
-    const token = await getToken();
-    if (!token) throw new Error('Not logged in');
 
-    const response = await fetch(`${BASE_URL}/categories`, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` },
-    });
+export async function getCategories() {
+    const response = await authorizedFetch(`${BASE_URL}/categories`, { method: 'GET' });
 
     const data = await parseJsonResponse(response, 'Failed to fetch categories');
     return data.categories;
 }
+
 export async function updateCategory(categoryName, { newName, color } = {}) {
-    const token = await getToken();
-    if (!token) throw new Error('Not logged in');
- 
     const body = { current_name: categoryName };
     if (newName) body.new_name = newName;
     if (color) body.color = color;
- 
+
     // current_name now travels in the body, not the URL - some category
     // names contain a literal "/" (e.g. "Sports/Fitness"), and a
     // URL-encoded slash gets handled specially by a lot of web
@@ -133,48 +216,33 @@ export async function updateCategory(categoryName, { newName, color } = {}) {
     // rejected before Flask's own routing ever saw it - regardless of
     // encodeURIComponent on this end. Request bodies have no such
     // restriction on any character.
-    const response = await fetch(`${BASE_URL}/categories`, {
+    const response = await authorizedFetch(`${BASE_URL}/categories`, {
         method: 'PATCH',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
- 
+
     return await parseJsonResponse(response, 'Failed to update category');
 }
-export async function getTransactionHistory() {
-    const token = await getToken();
-    if (!token) throw new Error('Not logged in');
 
-    const response = await fetch(`${BASE_URL}/transactions`, {
-        method: 'GET',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-        },
-    });
+export async function getTransactionHistory() {
+    const response = await authorizedFetch(`${BASE_URL}/transactions`, { method: 'GET' });
 
     const data = await parseJsonResponse(response, 'Failed to fetch transaction history');
     return data.transactions;
 }
 
 export async function deleteTransactions(ids) {
-    const token = await getToken();
-    if (!token) throw new Error('Not logged in');
-
-    const response = await fetch(`${BASE_URL}/transactions`, {
+    const response = await authorizedFetch(`${BASE_URL}/transactions`, {
         method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids }),
     });
 
     const data = await parseJsonResponse(response, 'Delete failed');
     return data.deleted;
 }
+
 export async function signup(username, password) {
     const response = await fetch(`${BASE_URL}/auth/signup`, {
         method: 'POST',
@@ -182,9 +250,10 @@ export async function signup(username, password) {
         body: JSON.stringify({ username, password }),
     });
     const data = await parseJsonResponse(response, 'Signup failed');
-    await SecureStore.setItemAsync('jwt_token', data.access_token);
+    await storeTokens({ accessToken: data.access_token, refreshToken: data.refresh_token });
     return data.access_token;
 }
+
 export async function login(username, password) {
     const response = await fetch(`${BASE_URL}/auth/login`, {
         method: 'POST',
@@ -192,12 +261,8 @@ export async function login(username, password) {
         body: JSON.stringify({ username, password }),
     });
     const data = await parseJsonResponse(response, 'Login failed');
-    await SecureStore.setItemAsync('jwt_token', data.access_token);
+    await storeTokens({ accessToken: data.access_token, refreshToken: data.refresh_token });
     return data.access_token;
-}
-
-export async function getToken() {
-    return await SecureStore.getItemAsync('jwt_token');
 }
 
 // Returns { username, role, level, permissions } for whoever the
@@ -207,31 +272,50 @@ export async function getToken() {
 // right of every screen. Also usable by future admin-facing screens
 // that need to know "am I even allowed to see this control."
 export async function getMe() {
-    const token = await getToken();
-    if (!token) throw new Error('Not logged in');
-
-    const response = await fetch(`${BASE_URL}/auth/me`, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` },
-    });
+    const response = await authorizedFetch(`${BASE_URL}/auth/me`, { method: 'GET' });
 
     return await parseJsonResponse(response, 'Failed to fetch account info');
 }
 
+// Actually revokes the current session server-side now (see
+// handoff5.txt/handoff6.txt for why the OLD logout() - which only ever
+// cleared local SecureStore - was never enough on its own). Sends the
+// stored refresh token along in the body too, so ONE call revokes both
+// halves of the session; the backend independently verifies that
+// token's signature before touching it; a missing or already-invalid
+// refresh token doesn't fail the whole logout, it's silently skipped
+// server-side.
+//
+// Deliberately best-effort: if the network call fails outright (no
+// connectivity), local tokens are STILL cleared - the device should
+// always be able to "forget" its own session even if it can't reach
+// the backend to un-issue it, so the person is never stuck unable to
+// log out just because they're offline.
 export async function logout() {
-    await SecureStore.deleteItemAsync('jwt_token');
+    try {
+        const token = await getToken();
+        const refreshToken = await getRefreshToken();
+        if (token) {
+            await fetch(`${BASE_URL}/auth/logout`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {}),
+            });
+        }
+    } catch (e) {
+        // Best-effort - see docstring above. Local clear still happens.
+    } finally {
+        await clearTokens();
+    }
 }
 
 export async function categorizeCached(transactions, { timeoutMs, onTiming } = {}) {
-    const token = await getToken();
-    if (!token) throw new Error('Not logged in');
-
-    const response = await fetchWithTimeout(`${BASE_URL}/categorize/cached`, {
+    const response = await authorizedFetch(`${BASE_URL}/categorize/cached`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transactions }),
     }, timeoutMs, onTiming);
 
@@ -240,9 +324,6 @@ export async function categorizeCached(transactions, { timeoutMs, onTiming } = {
 }
 
 export async function categorizeLLM(transactions, { timeoutMs, onTiming, batchSize, geminiTimeoutMs } = {}) {
-    const token = await getToken();
-    if (!token) throw new Error('Not logged in');
-
     const body = { transactions };
     // Real, server-side Gemini batch size (unique descriptions per LLM
     // call inside run_llm_tier) - this is the actual thing that used
@@ -257,22 +338,17 @@ export async function categorizeLLM(transactions, { timeoutMs, onTiming, batchSi
     // backend). See GEMINI_REQUEST_TIMEOUT_MS in useFileProcessor.js.
     if (geminiTimeoutMs != null) body.gemini_timeout_ms = geminiTimeoutMs;
 
-    const response = await fetchWithTimeout(`${BASE_URL}/categorize/llm`, {
+    const response = await authorizedFetch(`${BASE_URL}/categorize/llm`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     }, timeoutMs, onTiming);
 
     const data = await parseJsonResponse(response, 'LLM categorisation failed');
     return data.transactions;
 }
-export async function parseCSVFiles(files) {
-    const token = await getToken();
-    if (!token) throw new Error('Not logged in');
 
+export async function parseCSVFiles(files) {
     const formData = new FormData();
     for (const file of files) {
         formData.append('files', {
@@ -282,14 +358,11 @@ export async function parseCSVFiles(files) {
         });
     }
 
-    const response = await fetch(`${BASE_URL}/api/parse-csv`, {
+    const response = await authorizedFetch(`${BASE_URL}/api/parse-csv`, {
         method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            // DO NOT set Content-Type manually here - React Native sets it
-            // automatically with the correct multipart boundary when
-            // you pass FormData. Setting it manually breaks it.
-        },
+        // DO NOT set Content-Type manually here - React Native sets it
+        // automatically with the correct multipart boundary when
+        // you pass FormData. Setting it manually breaks it.
         body: formData,
     });
 
@@ -298,15 +371,9 @@ export async function parseCSVFiles(files) {
 }
 
 export async function categorizeTransactions(transactions) {
-    const token = await getToken();
-    if (!token) throw new Error('Not logged in');
-
-    const response = await fetch(`${BASE_URL}/categorize`, {
+    const response = await authorizedFetch(`${BASE_URL}/categorize`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transactions }),
     });
 
@@ -315,33 +382,22 @@ export async function categorizeTransactions(transactions) {
 }
 
 export async function resolveCategories(resolutions) {
-    const token = await getToken();
-    if (!token) throw new Error('Not logged in');
-
-    const response = await fetch(`${BASE_URL}/categorize/resolve`, {
+    const response = await authorizedFetch(`${BASE_URL}/categorize/resolve`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resolutions }),
     });
 
     return await parseJsonResponse(response, 'Resolve failed');
 }
+
 // Pre-aggregated (year, category) and (year, month, category) sums for
 // the Charts screen - computed inside Postgres, not client-side, so the
 // payload stays small (bounded by years x months x categories) no
 // matter how much raw transaction history has accumulated. Returns
 // { yearly: [...], monthly: [...] }.
 export async function getChartSummary() {
-    const token = await getToken();
-    if (!token) throw new Error('Not logged in');
- 
-    const response = await fetch(`${BASE_URL}/charts/summary`, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` },
-    });
- 
+    const response = await authorizedFetch(`${BASE_URL}/charts/summary`, { method: 'GET' });
+
     return await parseJsonResponse(response, 'Failed to fetch chart summary');
 }

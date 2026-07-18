@@ -20,6 +20,15 @@ impersonated token instead of your own. Whatever those endpoints
 already enforce (e.g. a resolve being scoped to the token's own
 user_id) applies exactly the same way here.
 
+Impersonation tokens are short-lived (15 minutes - see
+IMPERSONATION_TOKEN_EXPIRES in backend.py), which a genuine review
+session can easily outlast. Rather than the whole session dying
+mid-task, this renews itself transparently: any call using the
+impersonated token that comes back with SessionExpired triggers a
+silent re-impersonation (using your OWN still-good token and the same
+target user id, already in scope) and one retry - you'll see a short
+note that it happened, but you won't need to restart anything.
+
 Requires the 'users.impersonate' permission to pick a user at all
 (bundled into the 'admin' role by default, and always available to
 owner) - obtaining a session for someone is the actual gate; once
@@ -40,7 +49,7 @@ run_manage_user_transactions(token).
 from adminCliCommon import (
     BASE_URL, fetch_me, fetch_users, fetch_categories_full,
     fetch_transactions, delete_transactions, resolve_categories,
-    choose_from_list, admin_login_prompt,
+    choose_from_list, admin_login_prompt, SessionExpired, revoke_token,
 )
 from impersonateUserAdmin import impersonate_user
 
@@ -198,7 +207,27 @@ def _pick_specific(rows):
         print(f"Enter a number from 1 to {len(rows)}, A, N, or blank.\n")
 
 
-def _do_delete(user_token, all_transactions, filtered):
+def _call_as_user(session, admin_token, target_user_id, fn, *args, **kwargs):
+    """Calls fn(session['token'], *args, **kwargs) - the shared wrapper
+    every impersonated-token call in this file goes through. On
+    SessionExpired (the impersonation token's 15-minute window ran
+    out, or it was revoked from elsewhere), silently re-impersonates
+    the SAME target user using the admin's own still-good token, updates
+    `session` in place with the new token/jti, and retries the call
+    exactly once. A second failure after that retry is a real error,
+    not just an expired session, and is left to propagate to the
+    caller normally."""
+    try:
+        return fn(session["token"], *args, **kwargs)
+    except SessionExpired:
+        print("(That impersonation session expired mid-task - getting a fresh one...)")
+        renewed = impersonate_user(admin_token, target_user_id)
+        session["token"] = renewed["access_token"]
+        session["jti"] = renewed["jti"]
+        return fn(session["token"], *args, **kwargs)
+
+
+def _do_delete(session, admin_token, target_user_id, all_transactions, filtered):
     if not filtered:
         print("\n(nothing to delete - the current filter matches no transactions)\n")
         return all_transactions
@@ -228,7 +257,7 @@ def _do_delete(user_token, all_transactions, filtered):
 
     ids = [t["id"] for t in targets]
     try:
-        deleted_count = delete_transactions(user_token, ids)
+        deleted_count = _call_as_user(session, admin_token, target_user_id, delete_transactions, ids)
         print(f"Done - {deleted_count} deleted.\n")
         deleted_ids = set(ids)
         return [t for t in all_transactions if t["id"] not in deleted_ids]
@@ -237,7 +266,7 @@ def _do_delete(user_token, all_transactions, filtered):
         return all_transactions
 
 
-def _do_recategorize(user_token, all_transactions, filtered, category_names):
+def _do_recategorize(session, admin_token, target_user_id, all_transactions, filtered, category_names):
     if not filtered:
         print("\n(nothing to recategorise - the current filter matches no transactions)\n")
         return all_transactions
@@ -270,7 +299,7 @@ def _do_recategorize(user_token, all_transactions, filtered, category_names):
     ]
 
     try:
-        result = resolve_categories(user_token, resolutions)
+        result = _call_as_user(session, admin_token, target_user_id, resolve_categories, resolutions)
         skipped_count = len(result.get("skipped", []))
         applied_count = len(targets) - skipped_count
         msg = f'Done - {applied_count} set to "{new_category}"'
@@ -292,7 +321,11 @@ def _do_recategorize(user_token, all_transactions, filtered, category_names):
         return all_transactions
 
 
-def _manage_single_user_session(admin_token, user_token, username):
+def _manage_single_user_session(admin_token, target_user_id, session, username):
+    """`session` is a mutable dict {'token', 'jti'} - see _call_as_user
+    above for why it needs to be mutable rather than a plain string:
+    the impersonation token it holds can be silently swapped out
+    mid-session if the 15-minute window runs out."""
     try:
         categories = fetch_categories_full(admin_token)
     except Exception as e:
@@ -301,7 +334,7 @@ def _manage_single_user_session(admin_token, user_token, username):
     category_names = [c["name"] for c in categories]
 
     try:
-        transactions = fetch_transactions(user_token)
+        transactions = _call_as_user(session, admin_token, target_user_id, fetch_transactions)
     except Exception as e:
         print(f"Couldn't fetch transactions: {e}\n")
         return
@@ -332,12 +365,12 @@ def _manage_single_user_session(admin_token, user_token, username):
         elif choice == "4":
             _print_grouped_by_category(filtered)
         elif choice == "5":
-            transactions = _do_delete(user_token, transactions, filtered)
+            transactions = _do_delete(session, admin_token, target_user_id, transactions, filtered)
         elif choice == "6":
-            transactions = _do_recategorize(user_token, transactions, filtered, category_names)
+            transactions = _do_recategorize(session, admin_token, target_user_id, transactions, filtered, category_names)
         elif choice == "7":
             try:
-                transactions = fetch_transactions(user_token)
+                transactions = _call_as_user(session, admin_token, target_user_id, fetch_transactions)
                 print("Refreshed.\n")
             except Exception as e:
                 print(f"Refresh failed: {e}\n")
@@ -345,6 +378,14 @@ def _manage_single_user_session(admin_token, user_token, username):
             break
         else:
             print("Enter a number from 1 to 8.\n")
+
+    done = input("Revoke this impersonation session now instead of letting it expire on its own? (y/n): ").strip().lower()
+    if done == "y":
+        try:
+            revoke_token(admin_token, session["jti"])
+            print("Revoked.\n")
+        except Exception as e:
+            print(f"Revoke failed (it will still expire naturally regardless): {e}\n")
 
 
 def run_manage_user_transactions(token):
@@ -388,7 +429,8 @@ def run_manage_user_transactions(token):
             print(f"Couldn't get a session for that user: {e}\n")
         else:
             print(f'\nActing as "{result["username"]}".\n')
-            _manage_single_user_session(token, result["access_token"], result["username"])
+            session = {"token": result["access_token"], "jti": result["jti"]}
+            _manage_single_user_session(token, chosen["id"], session, result["username"])
 
         again = input("Manage another user's transactions? (y/n): ").strip().lower()
         if again != "y":

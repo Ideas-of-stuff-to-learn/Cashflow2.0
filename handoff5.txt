@@ -1,0 +1,98 @@
+# Handoff — JWT Lifetime Problem (no expiry, no revocation, no audit trail)
+
+**Scope of this doc:** `App/API/backend.py` (`JWT_ACCESS_TOKEN_EXPIRES` config, `login`, `signup`, `admin_impersonate_user`, and every other route that calls `create_access_token`), and by extension `App/api.js`/`App/customHooks/homescreen/useLogout.js` on the client side (what "logout" actually does today).
+
+This is a separate document from `handoff.txt`, `handoff2.txt`, `handoff3.txt`, and `handoff4.txt` - all four of those docs' scopes are still valid and untouched here. This one exists because `handoff4.txt`'s permission system (specifically, the `users.impersonate` action) made a pre-existing gap in this app's authentication model into something worth addressing directly, rather than leaving as an incidental comment inside one route's docstring.
+
+**This document intentionally describes the PROBLEM ONLY. No fix has been chosen or implemented yet - see "Future Plans / Roadmap" at the bottom.** Don't take anything here as a spec to build against; it's a record of what's wrong and why, written before the "what to do about it" conversation happened.
+
+---
+
+## READ THIS FIRST
+
+**The repo is the source of truth. This document can be, and eventually will be, stale.**
+
+1. Pull the current version of `backend.py` directly from `main` before assuming anything here still holds - in particular, if a fix has since been implemented, this doc's description of "no expiry / no revocation / no audit trail" may no longer be accurate, and should be treated as historical context rather than current fact.
+2. If the repo contradicts this doc, **the repo wins.**
+
+---
+
+## Current State
+
+### How a token is created
+
+Three places in `backend.py` call `create_access_token(...)`, and all three call it identically - just an identity, nothing else:
+
+```python
+# login()
+token = create_access_token(identity=str(user_id))
+
+# signup()
+token = create_access_token(identity=str(new_id))
+
+# admin_impersonate_user()
+token = create_access_token(identity=str(target_user_id))
+```
+
+Combined with the app-wide config set at startup:
+
+```python
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False
+```
+
+...every token issued by any of these three paths carries no expiry claim at all. A token minted by any of them is, from the server's perspective, exactly as valid the moment it's created as it is a year later.
+
+### How a token is checked
+
+`@jwt_required()` (via `flask_jwt_extended`, which itself defers to the `PyJWT` library) does not look anything up in a database or any other form of server-side state. The check is pure recomputation: take the token's header+payload, recompute an HMAC-SHA256 over it using `JWT_SECRET_KEY` (an environment variable, never stored anywhere else), and compare that to the signature already attached to the token. Match → trust the payload (including `sub`, the user id). No match → 401.
+
+This means the server has no concept of "this token was issued to this specific login session" or "this token has since been superseded." Two tokens carrying the same `sub` - one from an actual password login three months ago, one minted by `admin_impersonate_user` five seconds ago - are, to every route in this app, completely indistinguishable and equally valid.
+
+### What "logout" actually does
+
+```js
+// api.js
+export async function logout() {
+    await SecureStore.deleteItemAsync('jwt_token');
+}
+```
+
+This deletes the token from ONE device's local encrypted storage. It makes no network call to the backend at all. The token itself - as a piece of signed data - is completely unaffected; if a copy of it exists anywhere else (another device, a terminal history, an impersonation session generated from it), that copy keeps working exactly as before. There is no `POST /auth/logout` endpoint, and there couldn't meaningfully be one without a bigger structural change - see "Why this can't be fixed with a small logout endpoint" below.
+
+---
+
+## The Three Concrete Gaps
+
+1. **No expiry.** A token issued today is valid indefinitely. There is no `exp` claim being set or enforced anywhere in this app.
+2. **No revocation.** There is no server-side record of issued tokens at all (no `sessions` table, no blacklist, nothing in `schema.sql`), so there is nothing to mark invalid even if the app wanted to kill one specific token early. The only two ways to invalidate ANY token in this app right now are: wait forever (never happens), or rotate `JWT_SECRET_KEY` (which invalidates every token for every user simultaneously - a global reset, not a per-token or per-user action).
+3. **No audit trail.** Nothing records when a token was issued, by which path (login vs. signup vs. impersonate), or - specifically for impersonation - who the caller was and which account they generated a token for. Backend logs may incidentally capture some of this (e.g. `app.logger.error` calls on failure paths), but there is no deliberate, queryable record of token issuance anywhere.
+
+None of this is unique to JWTs as a technology - a stateless, self-verifying token is a deliberate and common design choice (no database round-trip needed to authenticate every request). The gap is that this app has none of the USUAL mitigations layered on top of that choice: short expiries forcing periodic re-authentication, a revocation list for the rare case a token needs killing early, or a record of what happened for after-the-fact review.
+
+---
+
+## Why This Specifically Matters More Now Than Before
+
+Before `handoff4.txt`'s permission system, the only way to obtain a valid token was proving you knew a password (`login`) or successfully creating a new account (`signup`) - the "blast radius" of the no-expiry/no-revocation gap was bounded by "how many passwords are compromised," same as almost any authentication system.
+
+`users.impersonate` adds a second path that requires no password at all: any account with that permission (bundled into `admin` by default, always available to `owner`) can, at will, mint a fully valid, equally permanent token for any other account below its own level - see `admin_impersonate_user()` above. This is a deliberate, legitimate capability (built on purpose, for admin support/debugging use), but it means:
+
+- The blast radius of ANY single elevated account being compromised or misused is no longer just "that one account" - it's "that account, plus every account it could impersonate, plus every token it has ALREADY minted for any of them, forever, with no way to know how many that is or claw any of them back."
+- There is currently no way to answer "did anyone impersonate this user, and when" after the fact - the only trace is whatever happened to land in backend logs incidentally.
+- A regretted or mistaken impersonation (wrong user picked, generated for testing and then forgotten about, etc.) has no natural end - the token doesn't expire and can't be individually revoked.
+
+---
+
+## Why This Can't Be Fixed With Just a Small `/auth/logout` Endpoint
+
+Worth being explicit about, since it's the first thing that tends to come to mind: a `POST /auth/logout` route, on its own, still couldn't do anything meaningful given the current architecture. There is nothing server-side to mark - no session row, no per-token state - so there'd be nothing for that endpoint to actually change about whether the token keeps verifying. Any real fix has to address the underlying "the server keeps no memory of issued tokens at all" gap first; a logout endpoint would only become meaningful as a consequence of that, not as a fix in itself.
+
+---
+
+## Future Plans / Roadmap (not yet done, not yet decided)
+
+**No fix has been chosen.** This doc was written specifically to separate "here is the problem, clearly" from "here is what we're going to do about it" - the second half of that conversation hadn't happened yet as of this doc's writing. When it does, this section (or a new dated section below it, per this project's usual convention) should record what was decided and why, same as every other handoff doc in this project does for its own area.
+
+---
+
+**UPDATE: the fix is now implemented - see `handoff6.txt`.** Real access/refresh token expiry, server-side revocation, an impersonation audit log, freshness requirements on the highest-risk actions, and graceful CLI re-login are all built and verified. This document is kept as-is (problem statement only) for the historical record described in "READ THIS FIRST" above - `handoff6.txt` is the one to read for current behavior.
