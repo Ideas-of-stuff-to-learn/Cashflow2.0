@@ -1,0 +1,140 @@
+# Handoff — Chart Stack Reorder, Segment Scale Slider, Admin Category Reorder CLI
+
+**Scope:** `App/components/charts/StackOrderEditor.js` (new), `App/customHooks/charts/useStackOrder.js` (new), `App/customHooks/charts/useChartData.js`, `App/utils/charts/yearlyChartUtils.js`, `App/components/charts/SpendingStackedChart.js`, `App/components/charts/Yearlychartsection.js`, `App/components/charts/DetailedChartSection.js`, `App/screens/ChartsScreen.js`, `App/API/schema.sql`, `App/API/backend.py`, `App/adminClI/reorderCategoriesAdmin.py`.
+
+Three separate features, all chart-related, built in the same session. The repo is the source of truth; this document can become stale.
+
+---
+
+## READ THIS FIRST
+
+**The repo is the source of truth. This document can be, and eventually will be, stale.**
+
+1. Pull the current version of every file listed above directly from `main` before changing anything.
+2. If the repo contradicts this doc, **the repo wins.**
+3. Run `schema.sql` against the live database before deploying the updated `backend.py` — the new `categories.reorder` permission needs to exist in the `permissions` table before any route that checks for it can succeed.
+
+---
+
+## Feature 1: Segment scale slider
+
+Lets users visually inflate small bar segments so they're easier to tap, without changing the actual values shown on press or in tooltips.
+
+### How it works
+
+`transformValue(value, maxValue, heightScale)` already existed in `utils/charts/chartUtils.js`. It applies a sqrt curve to normalise segment heights — small values get stretched more than large ones as `heightScale` increases. Previously it was wired into `DetailedChartSection` (the month drill-down) but never actually applied to segment heights — `heightScale` only scaled `chartHeight` (the container), not individual segment proportions.
+
+Now, inside `StackBar` in `SpendingStackedChart.js`:
+```js
+const scaledValue = heightScale > 1
+    ? transformValue(segment.value, maxValue, heightScale)
+    : segment.value;
+const segHeight = (scaledValue / maxValue) * chartHeight;
+```
+`heightScale` is now a proper prop on `StackBar` (was missing — that was the `ReferenceError: Property 'heightScale' doesn't exist` bug, fixed by adding it to `StackBar`'s props and passing it through from `SpendingStackChart`).
+
+The y-axis labels and gridlines stay on the honest monetary scale — they're positioned by the real `value / maxValue`, not the transformed one. So after scaling, a small segment may visually sit at 40% of the chart height while the y-axis gridline for its true value is still at 10%. This is intentional: the axis tells you what things cost, the bar height just makes it tappable.
+
+### Slider settings
+
+Both sliders (year chart in `YearlyChartSection`, month drill-down in `DetailedChartSection`) are set to:
+- `maximumValue={5}`
+- `step={0.5}`
+
+These were reduced from the original `maximumValue={15}` / `step={1}`. Adjust in those two files if needed — they're independent of each other.
+
+### Bug fixed: hook after early return
+
+`YearlyChartSection` had `const [heightScale, setHeightScale] = useState(1)` placed after `if (!ready) return null`, violating React's rules of hooks. Fixed by moving it before the early return.
+
+---
+
+## Feature 2: Per-user stack reorder (in-app UI)
+
+Lets each user reorder the category stacking order for both the year and month charts. Stored locally, not in the database — it's a display preference, not data.
+
+### Data flow (full path)
+
+1. **`StackOrderEditor.js`** — UI component. Receives `effectiveOrder`, `updateOrder`, `resetOrder`, `persist`, `togglePersist`, `isCustomOrder` as props from `ChartsScreen`. Shows the list reversed (top of list = top of bar, which is intuitive). ↑/↓ buttons call `moveUp`/`moveDown` which swap adjacent items in a copy of `effectiveOrder` then call `updateOrder(next)`.
+
+2. **`useStackOrder.js`** — hook that manages the order state. Lives inside `useChartData`, which lives inside `ChartsScreen`. `updateOrder` just calls `setStackOrder(newOrder)` — plain `useState`. `effectiveOrder` is derived from `stackOrder` on every render:
+   ```js
+   const effectiveOrder = stackOrder
+       ? stackOrder.filter(n => categoryNames.includes(n))
+       : categoryNames.filter(n => n !== 'Income');
+   ```
+   Income is always excluded — it's rendered as a line overlay, not a segment.
+
+3. **`useChartData.js`** — receives `effectiveOrder` from `useStackOrder` and passes it to both `buildYearStackData` and `buildMonthStackDataFromEntries` as the `stackOrder` argument. Both are `useMemo`-ed with `effectiveOrder` in their dep arrays.
+
+4. **`yearlyChartUtils.js`** — `buildYearStackData` and `buildMonthStackDataFromEntries` now both accept a `stackOrder` param:
+   ```js
+   const orderedCategories = stackOrder
+       ? stackOrder.filter(c => c !== 'Income')
+       : categoryNames.filter(c => c !== 'Income');
+   const stacks = orderedCategories.map(category => ({ value, color, onPress }));
+   ```
+   `stacks[0]` = bottom segment, `stacks[last]` = top segment. The order of this array is what the chart renders.
+
+5. **`SpendingStackedChart.js` / `StackBar`** — renders segments bottom-to-top using `cumulativeBottom`. Index 0 renders at the bottom, last index at the top. No knowledge of stack order here — it just renders what it's given.
+
+### Display reversal in `StackOrderEditor`
+
+Internally the array is `[bottom, ..., top]` throughout — that's what all the chart functions expect. The reversal only happens in the display layer:
+- `print_order` (CLI equivalent): iterates `[...effectiveOrder].reverse()`
+- The ↑ button calls `moveDown` on the underlying array (higher index = higher in bar = higher on screen in the reversed view)
+- The ↓ button calls `moveUp` on the underlying array
+
+The disabled check is also swapped: ↑ disabled when `index === effectiveOrder.length - 1` (already at top of bar), ↓ disabled when `index === 0` (already at bottom).
+
+### Persistence (`useStackOrder.js`)
+
+"Remember this order" toggle writes the current order to `AsyncStorage` under `chartStackOrder`, and a `chartStackOrderPersist` flag. On mount, if both are present, the saved order is loaded and merged against the current `categoryNames` (handles categories added or removed since the order was saved — new categories appear at the top, deleted ones are dropped).
+
+**Expo Go limitation:** `@react-native-async-storage/async-storage` requires a native build. In Expo Go the `require()` call is wrapped in a try/catch and silently skipped — stack order still works for the session, it just doesn't survive app restarts. When you build a sideloaded APK, run `npm install @react-native-async-storage/async-storage` first and persistence will work automatically with no code changes.
+
+**"Reset to default"** always clears both the in-session order and any saved AsyncStorage entry, and sets persist back to false. There's no "reset visual only while keeping saved" option — that would be confusing.
+
+### `ChartsScreen` wiring
+
+`StackOrderEditor` sits between `CategorySlicer` and `YearlyChartSection` in the ScrollView. All props come from `useChartData` which wraps `useStackOrder` internally — `StackOrderEditor` never imports `useStackOrder` directly, it just receives functions as props.
+
+---
+
+## Feature 3: Admin CLI category reorder (`reorderCategoriesAdmin.py`)
+
+Sets the **global default** `display_order` in the `categories` table — what every user sees on a fresh install, or when they haven't set a local preference. Individual user preferences (Feature 2 above) always take precedence over this once set.
+
+### Backend
+
+New endpoint `PATCH /categories/order`, gated by `@require_permission('categories.reorder')`. Takes `{ names: [...] }` — a list of every existing category name in the desired order. Validation is strict: if the list has duplicates, missing names, or unknown names, the request is rejected with a clear error before any writes happen. On success, does a batch UPDATE setting `display_order = i` for each name at position `i`, then returns the updated category list.
+
+New permission `categories.reorder` added to `schema.sql` and bundled into the `admin` role by default (alongside all other `categories.*` permissions). **Run schema.sql against the live DB** before deploying the updated `backend.py`.
+
+### CLI (`reorderCategoriesAdmin.py`)
+
+Displayed order matches the bar visually — top of list = top of bar, bottom of list = bottom of bar. `U <n>` moves item n up the list and up the bar. `D <n>` moves it down.
+
+**Income is excluded from the display and numbering** — it's a line overlay, not a segment, so it has no place in the stack order UI. Its `display_order` in the DB is preserved unchanged: the script remembers Income's original index in `category_names` and stitches it back at the same position before submitting to the backend.
+
+Internally the array is stored `[bottom, ..., top]` (same convention as everywhere else). The display reversal and `U`/`D` index translation are:
+```python
+# Display position 1 = top of bar = last item internally
+idx = len(order) - display_n
+
+# U: move toward higher internal index (higher in bar, higher on screen)
+order[idx], order[idx + 1] = order[idx + 1], order[idx]
+
+# D: move toward lower internal index (lower in bar, lower on screen)
+order[idx - 1], order[idx] = order[idx], order[idx - 1]
+```
+
+Nothing is written to the database until the user explicitly types `S` and confirms. `R` resets to the original order fetched from the server (in-session only, no DB write).
+
+---
+
+## Known gaps / not done this session
+
+- **AsyncStorage persistence doesn't work in Expo Go** — see the Expo Go limitation note above. One `npm install` and a rebuild is all it needs.
+- **Stack order is not included in the "impersonate user" transaction view** — `manageUserTransactionsAdmin.py` fetches categories with the admin's own token (global categories, correct) but doesn't have a concept of that user's local stack preference. Fine — that's a device-local preference that only makes sense on the user's own device.
+- **No automated tests** — same gap flagged in every prior handoff doc.
