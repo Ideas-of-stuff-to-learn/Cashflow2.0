@@ -273,19 +273,11 @@ WHERE r.name = 'admin'
   AND p.key IN ('users.create', 'users.edit', 'users.delete', 'users.impersonate')
 ON CONFLICT DO NOTHING;
 
--- ONE-TIME: renames the pre-existing account (username 'admin') to
--- 'owner', so the account itself isn't confusingly named the same
--- thing as the separate 'admin' ROLE this migration also creates below
--- (level 50, one tier under owner) - two different concepts that
--- happened to share a name before this round. Only matches a row that
--- still has the old username, so it's a no-op on every run after the
--- first (there's nothing left named 'admin' to match).
-
-
--- One-time backfill for accounts that existed before role_id did. The
--- pre-existing single admin account (now renamed to 'owner', see the
--- UPDATE directly above) becomes the first owner; everyone else
--- defaults to the plain 'user' role. Both UPDATEs only touch rows
+-- One-time backfill for accounts that existed before role_id did.
+-- Originally targeted the pre-existing account by its old username
+-- ('admin', before it was renamed to 'owner' - see handoff4.txt's
+-- Round 1 for that rename's own reasoning, since removed from this
+-- file as dead weight once it had run). Both UPDATEs only touch rows
 -- where role_id IS NULL, so this is safe to run again on every deploy
 -- without re-clobbering a role that's since been deliberately changed
 -- via the admin tools.
@@ -293,3 +285,58 @@ UPDATE users SET role_id = (SELECT id FROM roles WHERE name = 'owner')
     WHERE username = 'owner' AND role_id IS NULL;
 UPDATE users SET role_id = (SELECT id FROM roles WHERE name = 'user')
     WHERE role_id IS NULL;
+
+-- =====================================================================
+-- Token lifetime: expiry, revocation, audit (handoff5.txt / handoff6.txt)
+-- =====================================================================
+-- Closes the gap handoff5.txt documented: previously every JWT this
+-- app issued (login, signup, or impersonate) never expired and could
+-- never be individually invalidated - "logout" only ever cleared the
+-- token from one device's local storage, never anything server-side.
+--
+-- revoked_tokens is a real, if minimal, server-side memory of tokens:
+-- one row per jti (the unique id every JWT already carries) that's
+-- been explicitly killed - via a real /auth/logout call, or an admin
+-- deliberately ending an impersonation session early. Checked on
+-- EVERY authenticated request via flask_jwt_extended's
+-- token_in_blocklist_loader (see backend.py) - this is what makes
+-- revocation actually work, as opposed to just being a nice-sounding
+-- table nothing reads from.
+--
+-- expires_at is nullable and purely advisory (lets a future cleanup
+-- job prune rows whose underlying token would have expired naturally
+-- anyway, once one gets written - not built this round, table is
+-- ready for it). A row with expires_at NULL just never gets
+-- auto-pruned, which is harmless at this app's scale.
+CREATE TABLE IF NOT EXISTS revoked_tokens (
+    jti TEXT PRIMARY KEY,
+    revoked_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at TIMESTAMPTZ
+);
+
+-- One row per impersonation ever performed - who (actor), whom
+-- (target), which token (jti, so a specific session can be looked up
+-- and revoked via /admin/tokens/revoke), and when. Read-only from the
+-- app's perspective; nothing deletes from this table. Doesn't prevent
+-- misuse by itself, but turns "we have no way to know if this
+-- happened" into "we can check" - see handoff5.txt's own discussion of
+-- why this mattered enough to add.
+CREATE TABLE IF NOT EXISTS impersonation_log (
+    id SERIAL PRIMARY KEY,
+    actor_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    target_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    jti TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_impersonation_log_created_at
+    ON impersonation_log (created_at);
+
+-- New permission for VIEWING the impersonation log - deliberately
+-- separate from users.impersonate itself (being ALLOWED to impersonate
+-- doesn't mean you should also see everyone else's impersonation
+-- history) and NOT bundled into the 'admin' role's default set, same
+-- precedent as users.view/roles.* - oversight/audit visibility stays
+-- owner-only by default.
+INSERT INTO permissions (key, description) VALUES
+    ('audit.view', 'View the impersonation audit log (who impersonated whom, and when)')
+ON CONFLICT (key) DO NOTHING;

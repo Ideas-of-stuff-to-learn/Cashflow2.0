@@ -1,12 +1,13 @@
 import os
 import re
+from datetime import timedelta
 
 from flask import Flask, request, jsonify
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_jwt_extended import (
-    JWTManager, create_access_token,
-    jwt_required, get_jwt_identity
+    JWTManager, create_access_token, create_refresh_token,
+    jwt_required, get_jwt_identity, get_jwt, decode_token
 )
 from dotenv import load_dotenv
 from flask_cors import CORS
@@ -34,9 +35,44 @@ app = Flask(__name__)
 CORS(app)
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False
+
+# Replaces the old JWT_ACCESS_TOKEN_EXPIRES = False (tokens that never
+# expired at all, no matter which of login/signup/impersonate issued
+# them - see handoff5.txt for why that was a real problem, not a
+# theoretical one). Access tokens are now short-lived; refresh tokens
+# (created_refresh_token(), used by /auth/refresh below) are the
+# longer-lived thing that lets the app/CLI silently obtain a new access
+# token without asking for a password again, right up until the
+# refresh token itself expires or is revoked.
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
+app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
+
+# Deliberately much shorter than a normal access token, and passed
+# explicitly as expires_delta on the ONE call site that uses it
+# (admin_impersonate_user, below) rather than being a global default -
+# an impersonation session is a bounded admin task, not something that
+# should be able to linger for a full day like an ordinary login.
+IMPERSONATION_TOKEN_EXPIRES = timedelta(minutes=15)
 
 jwt = JWTManager(app)
+
+
+@jwt.token_in_blocklist_loader
+def check_if_token_revoked(jwt_header, jwt_payload):
+    """Runs automatically on EVERY @jwt_required()-protected request,
+    right after signature verification succeeds - this is what makes
+    revocation (POST /auth/logout, POST /admin/tokens/revoke) actually
+    mean something, as opposed to inserting rows into a table nothing
+    ever reads. A signature-valid-but-revoked token is rejected here
+    with the same effect as an expired one."""
+    jti = jwt_payload["jti"]
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM revoked_tokens WHERE jti = %s", (jti,))
+            return cur.fetchone() is not None
+    finally:
+        release_connection(conn)
 
 limiter = Limiter(
     get_remote_address,
@@ -854,7 +890,7 @@ def admin_create_user():
 
 
 @app.route('/admin/users/<int:target_user_id>', methods=['DELETE'])
-@jwt_required()
+@jwt_required(fresh=True)
 @require_permission('users.delete')
 @limiter.limit("20 per day")
 def admin_delete_user(target_user_id):
@@ -862,6 +898,10 @@ def admin_delete_user(target_user_id):
     transactions, uploaded_files, personal category_records, and any
     user_permission_overrides row for them (see schema.sql's
     ON DELETE CASCADE foreign keys). No soft-delete or undo.
+
+    Requires a FRESH token - see admin_impersonate_user()'s docstring
+    for the full reasoning; same principle applies here, arguably more
+    so given this is irreversible.
 
     Same level-ceiling guard as role assignment: cannot delete a user
     at or above your own level, unless you're the owner. Also refuses
@@ -898,7 +938,7 @@ def admin_delete_user(target_user_id):
 
 
 @app.route('/admin/users/<int:target_user_id>/credentials', methods=['PATCH'])
-@jwt_required()
+@jwt_required(fresh=True)
 @require_permission('users.edit')
 @limiter.limit("20 per day")
 def admin_edit_user_credentials(target_user_id):
@@ -908,7 +948,9 @@ def admin_edit_user_credentials(target_user_id):
     signup. Same level-ceiling guard as delete/impersonate: cannot edit
     a user at or above your own level unless you're the owner -
     otherwise a level-50 admin with users.edit could take over the
-    owner's account by simply setting a password they know.
+    owner's account by simply setting a password they know. Requires a
+    FRESH token for the same reason - see admin_impersonate_user()'s
+    docstring for the full explanation.
     """
     data = request.get_json() or {}
     new_username = data.get('username')
@@ -959,7 +1001,7 @@ def admin_edit_user_credentials(target_user_id):
 
 
 @app.route('/admin/users/<int:target_user_id>/impersonate', methods=['POST'])
-@jwt_required()
+@jwt_required(fresh=True)
 @require_permission('users.impersonate')
 @limiter.limit("20 per day")
 def admin_impersonate_user(target_user_id):
@@ -969,16 +1011,23 @@ def admin_impersonate_user(target_user_id):
     impersonate a user at or above your own level, unless you're the
     owner.
 
-    WORTH KNOWING: this app's JWTs never expire
-    (JWT_ACCESS_TOKEN_EXPIRES = False, top of this file) and there is
-    no server-side token revocation/blacklist anywhere in this app -
-    logging "out" only deletes the token from the device's local
-    SecureStore, it does not invalidate the token itself. A token
-    generated here is therefore valid indefinitely, exactly like an
-    ordinary login token, with no separate expiry the impersonated
-    person could rely on to end it, and no audit trail beyond backend
-    logs of when this was used or by whom. Use deliberately, not
-    casually.
+    Requires a FRESH token (@jwt_required(fresh=True)) - the caller
+    must have just logged in with their actual password (a token
+    obtained via /auth/refresh is never fresh, see refresh() above),
+    not merely be carrying an old-but-still-technically-valid access
+    token. This specifically closes the "a leaked or ambient token can
+    silently trigger impersonation" risk: a stolen access token alone
+    is not enough, regardless of what client sends the request -
+    whoever calls this must have entered a real password recently.
+
+    Deliberately short-lived (IMPERSONATION_TOKEN_EXPIRES, currently 15
+    minutes, top of this file) rather than the normal 24h access token
+    expiry - an impersonation session is a bounded admin task, not
+    something that should be able to linger for a full day. Every call
+    here is also logged to impersonation_log (actor, target, jti, when)
+    - see handoff5.txt for why an audit trail mattered enough to add,
+    and can be individually revoked early via POST /admin/tokens/revoke
+    using the jti returned below, without waiting out its expiry.
     """
     current_user = int(get_jwt_identity())
     conn = get_connection()
@@ -990,11 +1039,116 @@ def admin_impersonate_user(target_user_id):
         if caller_role != 'owner' and target['level'] >= caller_level:
             return jsonify({'error': f'Cannot impersonate a user at or above your own level ({caller_level})'}), 403
 
-        token = create_access_token(identity=str(target_user_id))
-        return jsonify({'access_token': token, 'username': target['username']}), 200
+        token = create_access_token(
+            identity=str(target_user_id),
+            fresh=False,
+            expires_delta=IMPERSONATION_TOKEN_EXPIRES,
+        )
+        jti = decode_token(token)["jti"]
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO impersonation_log (actor_user_id, target_user_id, jti) VALUES (%s, %s, %s)",
+                (current_user, target_user_id, jti),
+            )
+        conn.commit()
+
+        return jsonify({
+            'access_token': token,
+            'username': target['username'],
+            'jti': jti,
+            'expires_in_seconds': int(IMPERSONATION_TOKEN_EXPIRES.total_seconds()),
+        }), 200
     except Exception as e:
+        conn.rollback()
         app.logger.error(f'Impersonation failed: {e}')
         return jsonify({'error': 'Impersonation failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/admin/impersonation-log', methods=['GET'])
+@jwt_required()
+@require_permission('audit.view')
+@limiter.limit("100 per day")
+def admin_impersonation_log():
+    """Read-only audit trail of every impersonation ever performed -
+    who (actor), whom (target), which token (jti - usable with
+    /admin/tokens/revoke below), and when. Gated by its own 'audit.view'
+    permission, separate from users.impersonate itself and NOT bundled
+    into the 'admin' role by default (see schema.sql) - being ALLOWED
+    to impersonate doesn't mean you should also see everyone else's
+    impersonation history. Doesn't prevent misuse by itself, but turns
+    "we have no way to know if this happened" into "we can check" -
+    see handoff5.txt.
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT il.id, ua.username, ut.username, il.jti, il.created_at
+                   FROM impersonation_log il
+                   JOIN users ua ON il.actor_user_id = ua.id
+                   JOIN users ut ON il.target_user_id = ut.id
+                   ORDER BY il.created_at DESC""",
+            )
+            rows = cur.fetchall()
+
+        log = [
+            {
+                'id': row[0],
+                'actor': row[1],
+                'target': row[2],
+                'jti': row[3],
+                'created_at': row[4].isoformat(),
+            }
+            for row in rows
+        ]
+        return jsonify({'log': log}), 200
+    except Exception as e:
+        app.logger.error(f'Fetching impersonation log failed: {e}')
+        return jsonify({'error': 'Failed to fetch impersonation log'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/admin/tokens/revoke', methods=['POST'])
+@jwt_required()
+@require_permission('users.impersonate')
+@limiter.limit("60 per hour")
+def admin_revoke_token():
+    """Revokes one specific token by its jti - lets an admin end an
+    impersonation session early (wrong user picked, task finished
+    ahead of the 15-minute window, etc.) rather than waiting out its
+    expiry. Gated by 'users.impersonate' specifically, not a general
+    token-management permission - this exists to let you clean up YOUR
+    OWN impersonation actions, not as a general-purpose kill-switch for
+    arbitrary sessions belonging to someone else.
+
+    Silently succeeds even if the jti doesn't correspond to any
+    currently-valid token (already expired, already revoked, never
+    existed) - revoking something that's already effectively dead
+    isn't an error, the end state ("this jti will not authenticate")
+    is identical either way.
+    """
+    data = request.get_json() or {}
+    jti = data.get('jti')
+    if not jti:
+        return jsonify({'error': 'jti is required'}), 400
+
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO revoked_tokens (jti) VALUES (%s) ON CONFLICT (jti) DO NOTHING",
+                (jti,),
+            )
+        conn.commit()
+        return jsonify({'status': 'ok', 'revoked_jti': jti}), 200
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Token revoke failed: {e}')
+        return jsonify({'error': 'Revoke failed - please try again'}), 500
     finally:
         release_connection(conn)
 
@@ -1028,8 +1182,15 @@ def login():
         # Identity is the integer user id (as a string, since JWT subjects
         # must be strings) - NOT the username. Every downstream DB query
         # keyed on user_id depends on this being the real foreign key value.
-        token = create_access_token(identity=str(user_id))
-        return jsonify({'access_token': token}), 200
+        #
+        # fresh=True: this token was obtained via an actual password
+        # check, this instant - it satisfies @jwt_required(fresh=True)
+        # routes (impersonate, delete-user, edit-credentials). A token
+        # later obtained via /auth/refresh is deliberately NOT fresh -
+        # see refresh() below.
+        access_token = create_access_token(identity=str(user_id), fresh=True)
+        refresh_token = create_refresh_token(identity=str(user_id))
+        return jsonify({'access_token': access_token, 'refresh_token': refresh_token}), 200
     finally:
         release_connection(conn)
 
@@ -1080,12 +1241,95 @@ def signup():
         hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=12))
         new_id = create_user(conn, username, hashed.decode('utf-8'))
 
-        token = create_access_token(identity=str(new_id))
-        return jsonify({'access_token': token}), 201
+        # fresh=True: they just set this password, this instant - same
+        # reasoning as login()'s fresh=True above.
+        access_token = create_access_token(identity=str(new_id), fresh=True)
+        refresh_token = create_refresh_token(identity=str(new_id))
+        return jsonify({'access_token': access_token, 'refresh_token': refresh_token}), 201
     except Exception as e:
         conn.rollback()
         app.logger.error(f'Signup failed: {e}')
         return jsonify({'error': 'Signup failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/auth/refresh', methods=['POST'])
+@jwt_required(refresh=True)
+@limiter.limit("60 per hour")
+def refresh():
+    """Exchanges a valid REFRESH token for a brand new, short-lived
+    ACCESS token - lets the app stay "logged in" across the access
+    token's 24h expiry without asking for a password again, right up
+    until the refresh token itself (30 days) also expires or is
+    revoked. @jwt_required(refresh=True) means this route only accepts
+    a refresh token in the Authorization header, not an access token -
+    the two are deliberately not interchangeable.
+
+    The new access token is marked fresh=False - it was obtained via a
+    refresh, not an actual password entry a moment ago, so it does NOT
+    satisfy @jwt_required(fresh=True) routes (impersonate, delete-user,
+    edit-credentials). Those specifically require logging in for real,
+    on purpose - see admin_impersonate_user()'s docstring.
+    """
+    current_user = get_jwt_identity()
+    new_access_token = create_access_token(identity=current_user, fresh=False)
+    return jsonify({'access_token': new_access_token}), 200
+
+
+@app.route('/auth/logout', methods=['POST'])
+@jwt_required()
+@limiter.limit("60 per hour")
+def logout_route():
+    """Actually revokes the calling token server-side - the first time
+    "logout" has ever meant anything beyond a device deleting its own
+    local copy (see api.js's old logout(), and handoff5.txt for why
+    that was never enough on its own). Revokes the ACCESS token this
+    very request was authenticated with (its jti/exp are already
+    available via get_jwt()) automatically. If a refresh_token is also
+    included in the request body, that gets revoked too in the same
+    call - decoded and verified via decode_token() (a plain signature
+    check, same as any other token verification) rather than trusted
+    blindly, so a garbage/malformed value in that field just gets
+    silently ignored rather than erroring the whole logout.
+    """
+    claims = get_jwt()
+    jti = claims["jti"]
+    exp_ts = claims["exp"]
+
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO revoked_tokens (jti, expires_at) VALUES (%s, to_timestamp(%s)) ON CONFLICT (jti) DO NOTHING",
+                (jti, exp_ts),
+            )
+
+        data = request.get_json(silent=True) or {}
+        refresh_token_str = data.get('refresh_token')
+        if refresh_token_str:
+            try:
+                decoded = decode_token(refresh_token_str)
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO revoked_tokens (jti, expires_at) VALUES (%s, to_timestamp(%s)) ON CONFLICT (jti) DO NOTHING",
+                        (decoded["jti"], decoded["exp"]),
+                    )
+            except Exception:
+                # Not a valid token at all (garbage string, wrong
+                # secret, already expired past decode tolerance) -
+                # nothing meaningful to revoke, and the ACCESS token
+                # revocation above already succeeded regardless, so
+                # this is not treated as a hard failure of the whole
+                # request.
+                pass
+
+        conn.commit()
+        return jsonify({'status': 'ok'}), 200
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Logout failed: {e}')
+        return jsonify({'error': 'Logout failed'}), 500
     finally:
         release_connection(conn)
 
