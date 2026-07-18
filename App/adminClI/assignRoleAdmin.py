@@ -25,7 +25,7 @@ run_assign_role(token).
 
 import requests
 
-from adminCliCommon import BASE_URL, fetch_me, fetch_users, fetch_roles, choose_from_list, admin_login_prompt
+from adminCliCommon import BASE_URL, fetch_me, fetch_users, fetch_roles, choose_from_list, admin_login_prompt, check_response
 
 
 def assign_role(token, user_id, role_name):
@@ -34,11 +34,9 @@ def assign_role(token, user_id, role_name):
         headers={"Authorization": f"Bearer {token}"},
         json={"role": role_name},
     )
-    data = response.json()
-    if not response.ok:
-        raise RuntimeError(data.get("error", "Role assignment failed"))
-    return data["user"]
 
+    data = check_response(response, "Role assignment failed")
+    return data["user"]
 
 def run_assign_role(token):
     """The actual assign-role workflow, assuming `token` is already an
