@@ -7,7 +7,7 @@ Fix the upload files counter for non same files DONE
 Permission system DONE
 Road map accurate to deployed to play store and app store
 Make into windows app wrapped
-Able to move the stakes around
+Able to move the stakes around DONE
 Show a colour scheme and make an admin colour changer. No user colour picker DONE
 Dummy files for many years DONE
 Scroll horizontal view on month chart DONE
