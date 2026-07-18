@@ -8,7 +8,6 @@ import DetailedChartSection from '../components/charts/DetailedChartSection.js';
 import StatusBanners from '../components/charts/StatusBanners.js';
 import StackOrderEditor from '../components/charts/StackOrderEditor.js';
 import { useChartData } from '../customHooks/charts/useChartData.js';
-import { useCategoryRecolor } from '../customHooks/charts/useCategoryRecolor.js';
 import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartReveal.js';
 import { styles } from '../styles/chartStyes.js';
 
