@@ -27,7 +27,10 @@ function withMinHeight(realValue, minRenderHeight) {
 // ({year, category, total}). Segments for categories not in
 // selectedCategories are zeroed out rather than removed, matching the
 // existing app-wide convention (empty Set = show everything).
-export function buildYearStackData(yearly, categoryNames, categoryColors, selectedCategories, onSegmentPress) {
+// stackOrder: an ordered list of category names to use for segment
+// stacking (bottom to top). When null/undefined, falls back to
+// categoryNames order. Income is always excluded from stacks regardless.
+export function buildYearStackData(yearly, categoryNames, categoryColors, selectedCategories, onSegmentPress, stackOrder) {
     const years = [...new Set(yearly.map(r => r.year))].sort((a, b) => a - b);
 
     const totalsByYear = {};
@@ -39,10 +42,15 @@ export function buildYearStackData(yearly, categoryNames, categoryColors, select
     }
     const minRenderHeight = maxValue * MIN_HEIGHT_FRACTION;
 
+    // Use custom stackOrder if provided, otherwise fall back to categoryNames.
+    // Income excluded either way - it's shown as a line overlay, not a segment.
+    const orderedCategories = stackOrder
+        ? stackOrder.filter(c => c !== 'Income')
+        : categoryNames.filter(category => category !== 'Income');
+
     return years.map(year => {
         const categoryTotals = totalsByYear[year] || {};
-        const stacks = categoryNames
-            .filter(category => category !== 'Income')
+        const stacks = orderedCategories
             .map(category => {
                 const realValue = categoryTotals[category] || 0;
                 const visible = selectedCategories.size === 0 || selectedCategories.has(category);
@@ -124,7 +132,7 @@ export function selectMonthsForDrilldown(monthly, year, targetCount = DEFAULT_DR
 // callers needing the same set of months for something else (the
 // income line, see useChartData.js) can reuse the exact same entries
 // instead of re-deriving a possibly-different set.
-export function buildMonthStackDataFromEntries(entries, categoryNames, categoryColors, selectedCategories, onSegmentPress) {
+export function buildMonthStackDataFromEntries(entries, categoryNames, categoryColors, selectedCategories, onSegmentPress, stackOrder) {
     if (entries.length === 0) return [];
 
     // Backfilled months come from a different year than the one the
@@ -143,9 +151,12 @@ export function buildMonthStackDataFromEntries(entries, categoryNames, categoryC
     }
     const minRenderHeight = maxValue * MIN_HEIGHT_FRACTION;
 
+    const orderedCategories = stackOrder
+        ? stackOrder.filter(c => c !== 'Income')
+        : categoryNames.filter(category => category !== 'Income');
+
     return entries.map(({ year, month, categoryTotals }) => {
-        const stacks = categoryNames
-            .filter(category => category !== 'Income')
+        const stacks = orderedCategories
             .map(category => {
                 const realValue = categoryTotals[category] || 0;
                 const visible = selectedCategories.size === 0 || selectedCategories.has(category);

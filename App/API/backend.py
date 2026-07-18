@@ -431,6 +431,73 @@ def create_category():
     finally:
         release_connection(conn)
 
+
+@app.route('/categories/order', methods=['PATCH'])
+@jwt_required()
+@require_permission('categories.reorder')
+@limiter.limit("20 per day")
+def reorder_categories():
+    """Sets the global display_order for all categories. `names` must be
+    a list containing every existing category name exactly once - no
+    extras, no omissions. The position in the list becomes the new
+    display_order (index 0 = order 1, the bottom segment of the stack).
+    Affects every user immediately since GET /categories already returns
+    rows ORDER BY display_order.
+
+    Validated strictly before any writes: the request is rejected as a
+    whole if the provided list doesn't exactly match the current set of
+    categories - this prevents a partial reorder leaving display_order
+    values in an inconsistent or colliding state.
+    """
+    data = request.get_json() or {}
+    names = data.get('names')
+    if not names or not isinstance(names, list):
+        return jsonify({'error': 'names (list of category names) is required'}), 400
+
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT name FROM categories ORDER BY display_order")
+            existing = [row[0] for row in cur.fetchall()]
+
+        existing_set = set(existing)
+        incoming_set = set(names)
+
+        if len(names) != len(set(names)):
+            return jsonify({'error': 'names contains duplicates'}), 400
+        missing = existing_set - incoming_set
+        extra = incoming_set - existing_set
+        if missing or extra:
+            parts = []
+            if missing:
+                parts.append(f'missing: {", ".join(sorted(missing))}')
+            if extra:
+                parts.append(f'unknown: {", ".join(sorted(extra))}')
+            return jsonify({'error': f'names must include every existing category exactly once — {"; ".join(parts)}'}), 400
+
+        with conn.cursor() as cur:
+            for i, name in enumerate(names, start=1):
+                cur.execute(
+                    "UPDATE categories SET display_order = %s WHERE name = %s",
+                    (i, name),
+                )
+        conn.commit()
+
+        with conn.cursor() as cur:
+            cur.execute("SELECT name, color, default_color FROM categories ORDER BY display_order")
+            categories = [
+                {'name': row[0], 'color': row[1], 'defaultColor': row[2]}
+                for row in cur.fetchall()
+            ]
+        return jsonify({'categories': categories}), 200
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Reorder categories failed: {e}')
+        return jsonify({'error': 'Reorder failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
+
 @app.route('/categories/reset-defaults', methods=['POST'])
 @jwt_required()
 @require_permission('categories.recolor')

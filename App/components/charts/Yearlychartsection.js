@@ -1,4 +1,6 @@
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
+import { useState } from 'react';
+import Slider from '@react-native-community/slider';
 import { styles } from '../../styles/chartStyes.js';
 import SpendingStackChart from './SpendingStackedChart.js';
 
@@ -30,6 +32,8 @@ export default function YearlyChartSection({
         );
     }
 
+    const [heightScale, setHeightScale] = useState(1);
+
     return (
         <>
             {showingDummyData && (
@@ -38,10 +42,25 @@ export default function YearlyChartSection({
                 </Text>
             )}
             <Text style={styles.sectionLabel}>Spending by year — tap a segment to see months</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                <Text style={[styles.sectionLabel, { marginBottom: 0, marginRight: 8 }]}>
+                    Segment scale: {heightScale.toFixed(1)}x
+                </Text>
+                <Slider
+                    style={{ flex: 1, height: 32 }}
+                    minimumValue={1}
+                    maximumValue={15}
+                    value={1}
+                    step={1}
+                    onValueChange={setHeightScale}
+                    minimumTrackTintColor="#2E5C8A"
+                    maximumTrackTintColor="#ccc"
+                />
+            </View>
             <SpendingStackChart
                 stackData={yearChartData}
                 incomeData={yearIncomeLineData}
-                heightScale={1}
+                heightScale={heightScale}
             />
             {selectedYearSegment && (
                 <Text style={styles.tappedValueText}>

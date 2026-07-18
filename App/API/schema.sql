@@ -224,6 +224,7 @@ INSERT INTO permissions (key, description) VALUES
     ('categories.set_default_color', 'Change a category''s default colour'),
     ('categories.combine', 'Merge two or more categories into one'),
     ('categories.delete', 'Delete a category'),
+    ('categories.reorder', 'Set the global display order of categories (affects all users)'),
     ('users.view', 'List every user and their assigned role'),
     ('users.assign_role', 'Change which role a user has'),
     ('users.manage_permissions', 'Grant or revoke individual permission overrides for a user'),
@@ -246,7 +247,8 @@ SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'admin'
   AND p.key IN (
     'categories.create', 'categories.rename', 'categories.recolor',
-    'categories.set_default_color', 'categories.combine', 'categories.delete'
+    'categories.set_default_color', 'categories.combine', 'categories.delete',
+    'categories.reorder'
   )
 ON CONFLICT DO NOTHING;
 

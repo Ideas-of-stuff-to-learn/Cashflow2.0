@@ -1,4 +1,5 @@
 import React from 'react';
+import { transformValue } from '../../utils/charts/chartUtils.js';
 import { View, ScrollView, Pressable, Text, StyleSheet } from 'react-native';
 import Svg, { Polyline } from 'react-native-svg';
 import { styles } from '../../styles/stackedChartStyles';
@@ -61,7 +62,16 @@ const StackBar = React.memo(function StackBar({ bar, barIndex, maxValue, chartHe
             }}
         >
             {bar.stacks.map((segment, segIndex) => {
-                const segHeight = (segment.value / maxValue) * chartHeight;
+                // transformValue stretches small segments relative to large
+                // ones when heightScale > 1, so they become easier to tap.
+                // The displayed value in onPress is always the TRUE amount
+                // (segment.onPress uses the real value from yearlyChartUtils,
+                // not the inflated render height) - only the visual height
+                // changes, never what gets reported.
+                const scaledValue = heightScale > 1
+                    ? transformValue(segment.value, maxValue, heightScale)
+                    : segment.value;
+                const segHeight = (scaledValue / maxValue) * chartHeight;
                 const bottom = cumulativeBottom;
                 cumulativeBottom += segHeight;
 

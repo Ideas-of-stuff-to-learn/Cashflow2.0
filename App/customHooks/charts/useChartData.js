@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { useStackOrder } from './useStackOrder.js';
 import { useApp } from '../../AppContext.js';
 import { buildDummyTotals, toggleItem, selectAll } from '../../utils/charts/chartUtils.js';
 import { buildYearStackData, selectMonthsForDrilldown, buildMonthStackDataFromEntries } from '../../utils/charts/yearlyChartUtils.js';
@@ -7,6 +8,16 @@ export function useChartData() {
     const { categoryNames, categoryColors, processingStage, chartSummary } = useApp();
 
     const summary = chartSummary;
+    const {
+        effectiveOrder,
+        stackOrder,
+        updateOrder,
+        resetOrder,
+        persist,
+        togglePersist,
+        isCustomOrder,
+    } = useStackOrder(categoryNames);
+
     const [selectedBar, setSelectedBar] = useState(null);
     const [selectedSegment, setSelectedSegment] = useState(null);
     const [selectedYear, setSelectedYear] = useState(null);
@@ -80,8 +91,8 @@ export function useChartData() {
     }, [yearly, selectedYear]);
 
     const yearChartData = useMemo(
-        () => buildYearStackData(yearly, categoryNames, categoryColors, selectedCategories, handleYearSegmentPress),
-        [yearly, categoryNames, categoryColors, selectedCategories, handleYearSegmentPress]
+        () => buildYearStackData(yearly, categoryNames, categoryColors, selectedCategories, handleYearSegmentPress, effectiveOrder),
+        [yearly, categoryNames, categoryColors, selectedCategories, handleYearSegmentPress, effectiveOrder]
     );
 
     const yearIncomeLineData = useMemo(() => {
@@ -143,8 +154,8 @@ export function useChartData() {
     );
 
     const monthChartData = useMemo(
-        () => buildMonthStackDataFromEntries(drilldownMonths, categoryNames, categoryColors, selectedCategories, handleMonthSegmentPress),
-        [drilldownMonths, categoryNames, categoryColors, selectedCategories, handleMonthSegmentPress]
+        () => buildMonthStackDataFromEntries(drilldownMonths, categoryNames, categoryColors, selectedCategories, handleMonthSegmentPress, effectiveOrder),
+        [drilldownMonths, categoryNames, categoryColors, selectedCategories, handleMonthSegmentPress, effectiveOrder]
     );
 
     const monthIncomeLineData = useMemo(
@@ -155,6 +166,13 @@ export function useChartData() {
     return {
         showingDummyData,
         hasData,
+        effectiveOrder,
+        stackOrder,
+        updateOrder,
+        resetOrder,
+        persist,
+        togglePersist,
+        isCustomOrder,
         yearChartData,
         yearIncomeLineData,
         allTimeChartData2,

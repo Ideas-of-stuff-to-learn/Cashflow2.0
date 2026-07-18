@@ -63,6 +63,7 @@ from combineCategoryAdmin import run_combine
 from deleteCategoryAdmin import run_delete
 from auditCategoryNamesAdmin import run_audit
 from listCategoriesAdmin import run_list
+from reorderCategoriesAdmin import run_reorder_categories
 from setColorAdmin import run_set_color
 from setDefaultColorAdmin import run_set_default_color
 from setColorAndDefaultAdmin import run_set_color_and_default
@@ -89,6 +90,7 @@ GROUPS = [
         ("Delete a category", run_delete),
         ("Audit category names (read-only)", run_audit),
         ("List categories, numbered (read-only)", run_list),
+        ("Reorder categories (global display order)", run_reorder_categories),
     ]),
     ("Work with category colours", [
         ("Change a category's colour (default unaffected)", run_set_color),

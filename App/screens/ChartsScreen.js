@@ -7,6 +7,7 @@ import CategoryRecolor from '../components/charts/categoryRecolor.js';
 import CategorySlicer from '../components/charts/categorySlicer.js';
 import DetailedChartSection from '../components/charts/DetailedChartSection.js';
 import StatusBanners from '../components/charts/StatusBanners.js';
+import StackOrderEditor from '../components/charts/StackOrderEditor.js';
 import { useChartData } from '../customHooks/charts/useChartData.js';
 import { useCategoryRecolor } from '../customHooks/charts/useCategoryRecolor.js';
 import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartReveal.js';
@@ -24,6 +25,13 @@ export default function ChartsScreen({ navigation }) {
     const {
         showingDummyData,
         hasData,
+        effectiveOrder,
+        stackOrder,
+        updateOrder,
+        resetOrder,
+        persist,
+        togglePersist,
+        isCustomOrder,
         yearChartData,
         yearIncomeLineData,
         allTimeChartData2,
@@ -76,6 +84,15 @@ export default function ChartsScreen({ navigation }) {
             setSelectedCategories={setSelectedCategories}
             toggleItem={toggleItem}
             selectAll={selectAll}
+        />
+
+        <StackOrderEditor
+            effectiveOrder={effectiveOrder}
+            isCustomOrder={isCustomOrder}
+            updateOrder={updateOrder}
+            resetOrder={resetOrder}
+            persist={persist}
+            togglePersist={togglePersist}
         />
 
         <YearlyChartSection
