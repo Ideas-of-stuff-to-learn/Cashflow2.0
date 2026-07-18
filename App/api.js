@@ -337,24 +337,37 @@ export async function getMe() {
 // always be able to "forget" its own session even if it can't reach
 // the backend to un-issue it, so the person is never stuck unable to
 // log out just because they're offline.
+// Clears local tokens immediately (so the UI responds instantly - no
+// waiting on a network call), then fires the server-side revocation in
+// the background without awaiting it. The server call is best-effort:
+// if it fails (offline, cold start, whatever), the tokens are already
+// gone from this device so the session is practically dead anyway -
+// the revoked_tokens table entry just won't exist, meaning the token
+// could theoretically still work from somewhere else that has a copy,
+// but that's an acceptable tradeoff for an instant logout experience
+// versus the old behaviour of waiting for the round-trip first.
 export async function logout() {
-    try {
-        const token = await getToken();
-        const refreshToken = await getRefreshToken();
-        if (token) {
-            await fetch(`${BASE_URL}/auth/logout`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {}),
-            });
-        }
-    } catch (e) {
-        // Best-effort - see docstring above. Local clear still happens.
-    } finally {
-        await clearTokens();
+    // Read both tokens before clearing them - we need them for the
+    // background revocation call, but we clear first so the UI is
+    // unblocked immediately.
+    const token = await getToken();
+    const refreshToken = await getRefreshToken();
+
+    // Clear first - instant.
+    await clearTokens();
+
+    // Revoke in the background. No await, no try/catch needed here -
+    // it's fire-and-forget. A failure silently does nothing, which is
+    // fine: the tokens are already gone from this device.
+    if (token) {
+        fetch(`${BASE_URL}/auth/logout`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {}),
+        }).catch(() => {});
     }
 }
 
