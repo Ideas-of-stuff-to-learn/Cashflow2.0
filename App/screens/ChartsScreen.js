@@ -3,7 +3,6 @@ import { ScrollView, TouchableOpacity, Text } from 'react-native';
 import { useApp } from '../AppContext';
 import SpendingOverview from '../components/charts/SpendingOverview.js';
 import YearlyChartSection from '../components/charts/Yearlychartsection.js';
-import CategoryRecolor from '../components/charts/categoryRecolor.js';
 import CategorySlicer from '../components/charts/categorySlicer.js';
 import DetailedChartSection from '../components/charts/DetailedChartSection.js';
 import StatusBanners from '../components/charts/StatusBanners.js';
@@ -16,7 +15,6 @@ import { styles } from '../styles/chartStyes.js';
 export default function ChartsScreen({ navigation }) {
     const {
         categorising,
-        categoryColors,
         initialLoading,
         processingStage,
     } = useApp();
@@ -26,7 +24,6 @@ export default function ChartsScreen({ navigation }) {
         showingDummyData,
         hasData,
         effectiveOrder,
-        stackOrder,
         updateOrder,
         resetOrder,
         persist,
@@ -50,16 +47,6 @@ export default function ChartsScreen({ navigation }) {
         closeDrilldown,
     } = useChartData();
 
-    const {
-        recolorSelected,
-        colorPickerOpen, setColorPickerOpen,
-        applyingColor,
-        toggleRecolorCategory,
-        recolorSelectAll,
-        recolorDeselectAll,
-        applyColor,
-        resetToDefaults,
-    } = useCategoryRecolor(availableCategories);
 
     const showYearChart = useDetailedChartReveal();
 
