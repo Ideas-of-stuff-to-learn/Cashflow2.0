@@ -27,7 +27,7 @@ run_manage_permissions(token).
 
 import requests
 
-from .adminCliCommon import BASE_URL, fetch_users, fetch_permissions, choose_from_list, admin_login_prompt,check_response
+from ..adminCliCommon import BASE_URL, fetch_users, fetch_permissions, choose_from_list, admin_login_prompt,check_response
 
 
 def set_permission_override(token, user_id, permission_key, granted):

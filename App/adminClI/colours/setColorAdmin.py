@@ -11,10 +11,6 @@ many times as you like.
 If you want to change the DEFAULT colour instead, use
 setDefaultColorAdmin.py. If you want to change both at once, use
 setColorAndDefaultAdmin.py.
-
-Usage:
-    python setColorAdmin.py
-
 Requires: pip install requests
 
 Can also be used from categoryAdminCli.py (the combined menu tool) via

@@ -52,19 +52,17 @@ Usage:
 
 Requires: pip install requests
 
-All twenty action scripts, plus adminCliCommon.py, need to be in the
-same folder as this file for the imports below to work.
 """
 
 from .adminCliCommon import BASE_URL, admin_login_prompt, fetch_me, SessionExpired
 
-from .addCategoryAdmin import run_add
-from .renameCategoryAdmin import run_rename
-from .combineCategoryAdmin import run_combine
-from .deleteCategoryAdmin import run_delete
-from .auditCategoryNamesAdmin import run_audit
-from .listCategoriesAdmin import run_list
-from .reorderCategoriesAdmin import run_reorder_categories
+from .categories.addCategoryAdmin import run_add
+from .categories.renameCategoryAdmin import run_rename
+from .categories.combineCategoryAdmin import run_combine
+from .categories.deleteCategoryAdmin import run_delete
+from .categories.auditCategoryNamesAdmin import run_audit
+from .categories.listCategoriesAdmin import run_list
+from .categories.reorderCategoriesAdmin import run_reorder_categories
 
 from .colours.setColorAdmin import run_set_color
 from .colours.setDefaultColorAdmin import run_set_default_color
@@ -72,10 +70,10 @@ from .colours.setColorAndDefaultAdmin import run_set_color_and_default
 from .colours.resetColorAdmin import run_reset_color
 
 from .users.listUsersAdmin import run_list_users
-from .assignRoleAdmin import run_assign_role
-from .managePermissionsAdmin import run_manage_permissions
-from .manageRolesAdmin import run_manage_roles
-from .listImpersonationLogAdmin import run_list_impersonation_log
+from .permissions.assignRoleAdmin import run_assign_role
+from .permissions.managePermissionsAdmin import run_manage_permissions
+from .permissions.manageRolesAdmin import run_manage_roles
+from .permissions.listImpersonationLogAdmin import run_list_impersonation_log
 
 from .users.createUserAdmin import run_create_user
 from .users.deleteUserAdmin import run_delete_user

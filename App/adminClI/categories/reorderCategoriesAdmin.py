@@ -29,7 +29,7 @@ run_reorder_categories(token).
 
 import requests
 
-from .adminCliCommon import BASE_URL, fetch_categories, admin_login_prompt, check_response
+from ..adminCliCommon import BASE_URL, fetch_categories, admin_login_prompt, check_response
 
 
 def reorder_categories(token, names):

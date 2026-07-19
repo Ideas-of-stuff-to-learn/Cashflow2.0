@@ -19,7 +19,7 @@ file directly.
 
 import requests
 
-from .adminCliCommon import BASE_URL, fetch_categories, choose_category, admin_login_prompt,check_response
+from ..adminCliCommon import BASE_URL, fetch_categories, choose_category, admin_login_prompt,check_response
 
 
 def rename_category(token, old_name, new_name):

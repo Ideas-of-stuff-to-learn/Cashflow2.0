@@ -13,8 +13,7 @@ exact same set_color() (setColorAdmin.py) and set_default_color()
 gives you the option to fire both from one prompt instead of running
 two separate tools back to back.
 
-Usage:
-    python setColorAndDefaultAdmin.py
+
 
 Requires: pip install requests
 

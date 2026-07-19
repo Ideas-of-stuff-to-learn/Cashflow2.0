@@ -25,8 +25,7 @@ If you want to set the current colour to something else entirely, use
 setColorAdmin.py. If you want to change what the DEFAULT itself is,
 use setDefaultColorAdmin.py.
 
-Usage:
-    python resetColorAdmin.py
+
 
 Requires: pip install requests
 

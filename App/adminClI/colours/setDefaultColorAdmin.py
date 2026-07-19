@@ -15,8 +15,6 @@ If you want to change the CURRENT colour instead, use
 setColorAdmin.py. If you want to change both at once, use
 setColorAndDefaultAdmin.py.
 
-Usage:
-    python setDefaultColorAdmin.py
 
 Requires: pip install requests
 

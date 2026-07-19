@@ -32,7 +32,7 @@ run_manage_roles(token).
 
 import requests
 
-from .adminCliCommon import (
+from ..adminCliCommon import (
     BASE_URL, fetch_me, fetch_roles, fetch_permissions,
     choose_from_list, choose_multiple_permissions, admin_login_prompt,check_response
 )
