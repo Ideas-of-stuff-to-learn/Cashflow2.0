@@ -8,12 +8,13 @@ Tasks to do:
   Make into windows app wrapped
   Deploying to Microsoft store
     process and price
+  Make into website
   Manually categorise pop resolve feature should say top right the number of manually categorise things left to manually categorise
   Homepage should say processing will take this long [approx.] you can close the app and come back in a bit
   Backfill should only work for adjacent years. If there is a gap there is the previous month with blank bars or no bars
   Organise code into more structured format
   Test higher cache and batch size to speed up potentially
-
+  Investigate fuzzy matching bottleneck
 */
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
