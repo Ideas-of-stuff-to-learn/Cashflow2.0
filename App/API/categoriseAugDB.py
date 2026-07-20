@@ -43,6 +43,25 @@ load_dotenv()
 MODEL_NAME = "gemini-2.5-flash"
 SIMILARITY_THRESHOLD = 85
 
+# Tried, in order, ONLY when the primary model itself returns a
+# transient server-side error (429/503/504/UNAVAILABLE/
+# DEADLINE_EXCEEDED - see categorize_batch below) - never used just
+# because an individual item's category was invalid, since that's a
+# signal about the ANSWER, not about which model is reachable, and
+# switching models wouldn't fix it.
+#
+# gemini-2.5-flash-lite is Google's own recommended choice for exactly
+# this kind of task (high-volume classification) - cheap, fast, and
+# critically, on SEPARATE capacity from gemini-2.5-flash, so a 503 on
+# the primary doesn't necessarily mean this one is overloaded too.
+#
+# Google deprecates/renames models over time (the entire 2.0 Flash
+# line was shut down June 2026) - worth checking this is still current
+# in Google AI Studio occasionally. An outdated entry here just fails
+# with its own error and gets skipped, same as any other transient
+# failure - it won't silently break anything, just won't help.
+FALLBACK_MODELS = ["gemini-2.5-flash-lite"]
+
 # The genai SDK does NOT set any timeout on its HTTP calls by default -
 # a slow/hanging Gemini response just blocks the request indefinitely.
 # The only thing that ever stopped that before was gunicorn's own
@@ -696,12 +715,24 @@ def build_prompt(transactions, categories):
             """
     return prompt
  
-def categorize_batch(client, transactions, categories, max_retries=3, gemini_timeout_ms=DEFAULT_GEMINI_REQUEST_TIMEOUT_MS):
+def categorize_batch(client, transactions, categories, max_retries=3, gemini_timeout_ms=DEFAULT_GEMINI_REQUEST_TIMEOUT_MS, models_to_try=None):
     """Send a batch to Gemini and parse the JSON response. Retries ONLY the
     specific items that failed validation or parsing - not the whole batch -
     so a single bad/mangled category from the model doesn't force re-asking
     about everything else that was already answered correctly.
- 
+
+    models_to_try defaults to [MODEL_NAME] + FALLBACK_MODELS. Attempt
+    number N (0-indexed) uses models_to_try[min(N, len(models_to_try)-1)]
+    - i.e. the primary model gets attempt 0, then every attempt after a
+    transient failure moves on to (and stays on) the next model in the
+    list. Deliberately does NOT multiply the total number of attempts
+    by the number of models - max_retries stays the same total budget
+    either way, just distributed across models instead of retrying the
+    same overloaded one repeatedly. Keeps worst-case total time
+    unchanged from before this existed (still bounded by
+    max_retries * gemini_timeout_ms + backoff, same math as
+    GEMINI_REQUEST_TIMEOUT_MS's docstring in useFileProcessor.js).
+
     Returns a list the same length as `transactions`. Each element is one of:
       - a real category string (success)
       - NEEDS_MANUAL_REVIEW (the model kept responding, but never gave a
@@ -713,6 +744,9 @@ def categorize_batch(client, transactions, categories, max_retries=3, gemini_tim
         by the caller, so it's retried fresh next run, since the failure
         was about the request, not the transaction.)
     """
+    if models_to_try is None:
+        models_to_try = [MODEL_NAME] + FALLBACK_MODELS
+
     allowed = set(categories)
  
     # final_results maps ORIGINAL index (position in the `transactions`
@@ -740,6 +774,8 @@ def categorize_batch(client, transactions, categories, max_retries=3, gemini_tim
     for attempt in range(max_retries):
         if not pending:
             break
+
+        model_name = models_to_try[min(attempt, len(models_to_try) - 1)]
  
         # Build a prompt for ONLY the currently-pending items. Their ids in
         # THIS prompt are 0..len(pending)-1 (build_prompt always numbers
@@ -759,7 +795,7 @@ def categorize_batch(client, transactions, categories, max_retries=3, gemini_tim
  
         try:
             response = client.models.generate_content(
-                model=MODEL_NAME,
+                model=model_name,
                 contents=prompt,
                 config={
                     "temperature": 0,
@@ -867,13 +903,19 @@ def categorize_batch(client, transactions, categories, max_retries=3, gemini_tim
                 or "DEADLINE_EXCEEDED" in str(e)
             )
             if is_retryable and attempt < max_retries - 1:
+                next_model = models_to_try[min(attempt + 1, len(models_to_try) - 1)]
                 wait = 2 ** (attempt + 1)
-                print(f"  API temporarily unavailable ({e.__class__.__name__}), waiting {wait}s before retry...", file=sys.stderr)
+                if next_model != model_name:
+                    print(f"  {model_name} temporarily unavailable ({e.__class__.__name__}) - switching to {next_model}, waiting {wait}s before retry...", file=sys.stderr)
+                else:
+                    print(f"  API temporarily unavailable ({e.__class__.__name__}), waiting {wait}s before retry...", file=sys.stderr)
                 time.sleep(wait)
                 continue
             if is_retryable:
+                models_actually_tried = sorted({models_to_try[min(a, len(models_to_try) - 1)] for a in range(max_retries)})
                 print(
-                    f"  Still unavailable after {max_retries} attempts. "
+                    f"  Still unavailable after {max_retries} attempts across "
+                    f"{len(models_actually_tried)} model(s) ({', '.join(models_actually_tried)}). "
                     f"Skipping {len(pending)} item(s) for now - rerun the "
                     f"script later to re-attempt these: {e}",
                     file=sys.stderr,
