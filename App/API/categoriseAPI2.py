@@ -1,4 +1,5 @@
 import os
+import sys
 
 from dotenv import load_dotenv
 from google import genai
@@ -331,6 +332,17 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
         # is the right granularity to keep most of the old per-item
         # commit's "persists even if something later fails" property.
         newly_learned_merchants = []
+        # --- TEMPORARY DIAGNOSTIC ---
+        # merchants ended up empty in production despite obviously
+        # merchant-bearing descriptions (TESCO, BOOTS, etc.) getting
+        # real categories - this print shows exactly what the RAW
+        # `merchant` value from Gemini was for every item that didn't
+        # end up counted as has_merchant, so the actual cause (null?
+        # empty string? something unexpected?) is directly visible in
+        # the next run's logs instead of inferred. Safe to remove once
+        # the cause is confirmed.
+        batch_has_merchant_count = 0
+        batch_total_count = 0
         for item, result in zip(batch, cats):
             desc = item['description']
 
@@ -352,6 +364,16 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
                 has_merchant = len(normalized) >= 3
                 target_cache = global_cache if has_merchant else personal_cache
 
+                batch_total_count += 1
+                if has_merchant:
+                    batch_has_merchant_count += 1
+                else:
+                    print(
+                        f"  [merchant diagnostic] desc={desc!r} raw_merchant={merchant!r} "
+                        f"(type={type(merchant).__name__}) normalized={normalized!r} -> NO merchant recorded",
+                        file=sys.stderr,
+                    )
+
                 for row in rows_by_description.get(desc, []):
                     target_cache.add_record(desc, row['date'], row['amount'], cat)
 
@@ -359,6 +381,11 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
                     normalized_merchants[normalized] = cat
                     newly_learned_merchants.append((normalized, cat))
 
+        print(
+            f"  [merchant diagnostic] batch summary: {batch_has_merchant_count}/{batch_total_count} "
+            f"items had a usable merchant, {len(newly_learned_merchants)} newly learned",
+            file=sys.stderr,
+        )
         add_merchants_batch(conn, newly_learned_merchants)
     if global_cache.dirty:
         global_cache.save()
