@@ -24,6 +24,7 @@ import time
 import numpy as np
 import ahocorasick
 from rapidfuzz import fuzz, process
+from psycopg2.extras import execute_values
 
 from google import genai
 from google.genai import errors as genai_errors
@@ -310,6 +311,12 @@ def add_merchant(conn, normalized_name: str, category: str) -> None:
     Also updates the process-level cache (see load_merchants above) in
     place, so the newly learned merchant is usable immediately by this
     same process without waiting for a reload.
+
+    Kept for any single-merchant call site (e.g. an admin CLI action
+    adding one merchant by hand) - run_llm_tier (categoriseAPI2.py)
+    uses add_merchants_batch() below instead, for the same "many
+    individual round trips" reason update_transaction_categories and
+    CategoryCache.save() did.
     """
     with conn.cursor() as cur:
         cur.execute(
@@ -323,6 +330,45 @@ def add_merchant(conn, normalized_name: str, category: str) -> None:
     global _global_merchants_cache
     if _global_merchants_cache is not None:
         _global_merchants_cache[normalized_name] = category
+    invalidate_merchant_automaton()
+
+
+def add_merchants_batch(conn, pairs) -> None:
+    """Batched replacement for calling add_merchant() once per newly-
+    learned merchant. `pairs` is a list of (normalized_name, category)
+    tuples. One execute_values call + one commit for the WHOLE list,
+    instead of one round trip per merchant - same fix, same reasoning,
+    as update_transaction_categories (shared.py) and CategoryCache.save()
+    (cache.py): a from-scratch categorization run can learn hundreds of
+    merchants in one request, and add_merchant()'s per-item commit is
+    exactly the kind of cost that scales badly with volume.
+
+    Deliberately called once per GEMINI BATCH inside run_llm_tier, not
+    once for the entire request - this keeps most of add_merchant()'s
+    original "persist even if something later fails" property: if the
+    request dies partway through a large multi-batch run, every
+    already-completed batch's merchants are still safely committed:
+    only the batch that was in-flight at the moment of failure could
+    lose its newly-learned merchants, not everything learned so far.
+    """
+    if not pairs:
+        return
+
+    with conn.cursor() as cur:
+        execute_values(
+            cur,
+            """INSERT INTO merchants (normalized_name, category)
+               VALUES %s
+               ON CONFLICT (normalized_name) DO UPDATE SET category = EXCLUDED.category""",
+            pairs,
+            template="(%s, %s)",
+        )
+    conn.commit()
+
+    global _global_merchants_cache
+    if _global_merchants_cache is not None:
+        for normalized_name, category in pairs:
+            _global_merchants_cache[normalized_name] = category
     invalidate_merchant_automaton()
 
 

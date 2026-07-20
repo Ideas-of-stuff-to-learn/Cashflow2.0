@@ -15,6 +15,7 @@ from categoriseAugDB import (
     normalize_for_matching,
     load_merchants,
     add_merchant,
+    add_merchants_batch,
     load_categories,
     DEFAULT_GEMINI_REQUEST_TIMEOUT_MS,
 )
@@ -324,6 +325,12 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
 
     for batch in chunked(pseudo_transactions, batch_size):
         cats = categorize_batch(client, batch, DEFAULT_CATEGORIES, gemini_timeout_ms=effective_gemini_timeout_ms)
+        # Collected across this ONE Gemini batch, written in a single
+        # add_merchants_batch() call after the batch finishes - see
+        # that function's docstring for why per-batch (not per-request)
+        # is the right granularity to keep most of the old per-item
+        # commit's "persists even if something later fails" property.
+        newly_learned_merchants = []
         for item, result in zip(batch, cats):
             desc = item['description']
 
@@ -350,7 +357,9 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
 
                 if has_merchant and normalized not in normalized_merchants:
                     normalized_merchants[normalized] = cat
-                    add_merchant(conn,normalized,cat)
+                    newly_learned_merchants.append((normalized, cat))
+
+        add_merchants_batch(conn, newly_learned_merchants)
     if global_cache.dirty:
         global_cache.save()
     if personal_cache.dirty:
