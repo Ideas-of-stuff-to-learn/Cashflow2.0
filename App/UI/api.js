@@ -382,6 +382,46 @@ export async function categorizeCached(transactions, { timeoutMs, onTiming } = {
     return data.transactions;
 }
 
+// Three separate calls, one per cache-tier phase (exact -> merchant ->
+// similarity), instead of the single combined categorizeCached() above.
+// Each is its own round trip so the caller (useFileProcessor.js) can
+// apply a phase's results - and let the person SEE them - as soon as
+// they land, rather than waiting for all three tiers to finish before
+// anything updates. Same request/response shape as categorizeCached,
+// just three thinner slices of the same underlying work.
+export async function categorizeCachedExact(transactions, { timeoutMs, onTiming } = {}) {
+    const response = await authorizedFetch(`${BASE_URL}/categorize/cached/exact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transactions }),
+    }, timeoutMs, onTiming);
+
+    const data = await parseJsonResponse(response, 'Exact cache lookup failed');
+    return data.transactions;
+}
+
+export async function categorizeCachedMerchant(transactions, { timeoutMs, onTiming } = {}) {
+    const response = await authorizedFetch(`${BASE_URL}/categorize/cached/merchant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transactions }),
+    }, timeoutMs, onTiming);
+
+    const data = await parseJsonResponse(response, 'Merchant lookup failed');
+    return data.transactions;
+}
+
+export async function categorizeCachedSimilarity(transactions, { timeoutMs, onTiming } = {}) {
+    const response = await authorizedFetch(`${BASE_URL}/categorize/cached/similarity`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transactions }),
+    }, timeoutMs, onTiming);
+
+    const data = await parseJsonResponse(response, 'Similarity lookup failed');
+    return data.transactions;
+}
+
 export async function categorizeLLM(transactions, { timeoutMs, onTiming, batchSize, geminiTimeoutMs } = {}) {
     const body = { transactions };
     // Real, server-side Gemini batch size (unique descriptions per LLM

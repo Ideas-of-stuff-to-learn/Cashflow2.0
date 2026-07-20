@@ -10,8 +10,8 @@ from checkingName import NEEDS_MANUAL_REVIEW
 from categoriseAugDB import (
     categorize_batch,
     chunked,
-    find_similar_cached_description,
-    match_known_merchant,
+    match_known_merchants_batch,
+    find_similar_cached_descriptions_batch,
     normalize_for_matching,
     load_merchants,
     add_merchant,
@@ -90,83 +90,18 @@ def combined_status(desc, personal_cache, global_cache):
         "category": None
     }
 
-def run_cache_tiers(transactions: list, user_id: str, conn) -> list:
-    """Tiers 1-4 only - personal cache, global exact, merchant dict,
-    similarity. Returns immediately with no LLM calls.
-    Items that couldn't be resolved get category='PENDING_LLM' so the
-    frontend knows to send them to the LLM tier separately.
+def _build_result_rows(transactions, category_by_description, ambiguous_descriptions=(), personal_cache=None, global_cache=None):
+    """Shared by all three phase functions below - builds the final
+    per-transaction result list in the same {id, date, description,
+    amount, category} shape the frontend/update_transaction_categories
+    already expect. Anything not in category_by_description and not
+    ambiguous is reported as 'PENDING_LLM' - reused as the generic
+    "not yet resolved by ANY tier" sentinel across all three phases;
+    which phase just ran (and therefore what "still pending" means
+    next - the next cache phase, or the LLM) is tracked by the CALLER
+    (the frontend), not encoded in the value itself.
     """
-    global_cache = CategoryCache(conn, scope='global')
-    personal_cache = CategoryCache(conn, scope='personal', user_id=user_id)
-    global_cache.preload()
-    personal_cache.preload()
-    normalized_merchants = load_merchants(conn)
-    # Fetched ONCE for the whole request - see the matching comment in
-    # run_categorization above for why.
-    global_resolved = global_cache.resolved_descriptions()
-    global_resolved_lookup = list(global_resolved.keys())
-    
-    unique_descriptions = uniqueDescriptions(transactions)
-
-
-    rows_by_description = rowsByDescription(transactions)
-
-
-    category_by_description = {}
-    to_query = []
-    ambiguous_descriptions = set()
-
-    for desc in unique_descriptions:
-
-        status = combined_status(desc, personal_cache, global_cache)
-        if status['status'] == 'resolved':
-            category = status['category']
-            if category:
-                category_by_description[desc] = category
-                continue
-        if status['status'] in ('ambiguous', 'pending'):
-            # Same fix as run_categorization - fetched once per description,
-            # not once per row sharing it.
-            existing_personal = {(r['date'], str(r['amount'])) for r in personal_cache.records_for(desc)}
-            existing_global = {(r['date'], str(r['amount'])) for r in global_cache.records_for(desc)}
-            for row in rows_by_description.get(desc, []):
-                inPersonal, inGlobal = row_already_recorded(row, existing_personal, existing_global)
-                if not inPersonal and not inGlobal:
-                    personal_cache.add_record(desc, row['date'], row['amount'], NEEDS_MANUAL_REVIEW)
-                    existing_personal.add((row['date'], str(row['amount'])))
-            ambiguous_descriptions.add(desc)
-            continue
-
-        merchant_category = match_known_merchant(desc, normalized_merchants)
-        if merchant_category is not None:
-            category_by_description[desc] = merchant_category
-            global_resolved[desc] = merchant_category
-            if desc not in global_resolved_lookup:
-                global_resolved_lookup.append(desc)
-            for row in rows_by_description.get(desc, []):
-                global_cache.add_record(desc, row['date'], row['amount'], merchant_category)
-            continue
-
-        similar_category = find_similar_cached_description(
-            desc,
-            global_resolved_lookup,
-            global_resolved
-        )
-        if similar_category is not None:
-            category_by_description[desc] = similar_category
-            global_resolved[desc] = similar_category
-            if desc not in global_resolved_lookup:
-                global_resolved_lookup.append(desc)
-            for row in rows_by_description.get(desc, []):
-                global_cache.add_record(desc, row['date'], row['amount'], similar_category)
-            continue
-
-        to_query.append(desc)
-
-    if global_cache.dirty:
-        global_cache.save()
-    if personal_cache.dirty:
-        personal_cache.save()
+    ambiguous_descriptions = set(ambiguous_descriptions)
     result = []
     for txn in transactions:
         desc = txn['description']
@@ -174,19 +109,18 @@ def run_cache_tiers(transactions: list, user_id: str, conn) -> list:
             category = category_by_description[desc]
         elif desc in ambiguous_descriptions:
             category = NEEDS_MANUAL_REVIEW
-            for record in personal_cache.records_for(desc):
-                if record['date'] == txn['date'] and str(record['amount']) == str(txn['amount']):
-                    category = record['category']
-                    break
-            if category == NEEDS_MANUAL_REVIEW:
+            if personal_cache is not None:
+                for record in personal_cache.records_for(desc):
+                    if record['date'] == txn['date'] and str(record['amount']) == str(txn['amount']):
+                        category = record['category']
+                        break
+            if category == NEEDS_MANUAL_REVIEW and global_cache is not None:
                 for record in global_cache.records_for(desc):
                     if record['date'] == txn['date'] and str(record['amount']) == str(txn['amount']):
                         category = record['category']
                         break
-        elif desc in to_query:
-            category = 'PENDING_LLM'
         else:
-            category = 'FAILED - rerun'
+            category = 'PENDING_LLM'
 
         result.append({
             'id': txn.get('id'),
@@ -195,8 +129,159 @@ def run_cache_tiers(transactions: list, user_id: str, conn) -> list:
             'amount': float(txn['amount']),
             'category': category,
         })
-
     return result
+
+
+def run_exact_tier(transactions: list, user_id: str, conn) -> list:
+    """Phase 1 of the cache pipeline - personal/global EXACT cache
+    lookups only, both O(1) dict lookups regardless of cache size. Also
+    handles the "ambiguous/pending" outcome (a description whose cache
+    history already proves it can't be trusted alone) - that's still a
+    pure cache-history check, not fuzzy/merchant work, so it belongs in
+    this phase too.
+
+    Anything not resolved here comes back as 'PENDING_LLM' (see
+    _build_result_rows) - the frontend sends those rows into
+    run_merchant_tier next.
+    """
+    global_cache = CategoryCache(conn, scope='global')
+    personal_cache = CategoryCache(conn, scope='personal', user_id=user_id)
+    global_cache.preload()
+    personal_cache.preload()
+
+    unique_descriptions = uniqueDescriptions(transactions)
+    rows_by_description = rowsByDescription(transactions)
+
+    category_by_description = {}
+    ambiguous_descriptions = set()
+
+    for desc in unique_descriptions:
+        status = combined_status(desc, personal_cache, global_cache)
+        if status['status'] == 'resolved':
+            category = status['category']
+            if category:
+                category_by_description[desc] = category
+                continue
+        if status['status'] in ('ambiguous', 'pending'):
+            existing_personal = {(r['date'], str(r['amount'])) for r in personal_cache.records_for(desc)}
+            existing_global = {(r['date'], str(r['amount'])) for r in global_cache.records_for(desc)}
+            for row in rows_by_description.get(desc, []):
+                inPersonal, inGlobal = row_already_recorded(row, existing_personal, existing_global)
+                if not inPersonal and not inGlobal:
+                    personal_cache.add_record(desc, row['date'], row['amount'], NEEDS_MANUAL_REVIEW)
+                    existing_personal.add((row['date'], str(row['amount'])))
+            ambiguous_descriptions.add(desc)
+
+    if personal_cache.dirty:
+        personal_cache.save()
+    # global_cache is read-only in this phase - nothing writes to it here.
+
+    return _build_result_rows(transactions, category_by_description, ambiguous_descriptions, personal_cache, global_cache)
+
+
+def run_merchant_tier(transactions: list, conn) -> list:
+    """Phase 2 - merchant dictionary match, for descriptions the exact
+    tier couldn't resolve. Uses match_known_merchants_batch()
+    (categoriseAugDB.py) - Aho-Corasick for exact substring hits, then
+    an n-gram/IDF-filtered fuzzy fallback for whatever's left - across
+    the WHOLE chunk at once, instead of looping match_known_merchant()
+    per description.
+
+    Writes hits to the GLOBAL cache, same as the original single-pass
+    tier did, so a merchant hit becomes an ordinary Tier-1 exact hit
+    for every future request (from anyone, not just this user).
+    """
+    global_cache = CategoryCache(conn, scope='global')
+    global_cache.preload()
+    normalized_merchants = load_merchants(conn)
+
+    unique_descriptions = uniqueDescriptions(transactions)
+    rows_by_description = rowsByDescription(transactions)
+
+    category_by_description = match_known_merchants_batch(unique_descriptions, normalized_merchants)
+
+    for desc, category in category_by_description.items():
+        for row in rows_by_description.get(desc, []):
+            global_cache.add_record(desc, row['date'], row['amount'], category)
+
+    if global_cache.dirty:
+        global_cache.save()
+
+    return _build_result_rows(transactions, category_by_description, (), None, global_cache)
+
+
+def run_similarity_tier(transactions: list, conn) -> list:
+    """Phase 3 - fuzzy match against the GLOBAL CACHE's own already-
+    resolved description history (NOT merchants - see run_merchant_tier
+    above for that). Uses find_similar_cached_descriptions_batch() -
+    the same n-gram/IDF-filtered approach as the merchant tier's fuzzy
+    fallback, applied here since this whole tier is fuzzy-similarity-
+    only from the start (fuzz.ratio, no exact-substring step).
+
+    Whatever's still unresolved after this comes back as 'PENDING_LLM'
+    for real this time - the frontend sends those rows to
+    /categorize/llm next.
+    """
+    global_cache = CategoryCache(conn, scope='global')
+    global_cache.preload()
+    resolved = global_cache.resolved_descriptions()
+    resolved_lookup = list(resolved.keys())
+
+    unique_descriptions = uniqueDescriptions(transactions)
+    rows_by_description = rowsByDescription(transactions)
+
+    category_by_description = find_similar_cached_descriptions_batch(unique_descriptions, resolved_lookup, resolved)
+
+    for desc, category in category_by_description.items():
+        for row in rows_by_description.get(desc, []):
+            global_cache.add_record(desc, row['date'], row['amount'], category)
+
+    if global_cache.dirty:
+        global_cache.save()
+
+    return _build_result_rows(transactions, category_by_description, (), None, global_cache)
+
+
+def run_cache_tiers(transactions: list, user_id: str, conn) -> list:
+    """Convenience wrapper chaining all three cache phases in ONE call -
+    kept for any caller that wants the old single-request behavior
+    (e.g. a script, or a test). The /categorize/cached/* routes in
+    routes/transactions.py call run_exact_tier / run_merchant_tier /
+    run_similarity_tier directly instead, one per HTTP round trip, so
+    the frontend can apply each phase's results (and let the user see
+    them) as soon as they land, rather than waiting for all three
+    tiers plus the LLM before anything appears to update.
+    """
+    def _key(row):
+        rid = row.get('id')
+        return rid if rid is not None else (row['date'], row['description'], row['amount'])
+
+    final = {}
+    still_pending = transactions
+
+    exact_result = run_exact_tier(still_pending, user_id, conn)
+    for row in exact_result:
+        final[_key(row)] = row
+    still_pending = [r for r in exact_result if r['category'] == 'PENDING_LLM']
+
+    if still_pending:
+        merchant_result = run_merchant_tier(still_pending, conn)
+        for row in merchant_result:
+            final[_key(row)] = row
+        still_pending = [r for r in merchant_result if r['category'] == 'PENDING_LLM']
+
+    if still_pending:
+        similarity_result = run_similarity_tier(still_pending, conn)
+        for row in similarity_result:
+            final[_key(row)] = row
+
+    # Preserve the original transaction order in the returned list.
+    ordered = []
+    for txn in transactions:
+        rid = txn.get('id')
+        key = rid if rid is not None else (txn['date'], txn['description'], float(txn['amount']))
+        ordered.append(final.get(key))
+    return ordered
 
 
 def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int = 200, gemini_timeout_ms: int = None) -> list:

@@ -21,6 +21,8 @@ import json
 import os
 import sys
 import time
+import numpy as np
+import ahocorasick
 from rapidfuzz import fuzz, process
 
 from google import genai
@@ -69,6 +71,195 @@ DEFAULT_GEMINI_REQUEST_TIMEOUT_MS = 30000
 # "never loaded yet" sentinel (a real empty dict is a valid loaded
 # state, so it can't double as that signal).
 _global_merchants_cache = None
+
+# Aho-Corasick automaton over every merchant name, built once per
+# worker process (same lifecycle as _global_merchants_cache above).
+# Lets "does ANY merchant name appear inside this description" be
+# answered with a single scan over the description's characters,
+# instead of looping over every merchant name for every description -
+# see get_merchant_automaton() below.
+#
+# Deliberately INVALIDATED (not live-patched) on every merchant write,
+# unlike _global_merchants_cache's in-place patching in add_merchant()
+# below. Adding one word to an already-built automaton means its
+# failure links (the structure that makes multi-pattern matching fast)
+# would need recomputing to stay correct - a full rebuild is the
+# honest cost of a correct update here, not something worth a more
+# complex incremental scheme for. Merchant additions are rare,
+# operator-driven events (not a per-request hot path), so paying a
+# rebuild the next time the automaton is actually needed is the right
+# tradeoff, not a performance concern.
+_global_merchant_automaton_cache = None
+
+
+def get_merchant_automaton(normalized_merchants: dict):
+    """Builds (once, cached at process level) an Aho-Corasick automaton
+    over every merchant name -> (name, category) pair. See the module-
+    level comment on _global_merchant_automaton_cache above for the
+    caching/invalidation reasoning.
+    """
+    global _global_merchant_automaton_cache
+    if _global_merchant_automaton_cache is not None:
+        return _global_merchant_automaton_cache
+
+    automaton = ahocorasick.Automaton()
+    for merchant_name, category in normalized_merchants.items():
+        if merchant_name:  # guard against an empty normalized name
+            automaton.add_word(merchant_name, (merchant_name, category))
+    automaton.make_automaton()
+    _global_merchant_automaton_cache = automaton
+    print(
+        f"[merchant automaton] COLD BUILD: {len(normalized_merchants)} merchant name(s)",
+        flush=True,
+    )
+    return automaton
+
+
+def invalidate_merchant_automaton():
+    """Called whenever the merchant dictionary changes (add_merchant) -
+    forces the next get_merchant_automaton() / get_merchant_word_index()
+    call to rebuild from the current (already-patched)
+    _global_merchants_cache."""
+    global _global_merchant_automaton_cache, _global_merchant_word_index_cache
+    _global_merchant_automaton_cache = None
+    _global_merchant_word_index_cache = None
+
+
+# n-gram size for the candidate-generation index below. 3 (trigrams) is
+# the standard choice for this kind of fuzzy pre-filter (the same idea
+# Postgres's pg_trgm extension is built on) - long enough to be
+# reasonably specific, short enough that a single-character typo still
+# leaves most of a string's trigrams untouched.
+NGRAM_SIZE = 3
+
+# How many of the highest-trigram-overlap candidates to actually
+# fuzzy-score. Bounds the cost of the fuzzy step even in the rare case
+# a query shares SOME trigram with a large number of candidates (a
+# common short fragment) - only the most-plausible handful get the
+# expensive scorer run against them, not everything that shares even
+# one trigram.
+NGRAM_TOP_K = 40
+
+
+def _ngrams(text):
+    """Character n-grams of a normalized string. Strings shorter than
+    NGRAM_SIZE fall back to the whole string as a single token, so even
+    a very short merchant name still gets indexed at all."""
+    if len(text) < NGRAM_SIZE:
+        return {text} if text else set()
+    return {text[i:i + NGRAM_SIZE] for i in range(len(text) - NGRAM_SIZE + 1)}
+
+
+# Candidates at or below this length are ALWAYS included in the fuzzy-
+# scoring pool, regardless of n-gram overlap with the query - see the
+# comment on candidates_sharing_a_word() below for why: a single
+# deletion near the start of a short string (e.g. "tesco" -> "teco")
+# shifts every character after it, which can wipe out EVERY shared
+# trigram even though the strings are obviously the same thing with one
+# typo. Trigram overlap is only a reliable signal once a string is long
+# enough that one deletion can't plausibly destroy all of it. The count
+# of genuinely short merchant names / descriptions stays naturally
+# small and roughly constant over time (there are only so many short
+# brand names in existence) even as the OVERALL merchant table grows
+# into the thousands, so always-including them doesn't reintroduce the
+# O(M) growth problem this filter exists to avoid.
+SHORT_CANDIDATE_LENGTH = 6
+
+
+def build_word_index(candidate_list):
+    """candidate_list: a list of already-normalized strings (merchant
+    names, or resolved global descriptions). Returns (index,
+    short_indices):
+    - index: {ngram: set(indices into candidate_list)} - lets "which
+      candidates share the most character-level substrings with this
+      query" be answered via a handful of dict lookups + a tally,
+      instead of a full scan of candidate_list.
+    - short_indices: set of indices whose candidate is at or under
+      SHORT_CANDIDATE_LENGTH - see that constant's comment for why
+      these need to bypass the n-gram filter entirely rather than rely
+      on it.
+
+    Indexes on character n-grams rather than whole words specifically
+    so a typo affecting a description's ONLY word (e.g. "netflix" ->
+    "netfflix") still surfaces its true match - whole-word overlap
+    would find nothing in common between those two strings at all,
+    since the typo corrupts the only word present.
+    """
+    index = {}
+    short_indices = set()
+    for i, text in enumerate(candidate_list):
+        if len(text) <= SHORT_CANDIDATE_LENGTH:
+            short_indices.add(i)
+        for gram in _ngrams(text):
+            index.setdefault(gram, set()).add(i)
+    return index, short_indices
+
+
+def candidates_sharing_a_word(query_text, candidate_list, index, short_indices, top_k=NGRAM_TOP_K):
+    """Returns the (small, in the common case) subset of candidate_list
+    most likely to contain the true best fuzzy match for query_text:
+    the top `top_k` candidates ranked by an IDF-weighted trigram
+    overlap score, UNION every candidate at or under
+    SHORT_CANDIDATE_LENGTH (always included regardless of ranking -
+    see that constant's comment for why trigram overlap alone isn't
+    reliable for short strings under a deletion).
+
+    Weighted, not just counted, for a reason found directly through
+    testing: with a raw overlap COUNT, a trigram shared by almost every
+    candidate (e.g. common boilerplate text most descriptions in a
+    cluster share, differing only in a trailing reference number)
+    contributes exactly as much to the ranking as a trigram only a
+    handful of candidates share - so the boilerplate trigrams can
+    completely swamp the few genuinely discriminating ones, and the
+    TRUE best match can get ranked outside the top_k entirely even
+    though its real fuzzy-ratio score is highest. Weighting each
+    trigram's contribution by 1/(number of candidates containing it) -
+    the same idea as TF-IDF's rarity weighting in text search - fixes
+    this: a trigram present in nearly all candidates contributes almost
+    nothing, while a rare, discriminating trigram contributes a lot.
+
+    Falls back to the FULL candidate_list if the query has no n-grams
+    at all (only possible for an empty string) - nothing meaningful to
+    filter on, so nothing gets excluded.
+    """
+    grams = _ngrams(query_text)
+    if not grams:
+        return candidate_list
+
+    overlap_scores = {}
+    for gram in grams:
+        matching_indices = index.get(gram, ())
+        if not matching_indices:
+            continue
+        weight = 1.0 / len(matching_indices)
+        for idx in matching_indices:
+            overlap_scores[idx] = overlap_scores.get(idx, 0.0) + weight
+
+    ranked = sorted(overlap_scores.items(), key=lambda pair: pair[1], reverse=True)
+    top_indices = {idx for idx, _score in ranked[:top_k]}
+    combined_indices = top_indices | short_indices
+
+    if not combined_indices:
+        return []
+
+    return [candidate_list[i] for i in combined_indices]
+
+
+# (merchant_names_list, word_index, short_indices) tuple, cached
+# alongside the automaton above - same lifecycle, same invalidation
+# trigger (add_merchant, via invalidate_merchant_automaton).
+_global_merchant_word_index_cache = None
+
+
+def get_merchant_word_index(normalized_merchants: dict):
+    global _global_merchant_word_index_cache
+    if _global_merchant_word_index_cache is not None:
+        return _global_merchant_word_index_cache
+
+    merchant_names_list = list(normalized_merchants.keys())
+    word_index, short_indices = build_word_index(merchant_names_list)
+    _global_merchant_word_index_cache = (merchant_names_list, word_index, short_indices)
+    return _global_merchant_word_index_cache
 
 
 def load_merchants(conn) -> dict:
@@ -132,6 +323,7 @@ def add_merchant(conn, normalized_name: str, category: str) -> None:
     global _global_merchants_cache
     if _global_merchants_cache is not None:
         _global_merchants_cache[normalized_name] = category
+    invalidate_merchant_automaton()
 
 
 def patch_merchants_category_rename(old_name, new_name):
@@ -231,6 +423,177 @@ def match_known_merchant(description, normalized_merchants, threshold=SIMILARITY
     merchant_name, score, _ = match
 
     return normalized_merchants[merchant_name]
+
+
+def match_known_merchants_batch(descriptions, normalized_merchants, threshold=SIMILARITY_THRESHOLD):
+    """Batched replacement for calling match_known_merchant() once per
+    description in a Python loop. Same threshold, same "no match ->
+    absent from the result" semantics - three passes, each one only
+    doing expensive work on whatever the previous pass couldn't resolve:
+
+    Pass 1 - exact substring containment, via a pre-built Aho-Corasick
+    automaton (see get_merchant_automaton()). One automaton scan per
+    description, O(len(description)) each, regardless of merchant
+    count - this replaces looping over every merchant name for every
+    description. If a description contains more than one merchant name
+    as a substring (rare), the LONGEST match wins - a more specific
+    signal than a short one. The original loop instead returned
+    whichever merchant happened to be checked first (dict insertion
+    order); not expected to change outcomes in practice.
+
+    Pass 2 - for whatever pass 1 didn't resolve: a word-overlap
+    pre-filter (see candidates_sharing_a_word()) narrows the merchant
+    list down to only names sharing at least one real word with the
+    description, THEN a small process.extractOne() runs against just
+    that narrowed subset. This is the actual complexity fix for the
+    fuzzy fallback - without it, this pass is O(M) per description
+    regardless of how many merchants exist; with it, it's close to
+    O(candidates sharing a word), which stays small even as the
+    merchant table grows into the thousands.
+
+    Pass 3 - only for descriptions with NO indexable words at all (so
+    pass 2's filter had nothing to narrow down and returned everything)
+    - one single process.cdist call across all of them against the
+    FULL merchant list. Rare in practice (real descriptions almost
+    always have at least one word of useful length), but a real
+    fallback so nothing is silently skipped.
+
+    Returns {description: category} for everything resolved by any
+    pass. Descriptions resolved by none of them are simply absent.
+    """
+    if not descriptions or not normalized_merchants:
+        return {}
+
+    automaton = get_merchant_automaton(normalized_merchants)
+    results = {}
+    still_unresolved = []
+    normalized_by_desc = {}
+
+    # Pass 1 - exact substring, via Aho-Corasick.
+    for desc in descriptions:
+        normalized_desc = normalize_for_matching(desc)
+        normalized_by_desc[desc] = normalized_desc
+
+        best_category = None
+        best_len = -1
+        for _end_index, (merchant_name, category) in automaton.iter(normalized_desc):
+            if len(merchant_name) > best_len:
+                best_len = len(merchant_name)
+                best_category = category
+
+        if best_category is not None:
+            results[desc] = best_category
+        else:
+            still_unresolved.append(desc)
+
+    if not still_unresolved:
+        return results
+
+    # Pass 2 - word-filtered fuzzy match, one small extractOne per
+    # description against ONLY the candidates sharing a word with it.
+    merchant_names_list, word_index, short_indices = get_merchant_word_index(normalized_merchants)
+    needs_full_scan = []
+
+    for desc in still_unresolved:
+        normalized_desc = normalized_by_desc[desc]
+        candidates = candidates_sharing_a_word(normalized_desc, merchant_names_list, word_index, short_indices)
+
+        if candidates is merchant_names_list:
+            # No indexable words in this description - the filter had
+            # nothing to narrow down, defer to the Pass 3 batch fallback
+            # below rather than paying the full scan here per-item.
+            needs_full_scan.append(desc)
+            continue
+
+        if not candidates:
+            continue  # shares no word with anything - genuinely no match
+
+        match = process.extractOne(
+            normalized_desc, candidates, scorer=fuzz.partial_ratio, score_cutoff=threshold
+        )
+        if match is not None:
+            merchant_name, _score, _ = match
+            results[desc] = normalized_merchants[merchant_name]
+
+    # Pass 3 - rare fallback: descriptions with no indexable words at
+    # all, batched together against the full merchant list via cdist
+    # (there's no per-query filtering to do here, so a fixed shared
+    # choices list across all of them is exactly what cdist is for).
+    if needs_full_scan:
+        normalized_queries = [normalized_by_desc[d] for d in needs_full_scan]
+        scores = process.cdist(
+            normalized_queries, merchant_names_list, scorer=fuzz.partial_ratio, score_cutoff=threshold
+        )
+        best_idx = scores.argmax(axis=1)
+        best_scores = scores[np.arange(len(needs_full_scan)), best_idx]
+        for i, desc in enumerate(needs_full_scan):
+            if best_scores[i] >= threshold:
+                merchant_name = merchant_names_list[best_idx[i]]
+                results[desc] = normalized_merchants[merchant_name]
+
+    return results
+
+
+def find_similar_cached_descriptions_batch(descriptions, resolved_lookup, resolved_categories, threshold=SIMILARITY_THRESHOLD):
+    """Batched replacement for calling find_similar_cached_description()
+    once per description - against the GLOBAL CACHE's already-resolved
+    descriptions (not merchants - this tier has nothing to do with the
+    merchants table). Same word-overlap pre-filter strategy as the
+    merchant tier's fuzzy fallback above:
+
+    A fresh word index is built over resolved_lookup on every call
+    (NOT cached at process level, unlike the merchant word index) -
+    this list changes essentially every request as new descriptions get
+    resolved, whereas merchants change rarely. Building the index itself
+    is cheap (O(sum of description lengths), a single pass with no
+    fuzzy comparisons at all) compared to the O(N x M) fuzzy scan it
+    replaces, so rebuilding it fresh every call is the right tradeoff
+    here, not a missed caching opportunity.
+
+    There's no substring/Aho-Corasick pass here, unlike the merchant
+    tier - this tier is fuzzy-similarity-only from the start
+    (fuzz.ratio, whole-string edit distance), so there's no exact-
+    substring sub-problem to speed up separately; the word-overlap
+    filter is what narrows the field before the real fuzzy scoring runs.
+
+    Returns {description: category} for everything that cleared the
+    threshold. Descriptions with no sufficiently similar match are
+    simply absent from the result.
+    """
+    if not descriptions or not resolved_lookup:
+        return {}
+
+    word_index, short_indices = build_word_index(resolved_lookup)
+    results = {}
+    needs_full_scan = []
+
+    for desc in descriptions:
+        candidates = candidates_sharing_a_word(desc, resolved_lookup, word_index, short_indices)
+
+        if candidates is resolved_lookup:
+            needs_full_scan.append(desc)
+            continue
+
+        if not candidates:
+            continue
+
+        match = process.extractOne(desc, candidates, scorer=fuzz.ratio, score_cutoff=threshold)
+        if match is not None:
+            matched_description, _score, _ = match
+            results[desc] = resolved_categories[matched_description]
+
+    if needs_full_scan:
+        scores = process.cdist(needs_full_scan, resolved_lookup, scorer=fuzz.ratio, score_cutoff=threshold)
+        best_idx = scores.argmax(axis=1)
+        best_scores = scores[np.arange(len(needs_full_scan)), best_idx]
+        for i, desc in enumerate(needs_full_scan):
+            if best_scores[i] >= threshold:
+                matched_description = resolved_lookup[best_idx[i]]
+                results[desc] = resolved_categories[matched_description]
+
+    return results
+
+
 def build_prompt(transactions, categories):
     """Build a single prompt asking the model to categorize a batch of transactions.
  

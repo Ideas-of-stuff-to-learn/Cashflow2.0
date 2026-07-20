@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import {parseCSVFiles, categorizeCached, categorizeLLM } from '../../api.js';
+import { parseCSVFiles, categorizeCachedExact, categorizeCachedMerchant, categorizeCachedSimilarity, categorizeLLM } from '../../api.js';
 import { useApp } from '../../AppContext.js';
 import { mergeById, chunkArray } from '../../utils/homescreen/homescreenUtils.js';
 import { NOT_YET_CATEGORISED } from '../../checkingName.js';
@@ -154,58 +154,119 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
         const cacheChunks = chunkArray(itemsNeedingCategorization, CACHE_CHUNK_SIZE);
         let phase1 = [];
 
-        for (let i = 0; i < cacheChunks.length; i++) {
-            setStatus(
-                cacheChunks.length > 1
-                    ? `Checking cache: batch ${i + 1}/${cacheChunks.length} (${cacheChunks[i].length} transactions)...`
-                    : `Checking cache (${cacheChunks[i].length} transactions)...`
-            );
-
-            let chunkResult;
-            try {
-                chunkResult = await categorizeCached(cacheChunks[i], {
-                    timeoutMs: CLIENT_TIMEOUT_MS,
-                    onTiming: (elapsedMs) => {
-                        console.log(`[${runLabel}] Cache batch ${i + 1}/${cacheChunks.length} done - ${cacheChunks[i].length} txns, ${(elapsedMs / 1000).toFixed(1)}s`);
-                    },
-                });
-            } catch (err) {
-                // Treat ANY chunk failure this way, not just a client-side
-                // timeout - a backend error (e.g. the server itself hit a
-                // problem, or was too slow and got killed server-side)
-                // deserves the exact same graceful handling: keep whatever
-                // already succeeded, mark what didn't as NOT_YET_CATEGORISED
-                // (not NEEDS_MANUAL_REVIEW - nothing actually looked at
-                // these), and stop this run rather than losing all the
-                // chunking progress to one uncaught error.
-                if (err.isTimeout) {
-                    console.warn(`[${runLabel}] Cache batch ${i + 1}/${cacheChunks.length} TIMED OUT after ${(err.elapsedMs / 1000).toFixed(1)}s`);
-                } else {
-                    console.warn(`[${runLabel}] Cache batch ${i + 1}/${cacheChunks.length} FAILED: ${err.message}`);
-                }
-                const remaining = cacheChunks.slice(i).flat()
-                    .map(t => ({ ...t, category: NOT_YET_CATEGORISED }));
-                phase1 = phase1.concat(remaining);
-                setTransactions(prev => mergeById(prev, remaining));
-                setError(
-                    err.isTimeout
-                        ? 'Some transactions took too long to check against the cache and were left as "not yet categorised" - you can retry later.'
-                        : 'Checking the cache failed partway through - remaining transactions were left as "not yet categorised", you can retry later.'
-                );
-                break;
+    // Runs one cache-tier phase (exact/merchant/similarity) against
+    // `items`, with the same timeout/failure handling as every other
+    // network call in this file. Returns null on failure (caller
+    // decides how to handle that), or the phase's result array.
+    async function runCachePhase(phaseFn, items, phaseLabel, chunkIndex, chunkCount) {
+        try {
+            const result = await phaseFn(items, {
+                timeoutMs: CLIENT_TIMEOUT_MS,
+                onTiming: (elapsedMs) => {
+                    console.log(`[${runLabel}] ${phaseLabel} batch ${chunkIndex + 1}/${chunkCount} done - ${items.length} txns, ${(elapsedMs / 1000).toFixed(1)}s`);
+                },
+            });
+            return result;
+        } catch (err) {
+            if (err.isTimeout) {
+                console.warn(`[${runLabel}] ${phaseLabel} batch ${chunkIndex + 1}/${chunkCount} TIMED OUT after ${(err.elapsedMs / 1000).toFixed(1)}s`);
+            } else {
+                console.warn(`[${runLabel}] ${phaseLabel} batch ${chunkIndex + 1}/${chunkCount} FAILED: ${err.message}`);
             }
+            return null;
+        }
+    }
 
-            // Push this chunk's resolved rows into state right
-            // away rather than waiting for every chunk to finish.
-            phase1 = phase1.concat(chunkResult);
-            setTransactions(prev => mergeById(prev, chunkResult));
-            // This chunk's results are already committed to the DB
-            // (see /categorize/cached in backend.py) - bump the tick so
-            // anything watching for fresh data (useChartData.js) knows
-            // to refetch, instead of waiting for the whole checkingCache
-            // stage to finish.
+    for (let i = 0; i < cacheChunks.length; i++) {
+        // chunkWorking tracks this chunk's current state ACROSS all
+        // three phases - each phase below only re-sends whatever's
+        // still 'PENDING_LLM' after the previous one, then the result
+        // gets merged back in by id. This is what lets exact-match
+        // results (usually the bulk of a chunk, and effectively free -
+        // see run_exact_tier in categoriseAPI2.py) reach the screen
+        // immediately, instead of sitting behind however long the
+        // merchant/similarity fuzzy tiers take for the few descriptions
+        // that actually need them.
+        let chunkWorking = cacheChunks[i];
+        let stageFailed = false;
+
+        setStatus(
+            cacheChunks.length > 1
+                ? `Checking cache: batch ${i + 1}/${cacheChunks.length} (${cacheChunks[i].length} transactions)...`
+                : `Checking cache (${cacheChunks[i].length} transactions)...`
+        );
+
+        const exactResult = await runCachePhase(categorizeCachedExact, chunkWorking, 'Exact', i, cacheChunks.length);
+        if (exactResult === null) {
+            stageFailed = true;
+        } else {
+            chunkWorking = exactResult;
+            setTransactions(prev => mergeById(prev, chunkWorking));
+            // Committed to the DB already (update_transaction_categories
+            // inside /categorize/cached/exact) - bump immediately rather
+            // than waiting for the merchant/similarity phases too.
             bumpChartDataVersion();
         }
+
+        if (!stageFailed) {
+            const stillNeedsMerchant = chunkWorking.filter(t => t.category === 'PENDING_LLM');
+            if (stillNeedsMerchant.length > 0) {
+                const merchantResult = await runCachePhase(categorizeCachedMerchant, stillNeedsMerchant, 'Merchant', i, cacheChunks.length);
+                if (merchantResult === null) {
+                    stageFailed = true;
+                } else {
+                    const byId = new Map(merchantResult.map(t => [t.id, t]));
+                    chunkWorking = chunkWorking.map(t => byId.get(t.id) ?? t);
+                    setTransactions(prev => mergeById(prev, chunkWorking));
+                    bumpChartDataVersion();
+                }
+            }
+        }
+
+        if (!stageFailed) {
+            const stillNeedsSimilarity = chunkWorking.filter(t => t.category === 'PENDING_LLM');
+            if (stillNeedsSimilarity.length > 0) {
+                const similarityResult = await runCachePhase(categorizeCachedSimilarity, stillNeedsSimilarity, 'Similarity', i, cacheChunks.length);
+                if (similarityResult === null) {
+                    stageFailed = true;
+                } else {
+                    const byId = new Map(similarityResult.map(t => [t.id, t]));
+                    chunkWorking = chunkWorking.map(t => byId.get(t.id) ?? t);
+                    setTransactions(prev => mergeById(prev, chunkWorking));
+                    bumpChartDataVersion();
+                }
+            }
+        }
+
+        if (stageFailed) {
+            // Same fallback as before a single failure anywhere in this
+            // chunk's cache-tier work: whatever in THIS chunk never got
+            // a real answer, plus every chunk not yet started, gets
+            // marked NOT_YET_CATEGORISED (not NEEDS_MANUAL_REVIEW -
+            // nothing actually looked at these) and the whole cache-tier
+            // run stops here rather than losing all chunking progress
+            // to one uncaught error.
+            const stillUnresolvedThisChunk = chunkWorking
+                .filter(t => t.category === 'PENDING_LLM')
+                .map(t => ({ ...t, category: NOT_YET_CATEGORISED }));
+            const notYetStartedChunks = cacheChunks.slice(i + 1).flat()
+                .map(t => ({ ...t, category: NOT_YET_CATEGORISED }));
+            const remaining = stillUnresolvedThisChunk.concat(notYetStartedChunks);
+
+            phase1 = phase1.concat(
+                chunkWorking.filter(t => t.category !== 'PENDING_LLM'),
+                stillUnresolvedThisChunk,
+                notYetStartedChunks,
+            );
+            setTransactions(prev => mergeById(prev, remaining));
+            setError('Checking the cache failed partway through - remaining transactions were left as "not yet categorised", you can retry later.');
+            break;
+        }
+
+        // This chunk fully resolved (or correctly left at PENDING_LLM
+        // for the LLM tier) across all three phases.
+        phase1 = phase1.concat(chunkWorking);
+    }
 
         setProcessingStage('waitingForLLM');
         setCategorising(true);
