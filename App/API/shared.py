@@ -5,6 +5,7 @@ Helpers used by more than one routes/*.py module. Kept separate from
 extensions.py (which is Flask/JWT/limiter setup) since this is plain
 application logic, not framework wiring.
 """
+from psycopg2.extras import execute_values
 
 # Category values that are placeholders, not a real final answer yet -
 # used both to skip writing them back to the transactions table
@@ -25,14 +26,38 @@ def update_transaction_categories(conn, user_id, result):
     well as the LLM tier and manual resolve - safe to call repeatedly
     with partial results, since it only ever writes rows that have a
     real, final category.
+
+    ONE round trip to Postgres regardless of how many rows are being
+    written, via execute_values - not one execute() call per row. The
+    previous version looped cur.execute() once per transaction, which
+    meant a chunk of 1000 resolved rows cost 1000 sequential network
+    round trips to the DB. That's what actually caused the gunicorn
+    WORKER TIMEOUT (and the resulting SIGKILL + corrupted connection
+    pool - the "SSL error: decryption failed or bad record mac" seen on
+    the next request) when CACHE_CHUNK_SIZE was raised to 1000 - not
+    the categorization logic itself, which is genuinely fast (dict
+    lookups for the exact tier). A single bulk UPDATE...FROM (VALUES
+    ...) does the exact same writes in one round trip no matter how
+    many rows there are, so this scales with chunk size the way the
+    algorithmic work already does.
     """
+    rows = [
+        (item['id'], item['category'], user_id)
+        for item in result
+        if item.get('id') is not None and item.get('category') not in TRANSIENT_CATEGORY_VALUES
+    ]
+    if not rows:
+        return
+
     with conn.cursor() as cur:
-        for item in result:
-            txn_id = item.get('id')
-            category = item.get('category')
-            if txn_id is None or category in TRANSIENT_CATEGORY_VALUES:
-                continue
-            cur.execute(
-                "UPDATE transactions SET category = %s WHERE id = %s AND user_id = %s",
-                (category, txn_id, user_id),
-            )
+        execute_values(
+            cur,
+            """
+            UPDATE transactions AS t
+            SET category = v.category
+            FROM (VALUES %s) AS v(id, category, user_id)
+            WHERE t.id = v.id AND t.user_id = v.user_id
+            """,
+            rows,
+            template="(%s, %s, %s)",
+        )
