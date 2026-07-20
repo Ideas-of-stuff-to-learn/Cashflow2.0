@@ -192,9 +192,18 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
                 const result = await phaseFn(items, {
                     timeoutMs: CLIENT_TIMEOUT_MS,
                     onTiming: (elapsedMs) => {
-                        console.log(`[${runLabel}] ${phaseLabel} batch ${chunkIndex + 1}/${chunkCount} done - ${items.length} txns, ${(elapsedMs / 1000).toFixed(1)}s`);
+                        console.log(
+                            `[${runLabel}] ${phaseLabel} batch ${chunkIndex + 1}/${chunkCount} done - ` +
+                            `${items.length} txns, HTTP ${(elapsedMs / 1000).toFixed(1)}s`
+                        );
                     },
                 });
+
+                console.log(
+                    `[${runLabel}] ${phaseLabel} batch ${chunkIndex + 1}/${chunkCount} backend timings:`,
+                    result.backendTimings
+                );
+
                 return result;
             } catch (err) {
                 if (err.isTimeout) {
@@ -236,15 +245,25 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
                 : `Checking cache (${cacheChunks[i].length} transactions)...`
         );
 
-        const exactResult = await runCachePhase(categorizeCachedExact, chunkWorking, 'Exact', i, cacheChunks.length);
+        const exactResult = await runCachePhase(
+            categorizeCachedExact,
+            chunkWorking,
+            'Exact',
+            i,
+            cacheChunks.length
+        );
+
         if (exactResult === null) {
             stageFailed = true;
         } else {
-            chunkWorking = exactResult;
+            chunkWorking = exactResult.transactions;
+
+            console.log(
+                `[${runLabel}] Exact batch ${i + 1}/${cacheChunks.length} ` +
+                `HTTP total: ${(exactResult.httpElapsedMs / 1000).toFixed(2)}s`
+            );
+
             setTransactions(prev => mergeById(prev, chunkWorking));
-            // Committed to the DB already (update_transaction_categories
-            // inside /categorize/cached/exact) - bump immediately rather
-            // than waiting for the merchant/similarity phases too.
             bumpChartDataVersion();
         }
 
@@ -255,7 +274,9 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
                 if (merchantResult === null) {
                     stageFailed = true;
                 } else {
-                    const byId = new Map(merchantResult.map(t => [t.id, t]));
+                    const byId = new Map(
+                        merchantResult.transactions.map(t => [t.id, t])
+                    );
                     chunkWorking = chunkWorking.map(t => byId.get(t.id) ?? t);
                     setTransactions(prev => mergeById(prev, chunkWorking));
                     bumpChartDataVersion();
@@ -270,7 +291,9 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
                 if (similarityResult === null) {
                     stageFailed = true;
                 } else {
-                    const byId = new Map(similarityResult.map(t => [t.id, t]));
+                    const byId = new Map(
+                        similarityResult.transactions.map(t => [t.id, t])
+                    );
                     chunkWorking = chunkWorking.map(t => byId.get(t.id) ?? t);
                     setTransactions(prev => mergeById(prev, chunkWorking));
                     bumpChartDataVersion();
@@ -342,9 +365,18 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
                     batchSize: LLM_CHUNK_SIZE,
                     geminiTimeoutMs: GEMINI_REQUEST_TIMEOUT_MS,
                     onTiming: (elapsedMs) => {
-                        console.log(`[${runLabel}] LLM batch ${chunkIndex + 1}/${chunkCount} done - ${items.length} txns, batch_size=${LLM_CHUNK_SIZE}, ${(elapsedMs / 1000).toFixed(1)}s`);
+                        console.log(
+                            `[${runLabel}] LLM batch ${chunkIndex + 1}/${chunkCount} done - ` +
+                            `${items.length} txns, HTTP ${(elapsedMs / 1000).toFixed(1)}s`
+                        );
                     },
                 });
+
+                console.log(
+                    `[${runLabel}] LLM batch ${chunkIndex + 1}/${chunkCount} backend timings:`,
+                    result.backendTimings
+                );
+
                 return result;
             } catch (err) {
                 if (err.isTimeout) {
@@ -390,7 +422,7 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
                 }
 
                 // Match by description since same description = same category
-                for (const t of chunkResult) {
+                for (const t of chunkResult.transactions) {
                     phase2ByDescription[t.description] = t.category;
                 }
 

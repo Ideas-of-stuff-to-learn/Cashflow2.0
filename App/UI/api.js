@@ -406,62 +406,147 @@ export async function categorizeCached(transactions, { timeoutMs, onTiming } = {
 // they land, rather than waiting for all three tiers to finish before
 // anything updates. Same request/response shape as categorizeCached,
 // just three thinner slices of the same underlying work.
-export async function categorizeCachedExact(transactions, { timeoutMs, onTiming } = {}) {
-    const response = await authorizedFetch(`${BASE_URL}/categorize/cached/exact`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactions }),
-    }, timeoutMs, onTiming);
+export async function categorizeCachedExact(
+    transactions,
+    { timeoutMs, onTiming } = {}
+) {
+    let httpElapsedMs;
 
-    const data = await parseJsonResponse(response, 'Exact cache lookup failed');
-    return data.transactions;
+    const response = await authorizedFetch(
+        `${BASE_URL}/categorize/cached/exact`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transactions }),
+        },
+        timeoutMs,
+        (elapsedMs) => {
+            httpElapsedMs = elapsedMs;
+            onTiming?.(elapsedMs);
+        }
+    );
+
+    const data = await parseJsonResponse(
+        response,
+        'Exact cache lookup failed'
+    );
+
+    return {
+        transactions: data.transactions,
+        backendTimings: data.timings,
+        httpElapsedMs,
+    };
 }
 
-export async function categorizeCachedMerchant(transactions, { timeoutMs, onTiming } = {}) {
-    const response = await authorizedFetch(`${BASE_URL}/categorize/cached/merchant`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactions }),
-    }, timeoutMs, onTiming);
+export async function categorizeCachedMerchant(
+    transactions,
+    { timeoutMs, onTiming } = {}
+) {
+    let httpElapsedMs;
 
-    const data = await parseJsonResponse(response, 'Merchant lookup failed');
-    return data.transactions;
+    const response = await authorizedFetch(
+        `${BASE_URL}/categorize/cached/merchant`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transactions }),
+        },
+        timeoutMs,
+        (elapsedMs) => {
+            httpElapsedMs = elapsedMs;
+            onTiming?.(elapsedMs);
+        }
+    );
+
+    const data = await parseJsonResponse(
+        response,
+        'Merchant lookup failed'
+    );
+
+    return {
+        transactions: data.transactions,
+        backendTimings: data.timings,
+        httpElapsedMs,
+    };
 }
 
-export async function categorizeCachedSimilarity(transactions, { timeoutMs, onTiming } = {}) {
-    const response = await authorizedFetch(`${BASE_URL}/categorize/cached/similarity`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactions }),
-    }, timeoutMs, onTiming);
+export async function categorizeCachedSimilarity(
+    transactions,
+    { timeoutMs, onTiming } = {}
+) {
+    let httpElapsedMs;
 
-    const data = await parseJsonResponse(response, 'Similarity lookup failed');
-    return data.transactions;
+    const response = await authorizedFetch(
+        `${BASE_URL}/categorize/cached/similarity`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transactions }),
+        },
+        timeoutMs,
+        (elapsedMs) => {
+            httpElapsedMs = elapsedMs;
+            onTiming?.(elapsedMs);
+        }
+    );
+
+    const data = await parseJsonResponse(
+        response,
+        'Similarity lookup failed'
+    );
+
+    return {
+        transactions: data.transactions,
+        backendTimings: data.timings,
+        httpElapsedMs,
+    };
 }
 
-export async function categorizeLLM(transactions, { timeoutMs, onTiming, batchSize, geminiTimeoutMs } = {}) {
+export async function categorizeLLM(
+    transactions,
+    {
+        timeoutMs,
+        onTiming,
+        batchSize,
+        geminiTimeoutMs
+    } = {}
+) {
     const body = { transactions };
-    // Real, server-side Gemini batch size (unique descriptions per LLM
-    // call inside run_llm_tier) - this is the actual thing that used
-    // to be a fixed default of 200 on the backend. Passed through only
-    // if the caller specifies it; backend falls back to its own
-    // default otherwise.
-    if (batchSize != null) body.batch_size = batchSize;
-    // Real, server-side per-call Gemini timeout (milliseconds) - how
-    // long the BACKEND waits on its own outbound call to Gemini before
-    // giving up. Not the same thing as this function's own `timeoutMs`
-    // (that's how long THIS APP waits for a response from our
-    // backend). See GEMINI_REQUEST_TIMEOUT_MS in useFileProcessor.js.
-    if (geminiTimeoutMs != null) body.gemini_timeout_ms = geminiTimeoutMs;
 
-    const response = await authorizedFetch(`${BASE_URL}/categorize/llm`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-    }, timeoutMs, onTiming);
+    if (batchSize != null) {
+        body.batch_size = batchSize;
+    }
 
-    const data = await parseJsonResponse(response, 'LLM categorisation failed');
-    return data.transactions;
+    if (geminiTimeoutMs != null) {
+        body.gemini_timeout_ms = geminiTimeoutMs;
+    }
+
+    let httpElapsedMs;
+
+    const response = await authorizedFetch(
+        `${BASE_URL}/categorize/llm`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        },
+        timeoutMs,
+        (elapsedMs) => {
+            httpElapsedMs = elapsedMs;
+            onTiming?.(elapsedMs);
+        }
+    );
+
+    const data = await parseJsonResponse(
+        response,
+        'LLM categorisation failed'
+    );
+
+    return {
+        transactions: data.transactions,
+        httpElapsedMs,
+        backendTimings: data.timings,
+    };
 }
 
 export async function parseCSVFiles(files) {

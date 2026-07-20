@@ -9,6 +9,7 @@ HTTP layer over it.
 """
 import csv
 import io
+from time import perf_counter
 
 from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -398,17 +399,36 @@ def categorize_cached_exact():
 
     conn = get_connection()
     try:
+        backend_started_at = perf_counter()
+
+        exact_started_at = perf_counter()
         result = run_exact_tier(transactions, current_user, conn)
+        exact_ms = (perf_counter() - exact_started_at) * 1000
+
         update_transaction_categories(conn, current_user, result)
         conn.commit()
-        return jsonify({'transactions': result}), 200
+
+        total_backend_ms = (perf_counter() - backend_started_at) * 1000
+
+        return jsonify({
+            'transactions': result,
+            'timings': {
+                'exact_ms': exact_ms,
+                'total_backend_ms': total_backend_ms,
+            },
+        }), 200
+
     except Exception as e:
         conn.rollback()
-        app.logger.error(f'Exact cache tier failed for user {current_user}: {e}')
-        return jsonify({'error': 'Cache lookup failed - please try again'}), 500
+        app.logger.error(
+            f'Exact cache tier failed for user {current_user}: {e}'
+        )
+        return jsonify({
+            'error': 'Cache lookup failed - please try again'
+        }), 500
+
     finally:
         release_connection(conn)
-
 
 @app.route('/categorize/cached/merchant', methods=['POST'])
 @jwt_required()
@@ -426,14 +446,34 @@ def categorize_cached_merchant():
 
     conn = get_connection()
     try:
+        backend_started_at = perf_counter()
+
+        merchant_started_at = perf_counter()
         result = run_merchant_tier(transactions, conn)
+        merchant_ms = (perf_counter() - merchant_started_at) * 1000
+
         update_transaction_categories(conn, current_user, result)
         conn.commit()
-        return jsonify({'transactions': result}), 200
+
+        total_backend_ms = (perf_counter() - backend_started_at) * 1000
+
+        return jsonify({
+            'transactions': result,
+            'timings': {
+                'merchant_ms': merchant_ms,
+                'total_backend_ms': total_backend_ms,
+            },
+        }), 200
+
     except Exception as e:
         conn.rollback()
-        app.logger.error(f'Merchant tier failed for user {current_user}: {e}')
-        return jsonify({'error': 'Merchant lookup failed - please try again'}), 500
+        app.logger.error(
+            f'Merchant tier failed for user {current_user}: {e}'
+        )
+        return jsonify({
+            'error': 'Merchant lookup failed - please try again'
+        }), 500
+
     finally:
         release_connection(conn)
 
@@ -454,17 +494,36 @@ def categorize_cached_similarity():
 
     conn = get_connection()
     try:
+        backend_started_at = perf_counter()
+
+        similarity_started_at = perf_counter()
         result = run_similarity_tier(transactions, conn)
+        similarity_ms = (perf_counter() - similarity_started_at) * 1000
+
         update_transaction_categories(conn, current_user, result)
         conn.commit()
-        return jsonify({'transactions': result}), 200
+
+        total_backend_ms = (perf_counter() - backend_started_at) * 1000
+
+        return jsonify({
+            'transactions': result,
+            'timings': {
+                'similarity_ms': similarity_ms,
+                'total_backend_ms': total_backend_ms,
+            },
+        }), 200
+
     except Exception as e:
         conn.rollback()
-        app.logger.error(f'Similarity tier failed for user {current_user}: {e}')
-        return jsonify({'error': 'Similarity lookup failed - please try again'}), 500
+        app.logger.error(
+            f'Similarity tier failed for user {current_user}: {e}'
+        )
+        return jsonify({
+            'error': 'Similarity lookup failed - please try again'
+        }), 500
+
     finally:
         release_connection(conn)
-
 
 @app.route('/categorize/llm', methods=['POST'])
 @jwt_required()
@@ -474,55 +533,97 @@ def categorize_llm():
     data = request.get_json()
 
     if not data or 'transactions' not in data:
-        return jsonify({'error': 'Request must contain "transactions"'}), 400
+        return jsonify({
+            'error': 'Request must contain "transactions"'
+        }), 400
 
     transactions = data['transactions']
-    if not isinstance(transactions, list) or not transactions:
-        return jsonify({'error': 'transactions must be a non-empty list'}), 400
 
-    # Optional client-controlled Gemini batch size (unique descriptions
-    # per LLM call inside run_llm_tier). Falls back to that function's
-    # own default (200) if not provided. Bounded to keep someone from
-    # sending something pathological (0, negative, or huge enough to
-    # risk truncated Gemini responses).
+    if not isinstance(transactions, list) or not transactions:
+        return jsonify({
+            'error': 'transactions must be a non-empty list'
+        }), 400
+
+    # Optional client-controlled Gemini batch size.
     batch_size_kwargs = {}
+
     if 'batch_size' in data:
         try:
             batch_size = int(data['batch_size'])
         except (TypeError, ValueError):
-            return jsonify({'error': 'batch_size must be an integer'}), 400
+            return jsonify({
+                'error': 'batch_size must be an integer'
+            }), 400
+
         if not (1 <= batch_size <= 2000):
-            return jsonify({'error': 'batch_size must be between 1 and 2000'}), 400
+            return jsonify({
+                'error': 'batch_size must be between 1 and 2000'
+            }), 400
+
         batch_size_kwargs['batch_size'] = batch_size
 
-    # Optional client-controlled per-call Gemini timeout in milliseconds
-    # (see GEMINI_REQUEST_TIMEOUT_MS in useFileProcessor.js - that's the
-    # actual number to change, this just carries it through). Falls
-    # back to categoriseAugDB.py's DEFAULT_GEMINI_REQUEST_TIMEOUT_MS if
-    # not provided. Bounded well under the gunicorn worker timeout so a
-    # client can't accidentally (or deliberately) request a timeout long
-    # enough to recreate the exact SIGKILL scenario this exists to
-    # prevent.
+    # Optional client-controlled Gemini request timeout.
     gemini_timeout_kwargs = {}
+
     if 'gemini_timeout_ms' in data:
         try:
             gemini_timeout_ms = int(data['gemini_timeout_ms'])
         except (TypeError, ValueError):
-            return jsonify({'error': 'gemini_timeout_ms must be an integer'}), 400
+            return jsonify({
+                'error': 'gemini_timeout_ms must be an integer'
+            }), 400
+
         if not (1000 <= gemini_timeout_ms <= 90000):
-            return jsonify({'error': 'gemini_timeout_ms must be between 1000 and 90000'}), 400
+            return jsonify({
+                'error': 'gemini_timeout_ms must be between 1000 and 90000'
+            }), 400
+
         gemini_timeout_kwargs['gemini_timeout_ms'] = gemini_timeout_ms
 
     conn = get_connection()
+
     try:
-        result = run_llm_tier(transactions, current_user, conn, **batch_size_kwargs, **gemini_timeout_kwargs)
-        update_transaction_categories(conn, current_user, result)
+        backend_started_at = perf_counter()
+
+        llm_result = run_llm_tier(
+            transactions,
+            current_user,
+            conn,
+            **batch_size_kwargs,
+            **gemini_timeout_kwargs
+        )
+
+        result = llm_result['transactions']
+        timings = llm_result['timings']
+
+        update_transaction_categories(
+            conn,
+            current_user,
+            result
+        )
+
         conn.commit()
-        return jsonify({'transactions': result}), 200
+
+        timings['total_backend_ms'] = (
+            perf_counter() - backend_started_at
+        ) * 1000
+
+        return jsonify({
+            'transactions': result,
+            'timings': timings,
+        }), 200
+
     except Exception as e:
         conn.rollback()
-        app.logger.error(f'LLM tier failed for user {current_user}: {e}')
-        return jsonify({'error': 'LLM categorisation failed - please try again'}), 500
+
+        app.logger.error(
+            f'LLM tier failed for user {current_user}: {e}'
+        )
+
+        return jsonify({
+            'error': 'LLM categorisation failed - please try again'
+        }), 500
+
     finally:
         release_connection(conn)
 

@@ -7,7 +7,6 @@ from google import genai
 
 from cache import CategoryCache
 from checkingName import NEEDS_MANUAL_REVIEW, NOT_YET_CATEGORISED
-
 # Import all reusable logic directly from categoriseAug - no rewriting needed
 from categoriseAugDB import (
     categorize_batch,
@@ -286,13 +285,27 @@ def run_cache_tiers(transactions: list, user_id: str, conn) -> list:
     return ordered
 
 
-def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int = 200, gemini_timeout_ms: int = None) -> list:
+def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int = 200, gemini_timeout_ms: int = None) -> dict:
     """Tier 5 only - LLM categorisation for transactions that couldn't
     be resolved by cache tiers. Accepts only the PENDING_LLM transactions
     from run_cache_tiers(), never re-runs the cache checks.
     """
     if not pending_transactions:
-        return []
+        return {
+            'transactions': [],
+            'timings': {
+                'exact_ms': 0,
+                'merchant_ms': 0,
+                'similarity_ms': 0,
+                'recheck_ms': 0,
+                'gemini_ms': 0,
+                'merchant_write_ms': 0,
+                'global_cache_save_ms': 0,
+                'personal_cache_save_ms': 0,
+                'batches': 0,
+                'gemini_calls': 0,
+            },
+        }
 
     # Frontend controls this via gemini_timeout_ms on the request (see
     # GEMINI_REQUEST_TIMEOUT_MS in useFileProcessor.js) - fall back to
@@ -344,6 +357,19 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
 
     batches = list(chunked(pseudo_transactions, batch_size))
 
+    timings = {
+        'exact_ms': 0,
+        'merchant_ms': 0,
+        'similarity_ms': 0,
+        'recheck_ms': 0,
+        'gemini_ms': 0,
+        'merchant_write_ms': 0,
+        'global_cache_save_ms': 0,
+        'personal_cache_save_ms': 0,
+        'batches': len(batches),
+        'gemini_calls': 0,
+    }
+   
     for batch_index, batch in enumerate(batches):
         try:
             # Re-check merchant + similarity against everything learned
@@ -380,6 +406,7 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
             ]
 
             exact_elapsed = time.perf_counter() - exact_start
+            timings['exact_ms'] += exact_elapsed * 1000
             merchant_start = time.perf_counter()
 
             merchant_hits = match_known_merchants_batch(
@@ -393,6 +420,7 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
                 if desc not in merchant_hits
             ]
             merchant_elapsed = time.perf_counter() - merchant_start
+            timings['merchant_ms'] += merchant_elapsed * 1000
             similarity_start = time.perf_counter()
             resolved_lookup = (
                 list(global_resolved.keys())
@@ -410,7 +438,9 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
                 resolved_categories
             )
             similarity_elapsed = time.perf_counter() - similarity_start
+            timings['similarity_ms'] += similarity_elapsed * 1000
             recheck_elapsed = time.perf_counter() - recheck_start
+            timings['recheck_ms'] += recheck_elapsed * 1000
             
             for desc, cat in personal_hits.items():
                 category_by_description[desc] = cat
@@ -453,8 +483,25 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
                 continue
 
             llm_start = time.perf_counter()
-            cats = categorize_batch(client, still_needing_llm, DEFAULT_CATEGORIES, gemini_timeout_ms=effective_gemini_timeout_ms)
-            print(f"  [stage timing] Gemini call: {time.perf_counter() - llm_start:.2f}s ({len(still_needing_llm)} descriptions)", file=sys.stderr)
+
+            cats = categorize_batch(
+                client,
+                still_needing_llm,
+                DEFAULT_CATEGORIES,
+                gemini_timeout_ms=effective_gemini_timeout_ms
+            )
+
+            llm_elapsed = time.perf_counter() - llm_start
+            timings['gemini_ms'] += llm_elapsed * 1000
+            timings['gemini_calls'] += 1
+
+            print(
+                f"  [stage timing] Gemini call: "
+                f"{llm_elapsed:.2f}s "
+                f"({len(still_needing_llm)} descriptions)",
+                file=sys.stderr
+            )
+            
             for item, result in zip(still_needing_llm, cats):
                 desc = item['description']
 
@@ -519,17 +566,44 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
             break
 
     merchants_start = time.perf_counter()
-    add_merchants_batch(conn, newly_learned_merchants)
-    print(f"  [stage timing] merchant write: {time.perf_counter() - merchants_start:.2f}s ({len(newly_learned_merchants)} merchant(s))", file=sys.stderr)
 
+    add_merchants_batch(conn, newly_learned_merchants)
+
+    merchants_elapsed = time.perf_counter() - merchants_start
+    timings['merchant_write_ms'] = merchants_elapsed * 1000
+
+    print(
+        f"  [stage timing] merchant write: "
+        f"{merchants_elapsed:.2f}s "
+        f"({len(newly_learned_merchants)} merchant(s))",
+        file=sys.stderr
+    )
     if global_cache.dirty:
         global_save_start = time.perf_counter()
+
         global_cache.save()
-        print(f"  [stage timing] global cache save: {time.perf_counter() - global_save_start:.2f}s", file=sys.stderr)
+
+        global_save_elapsed = time.perf_counter() - global_save_start
+        timings['global_cache_save_ms'] = global_save_elapsed * 1000
+
+        print(
+            f"  [stage timing] global cache save: "
+            f"{global_save_elapsed:.2f}s",
+            file=sys.stderr
+        )
     if personal_cache.dirty:
         personal_save_start = time.perf_counter()
+
         personal_cache.save()
-        print(f"  [stage timing] personal cache save: {time.perf_counter() - personal_save_start:.2f}s", file=sys.stderr)
+
+        personal_save_elapsed = time.perf_counter() - personal_save_start
+        timings['personal_cache_save_ms'] = personal_save_elapsed * 1000
+
+        print(
+            f"  [stage timing] personal cache save: "
+            f"{personal_save_elapsed:.2f}s",
+            file=sys.stderr
+        )
 
     result = []
     for txn in pending_transactions:
@@ -552,4 +626,7 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
             'category': category,
         })
 
-    return result
+    return {
+        'transactions': result,
+        'timings': timings,
+    }
