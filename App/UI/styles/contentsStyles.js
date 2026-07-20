@@ -1,5 +1,22 @@
 import { StyleSheet} from 'react-native';
 
+// Fixed height for every row in ContentsScreen's transaction table -
+// sized to comfortably fit a 2-line description (numberOfLines={2} in
+// TransactionRow.js) plus the row's own vertical padding and border.
+// Exported so ContentsScreen.js's FlatList getItemLayout can use the
+// EXACT same number rather than a duplicated magic value that could
+// silently drift out of sync with this style.
+//
+// This used to be implicit/variable - a 1-line description took less
+// vertical space than a 2-line one, so row height wasn't actually
+// constant. That's fine for FlatList's default (dynamic measurement)
+// behavior, but getItemLayout requires a TRUE fixed height to compute
+// correct offsets without measuring - giving every row this same
+// height (rather than just adding getItemLayout on top of variable
+// heights, which would silently misalign scroll position/row
+// placement) is what makes that actually safe to add.
+export const ROW_HEIGHT = 46;
+
 export const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff'},
   title: { fontSize: 24, fontWeight: 'bold', marginBottom: 8 },
@@ -34,7 +51,7 @@ export const styles = StyleSheet.create({
     headerText: { color: '#fff', fontSize: 11, fontWeight: '600' },
     headerTextActive: { color: '#FFD700' },
     table: { flex: 1 },
-    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: '#eee' },
+    row: { flexDirection: 'row', alignItems: 'center', height: ROW_HEIGHT, paddingVertical: 8, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: '#eee' },
     rowAlt: { backgroundColor: '#F8F9FA' },
     rowManual: { backgroundColor: '#FFF3CD' },
     rowSelected: { backgroundColor: '#DCE8F5' },

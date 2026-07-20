@@ -8,7 +8,7 @@ import CategoryChipRow from '../components/contents/CategoryChipRow.js';
 import SelectionBar from '../components/contents/SelectionBar.js';
 import StatusBanners from '../components/contents/StatusBanners.js';
 import CategoryResolveModal from '../components/contents/CategoryResolveModal.js';
-import { styles } from '../styles/contentsStyles.js';
+import { styles, ROW_HEIGHT } from '../styles/contentsStyles.js';
 
 export default function ContentsScreen({ navigation, route }) {
     const insets = useSafeAreaInsets();
@@ -67,16 +67,12 @@ export default function ContentsScreen({ navigation, route }) {
 
     return (
     <View style={[styles.container, { paddingBottom: insets.bottom}]}>
-        
         <Text style={styles.title}>Your CSV contents will go here</Text>
-
         <TouchableOpacity
         style={styles.button}
         onPress={() => navigation.goBack()}
         >
         <Text style={styles.buttonText}>Back to Home</Text>
-
-
         </TouchableOpacity>
             <TextInput
                 style={styles.search}
@@ -141,6 +137,11 @@ export default function ContentsScreen({ navigation, route }) {
                 updateCellsBatchingPeriod={50}
                 removeClippedSubviews={true}
                 initialNumToRender={20}
+                getItemLayout={(data, index) => ({
+                    length: ROW_HEIGHT,
+                    offset: ROW_HEIGHT * index,
+                    index,
+                })}
             />
 
             <CategoryResolveModal

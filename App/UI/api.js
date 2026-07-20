@@ -114,27 +114,36 @@ export async function getToken() {
 }
 
 // Exchanges the stored refresh token for a new access token. Returns
-// the new access token on success, or null if the refresh itself
-// failed (refresh token missing, expired, or revoked) - in which case
-// both stored tokens are cleared, since a dead refresh token left
+// the new access token on success, or null if the refresh token itself
+// was genuinely rejected (missing, expired, or revoked) - in which
+// case both stored tokens are cleared, since a dead refresh token left
 // sitting in SecureStore would just fail the exact same way again on
-// the next attempt. A network failure during the refresh call itself
-// (as opposed to the backend actually rejecting the token) does NOT
-// clear anything - that's a connectivity blip, not proof the refresh
-// token is bad, and the caller's original request will surface its
-// own error regardless.
+// the next attempt.
+//
+// A TRANSIENT failure (timeout, network error, backend unreachable)
+// throws instead of returning null, with .isTransient set - this is
+// the actual fix for a real bug: it used to return null for THIS case
+// too, which authorizedFetch below then reported as "Not logged in" -
+// wrong and misleading, since nothing about the person's login was
+// actually invalid, the refresh request just couldn't complete. Now
+// authorizedFetch can tell "genuinely logged out" apart from "server
+// was briefly unreachable" and give an accurate, retry-worthy error
+// for the latter instead.
 async function tryRefreshAccessToken() {
     const refreshToken = await getRefreshToken();
     if (!refreshToken) return null;
 
     let response;
     try {
-        response = await fetch(`${BASE_URL}/auth/refresh`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${refreshToken}` },
-        });
+        response = await fetchWithTimeout(
+            `${BASE_URL}/auth/refresh`,
+            { method: 'POST', headers: { 'Authorization': `Bearer ${refreshToken}` } },
+            COLD_START_TIMEOUT_MS,
+        );
     } catch (e) {
-        return null;
+        const transientError = new Error('Token refresh failed - server unreachable or timed out.');
+        transientError.isTransient = true;
+        throw transientError;
     }
 
     if (!response.ok) {
@@ -189,7 +198,15 @@ async function authorizedFetch(url, options = {}, timeoutMs, onTiming) {
     }
 
     if (response.status === 401) {
-        const newAccessToken = await tryRefreshAccessToken();
+        let newAccessToken;
+        try {
+            newAccessToken = await tryRefreshAccessToken();
+        } catch (err) {
+            if (err.isTransient) {
+                throw new Error('The server is taking a while to start up - please wait a moment and try again.');
+            }
+            throw err;
+        }
         if (!newAccessToken) throw new Error('Not logged in');
 
         try {

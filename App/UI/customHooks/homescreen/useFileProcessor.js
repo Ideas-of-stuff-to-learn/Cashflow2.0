@@ -21,7 +21,7 @@ import { NOT_YET_CATEGORISED } from '../../checkingName.js';
 // There's no backend-side "batch" concept here like there is for the
 // LLM tier - this is just a flat, directly-tunable request size.
 // Change this if crashes persist / to trade off request count.
-const CACHE_CHUNK_SIZE = 1000;
+const CACHE_CHUNK_SIZE = 200;
 
 // --- Chunking config for /categorize/llm ---
 //
@@ -127,6 +127,31 @@ const CLIENT_TIMEOUT_MS = Math.max(1, WORKER_TIMEOUT_SECONDS - TIMEOUT_SAFETY_BU
 // /categorize/llm route in backend.py.
 const GEMINI_REQUEST_TIMEOUT_MS = 30000;
 
+// --- Automatic retry for transient failures ---
+//
+// Why this exists: a failure here (a client-side timeout, a backend
+// cold-start, a momentary network blip) usually resolves itself within
+// a few seconds - the person manually re-running the exact same action
+// right after a failure very often just... works, because whatever was
+// briefly wrong has already passed by the time they notice and react.
+// That's not something the person should have to notice and act on -
+// the app already knows the action failed and can just try it again
+// itself before bothering them with an error at all.
+//
+// AUTO_RETRY_ATTEMPTS is the TOTAL number of attempts for a single
+// phase/batch (the first try plus this many automatic retries after a
+// failure) - only after ALL of these are exhausted does anything get
+// marked NOT_YET_CATEGORISED and surfaced as an error the person has
+// to act on. AUTO_RETRY_DELAY_MS is the pause between attempts - short
+// enough not to feel like a stall, long enough to give a genuine
+// cold-start or blip a real chance to clear.
+const AUTO_RETRY_ATTEMPTS = 3;
+const AUTO_RETRY_DELAY_MS = 3000;
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export function useFileProcessor(setStatus, setError,selectedFiles){
     const [loading, setLoading] = useState(false);
     const {
@@ -155,26 +180,33 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
         let phase1 = [];
 
     // Runs one cache-tier phase (exact/merchant/similarity) against
-    // `items`, with the same timeout/failure handling as every other
-    // network call in this file. Returns null on failure (caller
-    // decides how to handle that), or the phase's result array.
+    // `items`, automatically retrying up to AUTO_RETRY_ATTEMPTS times
+    // total before giving up - see that constant's comment for why.
+    // Returns null only once every attempt has failed (caller decides
+    // how to handle that), or the phase's result array on success.
     async function runCachePhase(phaseFn, items, phaseLabel, chunkIndex, chunkCount) {
-        try {
-            const result = await phaseFn(items, {
-                timeoutMs: CLIENT_TIMEOUT_MS,
-                onTiming: (elapsedMs) => {
-                    console.log(`[${runLabel}] ${phaseLabel} batch ${chunkIndex + 1}/${chunkCount} done - ${items.length} txns, ${(elapsedMs / 1000).toFixed(1)}s`);
-                },
-            });
-            return result;
-        } catch (err) {
-            if (err.isTimeout) {
-                console.warn(`[${runLabel}] ${phaseLabel} batch ${chunkIndex + 1}/${chunkCount} TIMED OUT after ${(err.elapsedMs / 1000).toFixed(1)}s`);
-            } else {
-                console.warn(`[${runLabel}] ${phaseLabel} batch ${chunkIndex + 1}/${chunkCount} FAILED: ${err.message}`);
+        for (let attempt = 1; attempt <= AUTO_RETRY_ATTEMPTS; attempt++) {
+            try {
+                const result = await phaseFn(items, {
+                    timeoutMs: CLIENT_TIMEOUT_MS,
+                    onTiming: (elapsedMs) => {
+                        console.log(`[${runLabel}] ${phaseLabel} batch ${chunkIndex + 1}/${chunkCount} done - ${items.length} txns, ${(elapsedMs / 1000).toFixed(1)}s`);
+                    },
+                });
+                return result;
+            } catch (err) {
+                if (err.isTimeout) {
+                    console.warn(`[${runLabel}] ${phaseLabel} batch ${chunkIndex + 1}/${chunkCount} TIMED OUT after ${(err.elapsedMs / 1000).toFixed(1)}s (attempt ${attempt}/${AUTO_RETRY_ATTEMPTS})`);
+                } else {
+                    console.warn(`[${runLabel}] ${phaseLabel} batch ${chunkIndex + 1}/${chunkCount} FAILED: ${err.message} (attempt ${attempt}/${AUTO_RETRY_ATTEMPTS})`);
+                }
+                if (attempt < AUTO_RETRY_ATTEMPTS) {
+                    setStatus(`${phaseLabel} check hit a snag - retrying automatically (${attempt}/${AUTO_RETRY_ATTEMPTS})...`);
+                    await sleep(AUTO_RETRY_DELAY_MS);
+                }
             }
-            return null;
         }
+        return null;
     }
 
     for (let i = 0; i < cacheChunks.length; i++) {
@@ -290,6 +322,37 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
             // chunk-by-chunk instead of only at the very end.
             let workingPhase1 = phase1;
 
+    // Runs one /categorize/llm chunk, automatically retrying up to
+    // AUTO_RETRY_ATTEMPTS times total before giving up - same reasoning
+    // as runCachePhase above. Returns null only once every attempt has
+    // failed, or the chunk's result array on success.
+    async function runLlmChunk(items, chunkIndex, chunkCount) {
+        for (let attempt = 1; attempt <= AUTO_RETRY_ATTEMPTS; attempt++) {
+            try {
+                const result = await categorizeLLM(items, {
+                    timeoutMs: CLIENT_TIMEOUT_MS,
+                    batchSize: LLM_CHUNK_SIZE,
+                    geminiTimeoutMs: GEMINI_REQUEST_TIMEOUT_MS,
+                    onTiming: (elapsedMs) => {
+                        console.log(`[${runLabel}] LLM batch ${chunkIndex + 1}/${chunkCount} done - ${items.length} txns, batch_size=${LLM_CHUNK_SIZE}, ${(elapsedMs / 1000).toFixed(1)}s`);
+                    },
+                });
+                return result;
+            } catch (err) {
+                if (err.isTimeout) {
+                    console.warn(`[${runLabel}] LLM batch ${chunkIndex + 1}/${chunkCount} TIMED OUT after ${(err.elapsedMs / 1000).toFixed(1)}s (attempt ${attempt}/${AUTO_RETRY_ATTEMPTS})`);
+                } else {
+                    console.warn(`[${runLabel}] LLM batch ${chunkIndex + 1}/${chunkCount} FAILED: ${err.message} (attempt ${attempt}/${AUTO_RETRY_ATTEMPTS})`);
+                }
+                if (attempt < AUTO_RETRY_ATTEMPTS) {
+                    setStatus(`Categorising hit a snag - retrying automatically (${attempt}/${AUTO_RETRY_ATTEMPTS})...`);
+                    await sleep(AUTO_RETRY_DELAY_MS);
+                }
+            }
+        }
+        return null;
+    }
+
             for (let i = 0; i < chunks.length; i++) {
                 setStatus(
                     chunks.length > 1
@@ -297,31 +360,13 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
                         : `Categorising ${chunks[i].length} new transactions...`
                 );
 
-                let chunkResult;
-                try {
-                    chunkResult = await categorizeLLM(chunks[i], {
-                        timeoutMs: CLIENT_TIMEOUT_MS,
-                        batchSize: LLM_CHUNK_SIZE,
-                        geminiTimeoutMs: GEMINI_REQUEST_TIMEOUT_MS,
-                        onTiming: (elapsedMs) => {
-                            console.log(`[${runLabel}] LLM batch ${i + 1}/${chunks.length} done - ${chunks[i].length} txns, batch_size=${LLM_CHUNK_SIZE}, ${(elapsedMs / 1000).toFixed(1)}s`);
-                        },
-                    });
-                } catch (err) {
-                    // Same broadened handling as the cache-tier catch above:
-                    // a backend failure (e.g. the exact "worker got
-                    // SIGKILLed mid Gemini-call" scenario this whole thing
-                    // was built to survive) gets treated the same as a
-                    // client-side timeout, not left to blow up the run.
-                    if (err.isTimeout) {
-                        console.warn(`[${runLabel}] LLM batch ${i + 1}/${chunks.length} TIMED OUT after ${(err.elapsedMs / 1000).toFixed(1)}s`);
-                    } else {
-                        console.warn(`[${runLabel}] LLM batch ${i + 1}/${chunks.length} FAILED: ${err.message}`);
-                    }
-                    // Mark this chunk and every not-yet-attempted chunk as
-                    // NOT_YET_CATEGORISED, not NEEDS_MANUAL_REVIEW - these
-                    // transactions never got a real answer, they just
-                    // failed or ran out of time.
+                const chunkResult = await runLlmChunk(chunks[i], i, chunks.length);
+                if (chunkResult === null) {
+                    // Every automatic attempt failed - same fallback as
+                    // before: mark this chunk and every not-yet-attempted
+                    // chunk as NOT_YET_CATEGORISED, not NEEDS_MANUAL_REVIEW -
+                    // these transactions never got a real answer, they
+                    // just failed or ran out of time.
                     const remainingDescriptions = new Set(
                         chunks.slice(i).flat().map(t => t.description)
                     );
@@ -331,11 +376,7 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
                             : t
                     );
                     setTransactions(prev => mergeById(prev, workingPhase1));
-                    setError(
-                        err.isTimeout
-                            ? 'Some transactions took too long to categorise and were left as "not yet categorised" - you can retry later.'
-                            : 'Categorising failed partway through - remaining transactions were left as "not yet categorised", you can retry later.'
-                    );
+                    setError('Categorising failed partway through - remaining transactions were left as "not yet categorised", you can retry later.');
                     break;
                 }
 
