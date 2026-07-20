@@ -40,6 +40,8 @@ export function useInitialLoadLogic(){
         let cancelled = false;
         setInitialLoadError(null);
         setAllTransactionsLoaded(false);
+        setInitialLoading(true);
+        setTransactions([]);
 
         const BATCH_SIZE = 500;
 
