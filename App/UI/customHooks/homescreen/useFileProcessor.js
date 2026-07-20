@@ -21,7 +21,7 @@ import { NOT_YET_CATEGORISED } from '../../checkingName.js';
 // There's no backend-side "batch" concept here like there is for the
 // LLM tier - this is just a flat, directly-tunable request size.
 // Change this if crashes persist / to trade off request count.
-const CACHE_CHUNK_SIZE = 200;
+const CACHE_CHUNK_SIZE = 1000;
 
 // --- Chunking config for /categorize/llm ---
 //
