@@ -8,7 +8,7 @@ import { NOT_YET_CATEGORISED } from '../checkingName.js';
 import HomepageInfo from '../components/homepage/homepageInfo.js';
 import { styles } from '../styles/homepageStyles.js';
 export default function HomeScreen({ navigation }) {
-    const {categorising, transactions, initialLoadError, retryInitialLoad} = useApp();
+    const {categorising, transactions, initialLoadError, retryInitialLoad, allTransactionsLoaded} = useApp();
 
     const {dateRangeInfo, uploadCount, refetchUploadCount} = useInitialLoadLogic();
 
@@ -22,7 +22,7 @@ export default function HomeScreen({ navigation }) {
         error,
         setError} = useFilePicker();
 
-    const {processFiles, retryNotYetCategorized, loading} = useFileProcessor(setStatus,setError,selectedFiles)
+    const {processFiles, loading} = useFileProcessor(setStatus,setError,selectedFiles)
 
     const notYetCategorisedCount = transactions.filter(t => t.category === NOT_YET_CATEGORISED).length;
 
@@ -79,17 +79,28 @@ export default function HomeScreen({ navigation }) {
         {status && <Text style={styles.status}>{status}</Text>}
         {error && <Text style={styles.error}>{error}</Text>}
 
-        {/* Categorise */}
+        {/* Categorise - handles retrying anything left NOT_YET_CATEGORISED
+            AND processing newly selected files, in that order (see
+            processFiles in useFileProcessor.js). Disabled until
+            allTransactionsLoaded - pressing this while transaction
+            history is still streaming in could miss rows that hadn't
+            arrived yet. Doesn't require a file to be selected if
+            there's retry work waiting - a person with only failed
+            transactions to retry shouldn't need to pick a file first. */}
 
         <TouchableOpacity
             style={[styles.button, styles.secondaryButton,
-                (loading || selectedFiles.length === 0) && styles.buttonDisabled]}
+                (loading || !allTransactionsLoaded || (selectedFiles.length === 0 && notYetCategorisedCount === 0)) && styles.buttonDisabled]}
             onPress={handleCategorisePress}
-            disabled={loading || selectedFiles.length === 0 || categorising}
+            disabled={loading || categorising || !allTransactionsLoaded || (selectedFiles.length === 0 && notYetCategorisedCount === 0)}
         >
             {loading
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.buttonText}>Categorise</Text>
+                : <Text style={styles.buttonText}>
+                    {notYetCategorisedCount > 0
+                        ? `Categorise${selectedFiles.length > 0 ? '' : ` (retry ${notYetCategorisedCount})`}`
+                        : 'Categorise'}
+                  </Text>
             }
         </TouchableOpacity>
 
@@ -101,21 +112,6 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.buttonText}>Go to Charts</Text>
         </TouchableOpacity>
 
-        {/* Retry categorisation for anything left NOT_YET_CATEGORISED
-            after a previous timeout - works directly on what's already
-            in app state, no file re-upload needed. */}
-        {notYetCategorisedCount > 0 && (
-            <TouchableOpacity
-                style={[styles.button, styles.secondaryButton, (loading || categorising) && styles.buttonDisabled]}
-                onPress={retryNotYetCategorized}
-                disabled={loading || categorising}
-            >
-                {loading
-                    ? <ActivityIndicator color="#fff" />
-                    : <Text style={styles.buttonText}>Retry categorising {notYetCategorisedCount} transaction{notYetCategorisedCount === 1 ? '' : 's'}</Text>
-                }
-            </TouchableOpacity>
-        )}
 
         {/* Data displayed as a filtereable table with changing categories possible */}
         <TouchableOpacity

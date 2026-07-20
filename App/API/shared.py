@@ -7,11 +7,22 @@ application logic, not framework wiring.
 """
 from psycopg2.extras import execute_values
 
+from checkingName import NOT_YET_CATEGORISED
+
 # Category values that are placeholders, not a real final answer yet -
 # used both to skip writing them back to the transactions table
 # (update_transaction_categories below) and to exclude them from chart
 # aggregates (routes/charts.py) and manual-review counts.
-TRANSIENT_CATEGORY_VALUES = {'PENDING_LLM', 'FAILED - rerun'}
+#
+# NOT_YET_CATEGORISED used to be the backend's own separate
+# 'FAILED - rerun' string - merged into ONE shared sentinel with the
+# frontend's identically-meaning value (useFileProcessor.js sets the
+# same thing when its own auto-retry gives up on a cache/LLM call).
+# Same value, same transient treatment either way it originates: never
+# persisted to the DB (left NULL, same as PENDING_LLM) - it's a
+# "didn't get a real answer this time" signal for the current
+# session/response, not a stored fact about the transaction.
+TRANSIENT_CATEGORY_VALUES = {'PENDING_LLM', NOT_YET_CATEGORISED}
 
 
 def update_transaction_categories(conn, user_id, result):
@@ -61,3 +72,4 @@ def update_transaction_categories(conn, user_id, result):
             rows,
             template="(%s, %s, %s)",
         )
+

@@ -1,11 +1,12 @@
 import os
 import sys
+import time
 
 from dotenv import load_dotenv
 from google import genai
 
 from cache import CategoryCache
-from checkingName import NEEDS_MANUAL_REVIEW
+from checkingName import NEEDS_MANUAL_REVIEW, NOT_YET_CATEGORISED
 
 # Import all reusable logic directly from categoriseAug - no rewriting needed
 from categoriseAugDB import (
@@ -17,6 +18,7 @@ from categoriseAugDB import (
     load_merchants,
     add_merchant,
     add_merchants_batch,
+    invalidate_merchant_automaton,
     load_categories,
     DEFAULT_GEMINI_REQUEST_TIMEOUT_MS,
 )
@@ -324,73 +326,148 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
 
     pseudo_transactions = [{'description': d} for d in unique_descriptions]
 
-    for batch in chunked(pseudo_transactions, batch_size):
-        cats = categorize_batch(client, batch, DEFAULT_CATEGORIES, gemini_timeout_ms=effective_gemini_timeout_ms)
-        # Collected across this ONE Gemini batch, written in a single
-        # add_merchants_batch() call after the batch finishes - see
-        # that function's docstring for why per-batch (not per-request)
-        # is the right granularity to keep most of the old per-item
-        # commit's "persists even if something later fails" property.
-        newly_learned_merchants = []
-        # --- TEMPORARY DIAGNOSTIC ---
-        # merchants ended up empty in production despite obviously
-        # merchant-bearing descriptions (TESCO, BOOTS, etc.) getting
-        # real categories - this print shows exactly what the RAW
-        # `merchant` value from Gemini was for every item that didn't
-        # end up counted as has_merchant, so the actual cause (null?
-        # empty string? something unexpected?) is directly visible in
-        # the next run's logs instead of inferred. Safe to remove once
-        # the cause is confirmed.
-        batch_has_merchant_count = 0
-        batch_total_count = 0
-        for item, result in zip(batch, cats):
-            desc = item['description']
+    # Pre-existing resolved global descriptions, loaded ONCE - the
+    # per-batch similarity re-check below merges this with
+    # category_by_description (which grows as THIS run resolves more),
+    # so a later batch can match against BOTH what was already known
+    # before this run started AND whatever this run has already
+    # resolved so far.
+    global_resolved = global_cache.resolved_descriptions()
 
-            if result is None:
-                failed_descriptions.add(desc)
+    # Accumulates newly-learned merchants across the WHOLE run (every
+    # Gemini batch), written in ONE add_merchants_batch() call at the
+    # end - a single round trip in the normal (successful) case, rather
+    # than one per Gemini batch. If something raises partway through,
+    # the except block below still writes whatever was collected up to
+    # that point before re-raising - so a failure on, say, batch 5 of
+    # 10 still keeps batches 1-4's newly-learned merchants, the same
+    # "at most the in-flight batch is at risk" guarantee as writing
+    # per-batch, just without paying for N round trips to get it.
+    newly_learned_merchants = []
+
+    batches = list(chunked(pseudo_transactions, batch_size))
+
+    for batch_index, batch in enumerate(batches):
+        try:
+            # Re-check merchant + similarity against everything learned
+            # so far in THIS run before spending an LLM call on
+            # anything - a later batch can easily contain a close
+            # variant of something an earlier batch in the SAME run
+            # already resolved (a different store number, a slightly
+            # different format), and both match_known_merchants_batch
+            # and find_similar_cached_descriptions_batch are cheap
+            # (Aho-Corasick / n-gram-filtered, no LLM call) compared to
+            # what they might save.
+            batch_descriptions = [item['description'] for item in batch]
+
+            recheck_start = time.perf_counter()
+            merchant_hits = match_known_merchants_batch(batch_descriptions, normalized_merchants)
+
+            resolved_lookup = list(global_resolved.keys()) + list(category_by_description.keys())
+            resolved_categories = {**global_resolved, **category_by_description}
+            still_unresolved = [d for d in batch_descriptions if d not in merchant_hits]
+            similarity_hits = find_similar_cached_descriptions_batch(still_unresolved, resolved_lookup, resolved_categories)
+            recheck_elapsed = time.perf_counter() - recheck_start
+
+            for desc, cat in merchant_hits.items():
+                category_by_description[desc] = cat
+                for row in rows_by_description.get(desc, []):
+                    global_cache.add_record(desc, row['date'], row['amount'], cat)
+            for desc, cat in similarity_hits.items():
+                category_by_description[desc] = cat
+                for row in rows_by_description.get(desc, []):
+                    global_cache.add_record(desc, row['date'], row['amount'], cat)
+
+            still_needing_llm = [
+                item for item in batch
+                if item['description'] not in merchant_hits and item['description'] not in similarity_hits
+            ]
+            print(
+                f"  [stage timing] merchant+similarity re-check: {recheck_elapsed:.2f}s "
+                f"({len(merchant_hits)} merchant hit(s), {len(similarity_hits)} similarity hit(s), "
+                f"{len(still_needing_llm)}/{len(batch)} still need the LLM)",
+                file=sys.stderr,
+            )
+            if not still_needing_llm:
+                # This whole batch got resolved without an LLM call at all.
                 continue
 
-            cat = result['category']
-            merchant = result['merchant']
+            llm_start = time.perf_counter()
+            cats = categorize_batch(client, still_needing_llm, DEFAULT_CATEGORIES, gemini_timeout_ms=effective_gemini_timeout_ms)
+            print(f"  [stage timing] Gemini call: {time.perf_counter() - llm_start:.2f}s ({len(still_needing_llm)} descriptions)", file=sys.stderr)
+            for item, result in zip(still_needing_llm, cats):
+                desc = item['description']
 
-            if cat == NEEDS_MANUAL_REVIEW:
-                for row in rows_by_description.get(desc, []):
-                    global_cache.add_record(desc, row['date'], row['amount'], NEEDS_MANUAL_REVIEW)
-                ambiguous_descriptions.add(desc)
-            else:
-                category_by_description[desc] = cat
+                if result is None:
+                    failed_descriptions.add(desc)
+                    continue
 
-                normalized = normalize_for_matching(merchant) if merchant and isinstance(merchant, str) else ''
-                has_merchant = len(normalized) >= 3
-                target_cache = global_cache if has_merchant else personal_cache
+                cat = result['category']
+                merchant = result['merchant']
 
-                batch_total_count += 1
-                if has_merchant:
-                    batch_has_merchant_count += 1
+                if cat == NEEDS_MANUAL_REVIEW:
+                    for row in rows_by_description.get(desc, []):
+                        global_cache.add_record(desc, row['date'], row['amount'], NEEDS_MANUAL_REVIEW)
+                    ambiguous_descriptions.add(desc)
                 else:
-                    print(
-                        f"  [merchant diagnostic] desc={desc!r} raw_merchant={merchant!r} "
-                        f"(type={type(merchant).__name__}) normalized={normalized!r} -> NO merchant recorded",
-                        file=sys.stderr,
-                    )
+                    category_by_description[desc] = cat
 
-                for row in rows_by_description.get(desc, []):
-                    target_cache.add_record(desc, row['date'], row['amount'], cat)
+                    normalized = normalize_for_matching(merchant) if merchant and isinstance(merchant, str) else ''
+                    has_merchant = len(normalized) >= 3
+                    target_cache = global_cache if has_merchant else personal_cache
 
-                if has_merchant and normalized not in normalized_merchants:
-                    normalized_merchants[normalized] = cat
-                    newly_learned_merchants.append((normalized, cat))
+                    for row in rows_by_description.get(desc, []):
+                        target_cache.add_record(desc, row['date'], row['amount'], cat)
 
-        print(
-            f"  [merchant diagnostic] batch summary: {batch_has_merchant_count}/{batch_total_count} "
-            f"items had a usable merchant, {len(newly_learned_merchants)} newly learned",
-            file=sys.stderr,
-        )
-        add_merchants_batch(conn, newly_learned_merchants)
+                    if has_merchant and normalized not in normalized_merchants:
+                        normalized_merchants[normalized] = cat
+                        newly_learned_merchants.append((normalized, cat))
+                        # Invalidate NOW, not just when add_merchants_batch
+                        # finally writes this to the DB at the end of the
+                        # run - the mid-run re-check above (for the NEXT
+                        # batch) calls match_known_merchants_batch(), which
+                        # needs the automaton to reflect this merchant
+                        # immediately, even though its DB write is
+                        # deferred. Cheap to call even multiple times per
+                        # batch - it just marks the cache stale, the
+                        # actual rebuild only happens lazily on the next
+                        # get_merchant_automaton() call.
+                        invalidate_merchant_automaton()
+        except Exception as e:
+            # A batch-level failure (Gemini down, a bug, anything) no
+            # longer aborts the WHOLE run - only THIS batch, and every
+            # batch not yet attempted, gets marked FAILED - rerun (the
+            # same convention already used for an individual item
+            # categorize_batch itself couldn't resolve). Everything
+            # ALREADY resolved by earlier batches - merchants learned,
+            # category_records written, and (critically) the categories
+            # that will end up in the transactions table via the
+            # route's normal update_transaction_categories call - all
+            # still gets saved, because this function now falls through
+            # to the SAME unconditional save/return path success uses,
+            # instead of re-raising and losing everything to the
+            # route's 500 handler. A whole-request failure used to mean
+            # losing every already-completed batch's work; now it only
+            # costs whatever this one batch (and anything after it)
+            # hadn't gotten to yet.
+            print(f"  [stage timing] batch {batch_index + 1}/{len(batches)} failed: {e}", file=sys.stderr)
+            for remaining_batch in batches[batch_index:]:
+                for item in remaining_batch:
+                    failed_descriptions.add(item['description'])
+            break
+
+    merchants_start = time.perf_counter()
+    add_merchants_batch(conn, newly_learned_merchants)
+    print(f"  [stage timing] merchant write: {time.perf_counter() - merchants_start:.2f}s ({len(newly_learned_merchants)} merchant(s))", file=sys.stderr)
+
     if global_cache.dirty:
+        global_save_start = time.perf_counter()
         global_cache.save()
+        print(f"  [stage timing] global cache save: {time.perf_counter() - global_save_start:.2f}s", file=sys.stderr)
     if personal_cache.dirty:
+        personal_save_start = time.perf_counter()
         personal_cache.save()
+        print(f"  [stage timing] personal cache save: {time.perf_counter() - personal_save_start:.2f}s", file=sys.stderr)
 
     result = []
     for txn in pending_transactions:
@@ -399,11 +476,11 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
         if desc in category_by_description:
             category = category_by_description[desc]
         elif desc in failed_descriptions:
-            category = 'FAILED - rerun'
+            category = NOT_YET_CATEGORISED
         elif desc in ambiguous_descriptions:
             category = NEEDS_MANUAL_REVIEW
         else:
-            category = 'FAILED - rerun'
+            category = NOT_YET_CATEGORISED
 
         result.append({
             'id': txn.get('id'),

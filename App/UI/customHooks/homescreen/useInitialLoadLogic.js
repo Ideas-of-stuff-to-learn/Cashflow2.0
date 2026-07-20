@@ -11,6 +11,7 @@ export function useInitialLoadLogic(){
         setInitialLoading,
         setInitialLoadError,
         setRetryInitialLoad,
+        setAllTransactionsLoaded,
     } = useApp();
 
     const [uploadCount, setUploadCount] = useState(0);
@@ -38,6 +39,7 @@ export function useInitialLoadLogic(){
     useEffect(() => {
         let cancelled = false;
         setInitialLoadError(null);
+        setAllTransactionsLoaded(false);
 
         const BATCH_SIZE = 500;
 
@@ -95,6 +97,7 @@ export function useInitialLoadLogic(){
                     offset += page.transactions.length;
                     if (offset >= total) break;
                 }
+                if (!cancelled) setAllTransactionsLoaded(true);
             } catch (e) {
                 if (cancelled) return;
                 const msg = e.message || '';

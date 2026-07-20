@@ -54,6 +54,7 @@ export const styles = StyleSheet.create({
     row: { flexDirection: 'row', alignItems: 'center', height: ROW_HEIGHT, paddingVertical: 8, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: '#eee' },
     rowAlt: { backgroundColor: '#F8F9FA' },
     rowManual: { backgroundColor: '#FFF3CD' },
+    rowFailed: { backgroundColor: '#FDECEA' },
     rowSelected: { backgroundColor: '#DCE8F5' },
     cell: { flex: 1, fontSize: 11, color: '#333', paddingHorizontal: 4 },
     cellDate: { flex: 1.2 },
@@ -62,6 +63,7 @@ export const styles = StyleSheet.create({
     cellCat: { flex: 1.5 },
     cellManual: { color: '#856404', fontWeight: '600' },
     cellPending: { color: '#999', fontStyle: 'italic' },
+    cellFailed: { color: '#C0392B', fontWeight: '600' },
     checkboxCell: { width: 28, alignItems: 'center', justifyContent: 'center' },
     checkboxHeaderSpacer: { width: 28 },
     checkbox: {

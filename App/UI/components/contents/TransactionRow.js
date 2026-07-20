@@ -30,7 +30,9 @@ const TransactionRow = memo(function TransactionRow({
     onEnterSelectionMode,
 }) {
     const isManual = item.category === NEEDS_MANUAL_REVIEW;
-    const isPending = !item.category || item.category === NOT_YET_CATEGORISED;
+    const isFailed = item.category === NOT_YET_CATEGORISED;
+    const isWaiting = !item.category;
+    const isPending = isWaiting || isFailed;
 
     function handlePress() {
         if (isPending) return;
@@ -52,6 +54,7 @@ const TransactionRow = memo(function TransactionRow({
                 styles.row,
                 index % 2 === 0 && styles.rowAlt,
                 isManual && styles.rowManual,
+                isFailed && styles.rowFailed,
                 isSelected && styles.rowSelected,
             ]}
             onPress={handlePress}
@@ -74,9 +77,10 @@ const TransactionRow = memo(function TransactionRow({
             </Text>
             <Text style={[styles.cell, styles.cellCat,
                 isManual && styles.cellManual,
-                isPending && styles.cellPending,
+                isWaiting && styles.cellPending,
+                isFailed && styles.cellFailed,
             ]}>
-                {isPending ? '...' : item.category}
+                {isWaiting ? '...' : isFailed ? '↻ Try again' : item.category}
             </Text>
         </TouchableOpacity>
     );

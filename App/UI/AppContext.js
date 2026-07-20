@@ -9,6 +9,16 @@ export function AppProvider({ children }) {
     const [parseError, setParseError] = useState(null);
     const [categories, setCategories] = useState([]);
     const [initialLoading, setInitialLoading] = useState(true);
+    // Distinct from initialLoading above, which clears after just the
+    // FIRST batch of transaction history lands (so the UI feels
+    // responsive quickly). This one only flips true once EVERY
+    // progressive batch has finished (see the while-loop in
+    // useInitialLoadLogic.js) - used to gate the Categorise button, so
+    // it can't be pressed while some of the person's transaction
+    // history hasn't shown up yet. Pressing Categorise mid-load could
+    // otherwise miss transactions that hadn't arrived yet, or race
+    // against a batch still being merged into state.
+    const [allTransactionsLoaded, setAllTransactionsLoaded] = useState(false);
     // Set by useInitialLoadLogic when the initial fetch specifically
     // times out (a cold-start on Render's free tier) rather than
     // failing for another reason. Shown in place of the normal
@@ -220,6 +230,8 @@ export function AppProvider({ children }) {
             categoryColors,
             initialLoading,
             setInitialLoading,
+            allTransactionsLoaded,
+            setAllTransactionsLoaded,
             initialLoadError,
             setInitialLoadError,
             retryInitialLoad,

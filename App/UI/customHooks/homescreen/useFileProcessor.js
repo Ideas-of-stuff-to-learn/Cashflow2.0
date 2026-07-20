@@ -142,9 +142,11 @@ const GEMINI_REQUEST_TIMEOUT_MS = 30000;
 // phase/batch (the first try plus this many automatic retries after a
 // failure) - only after ALL of these are exhausted does anything get
 // marked NOT_YET_CATEGORISED and surfaced as an error the person has
-// to act on. AUTO_RETRY_DELAY_MS is the pause between attempts - short
-// enough not to feel like a stall, long enough to give a genuine
-// cold-start or blip a real chance to clear.
+// to act on. AUTO_RETRY_DELAY_MS is the BASE delay, applied with
+// exponential backoff (delay * 2^(attempt-1): 3s, 6s, 12s...) - each
+// repeated failure makes it progressively more likely something is
+// genuinely wrong (not just a one-off blip), so back off further each
+// time instead of hammering at the same fixed interval.
 const AUTO_RETRY_ATTEMPTS = 3;
 const AUTO_RETRY_DELAY_MS = 3000;
 
@@ -163,12 +165,12 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
     } = useApp();
 
     // Runs the full cache-tier -> LLM-tier categorisation pipeline over
-    // whatever list it's given. Shared by processFiles() (for freshly
-    // parsed rows) and retryNotYetCategorized() (for rows previously
-    // left as NOT_YET_CATEGORISED after a timeout) - same chunking,
-    // same timeout handling, same progressive state updates either way.
-    // runLabel just tags console log lines so it's clear in dev tools
-    // whether a given line came from a normal upload or a manual retry.
+    // whatever list it's given. Shared by both halves of processFiles()
+    // below (retrying previously NOT_YET_CATEGORISED rows, and newly
+    // parsed rows) - same chunking, same timeout handling, same
+    // progressive state updates either way. runLabel just tags console
+    // log lines so it's clear in dev tools which half of a run a given
+    // line came from.
     async function categorizeTransactions(itemsNeedingCategorization, runLabel = 'Categorise') {
         setProcessingStage('checkingCache');
         setCategorising(true);
@@ -201,8 +203,14 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
                     console.warn(`[${runLabel}] ${phaseLabel} batch ${chunkIndex + 1}/${chunkCount} FAILED: ${err.message} (attempt ${attempt}/${AUTO_RETRY_ATTEMPTS})`);
                 }
                 if (attempt < AUTO_RETRY_ATTEMPTS) {
+                    // Exponential: 3s, 6s, 12s... - each failure makes it
+                    // progressively more likely something's genuinely
+                    // wrong (not just a one-off blip), so back off
+                    // further each time instead of hammering at the
+                    // same fixed interval.
+                    const backoffMs = AUTO_RETRY_DELAY_MS * (2 ** (attempt - 1));
                     setStatus(`${phaseLabel} check hit a snag - retrying automatically (${attempt}/${AUTO_RETRY_ATTEMPTS})...`);
-                    await sleep(AUTO_RETRY_DELAY_MS);
+                    await sleep(backoffMs);
                 }
             }
         }
@@ -345,8 +353,9 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
                     console.warn(`[${runLabel}] LLM batch ${chunkIndex + 1}/${chunkCount} FAILED: ${err.message} (attempt ${attempt}/${AUTO_RETRY_ATTEMPTS})`);
                 }
                 if (attempt < AUTO_RETRY_ATTEMPTS) {
+                    const backoffMs = AUTO_RETRY_DELAY_MS * (2 ** (attempt - 1));
                     setStatus(`Categorising hit a snag - retrying automatically (${attempt}/${AUTO_RETRY_ATTEMPTS})...`);
-                    await sleep(AUTO_RETRY_DELAY_MS);
+                    await sleep(backoffMs);
                 }
             }
         }
@@ -413,8 +422,22 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
         }
     }
 
+    // The single entry point for the "Categorise" button - handles
+    // BOTH retrying anything left NOT_YET_CATEGORISED from a previous
+    // run AND processing newly selected files, in that order. There's
+    // no separate "Retry" button/action anymore - retrying previously-
+    // failed items is just part of what pressing Categorise does,
+    // since a person shouldn't need to know or care whether some of
+    // their transactions failed last time versus being brand new.
     async function processFiles() {
-        if (selectedFiles.length === 0) {
+        // Read fresh from current state, not a stale snapshot - this
+        // also naturally excludes anything that's since picked up a
+        // real category (e.g. resolved by another chunk's mid-run
+        // merchant/similarity re-check), since it wouldn't be sitting
+        // at NOT_YET_CATEGORISED anymore if so.
+        const notYetCategorisedItems = transactions.filter(t => t.category === NOT_YET_CATEGORISED);
+
+        if (selectedFiles.length === 0 && notYetCategorisedItems.length === 0) {
             setError('Please select files first');
             return;
         }
@@ -424,27 +447,35 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
         setProcessingStage('parsing');
 
         try {
-            // Phase 1: Parse CSV files - fast, no LLM
-            setStatus('Parsing CSV files...');
-            const parsed = await parseCSVFiles(selectedFiles);
+            // Retry previously-failed items FIRST, before anything new -
+            // these already went through parsing once, they just never
+            // got a final answer last time.
+            if (notYetCategorisedItems.length > 0) {
+                await categorizeTransactions(notYetCategorisedItems, 'Retry');
+            }
 
-            // Merge into existing state (history + any prior uploads
-            // this session) rather than replacing it outright. parsed
-            // now carries the real category for any row that already
-            // existed (a re-upload), so this shows the correct category
-            // immediately with no flicker.
-            setTransactions(prev => mergeById(prev, parsed));
-            setCategorising(true);
+            if (selectedFiles.length > 0) {
+                // Phase 1: Parse CSV files - fast, no LLM
+                setStatus('Parsing CSV files...');
+                const parsed = await parseCSVFiles(selectedFiles);
 
+                // Merge into existing state (history + any prior uploads
+                // this session) rather than replacing it outright. parsed
+                // now carries the real category for any row that already
+                // existed (a re-upload), so this shows the correct category
+                // immediately with no flicker.
+                setTransactions(prev => mergeById(prev, parsed));
+                setCategorising(true);
 
-            // Only genuinely new rows need to go through cache tiers /
-            // LLM at all - anything already fully known (a re-upload of
-            // an already-categorized transaction) skips this entirely,
-            // since there's nothing left to resolve for it.
-            const needsCategorization = parsed.filter(t => t.category == null);
+                // Only genuinely new rows need to go through cache tiers /
+                // LLM at all - anything already fully known (a re-upload of
+                // an already-categorized transaction) skips this entirely,
+                // since there's nothing left to resolve for it.
+                const needsCategorization = parsed.filter(t => t.category == null);
 
-            if (needsCategorization.length > 0) {
-                await categorizeTransactions(needsCategorization, 'Categorise');
+                if (needsCategorization.length > 0) {
+                    await categorizeTransactions(needsCategorization, 'Categorise');
+                }
             }
 
         } catch (e) {
@@ -459,39 +490,8 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
         }
     }
 
-    // Re-runs categorisation for whatever's currently sitting at
-    // NOT_YET_CATEGORISED, WITHOUT needing the original file
-    // re-uploaded - operates directly on what's already in app state.
-    // Goes back through both tiers (cache, then LLM) rather than
-    // assuming which one it failed at last time, since either could
-    // have been the one that timed out.
-    async function retryNotYetCategorized() {
-        const toRetry = transactions.filter(t => t.category === NOT_YET_CATEGORISED);
-        if (toRetry.length === 0) {
-            setStatus(null);
-            return;
-        }
-
-        setLoading(true);
-        setError(null);
-
-        try {
-            await categorizeTransactions(toRetry, 'Retry');
-        } catch (e) {
-            setError(e.message);
-        } finally {
-            setLoading(false);
-            setStatus(null);
-            setCategorising(false);
-            setProcessingStage(prev =>
-                prev === 'done' ? 'done' : 'idle'
-            );
-        }
-    }
-
     return {
         processFiles,
-        retryNotYetCategorized,
         loading,
         setLoading,
     }
