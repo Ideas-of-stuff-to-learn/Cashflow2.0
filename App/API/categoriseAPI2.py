@@ -16,11 +16,9 @@ from categoriseAugDB import (
     find_similar_cached_descriptions_batch,
     normalize_for_matching,
     load_merchants,
-    add_merchant,
     add_merchants_batch,
     invalidate_merchant_automaton,
     load_categories,
-    DEFAULT_GEMINI_REQUEST_TIMEOUT_MS,
 )
 
 load_dotenv()
@@ -333,8 +331,7 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
     # before this run started AND whatever this run has already
     # resolved so far.
     global_resolved = global_cache.resolved_descriptions()
-
-    # Accumulates newly-learned merchants across the WHOLE run (every
+    personal_resolved = personal_cache.resolved_descriptions()    # Accumulates newly-learned merchants across the WHOLE run (every
     # Gemini batch), written in ONE add_merchants_batch() call at the
     # end - a single round trip in the normal (successful) case, rather
     # than one per Gemini batch. If something raises partway through,
@@ -360,15 +357,66 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
             # what they might save.
             batch_descriptions = [item['description'] for item in batch]
 
+            exact_start = time.perf_counter()
             recheck_start = time.perf_counter()
-            merchant_hits = match_known_merchants_batch(batch_descriptions, normalized_merchants)
+            personal_hits = {
+                desc: personal_resolved[desc]
+                for desc in batch_descriptions
+                if desc in personal_resolved
+            }
 
-            resolved_lookup = list(global_resolved.keys()) + list(category_by_description.keys())
-            resolved_categories = {**global_resolved, **category_by_description}
-            still_unresolved = [d for d in batch_descriptions if d not in merchant_hits]
-            similarity_hits = find_similar_cached_descriptions_batch(still_unresolved, resolved_lookup, resolved_categories)
+            global_hits = {
+                desc: global_resolved[desc]
+                for desc in batch_descriptions
+                if desc not in personal_hits and desc in global_resolved
+            }
+
+            exactly_resolved = set(personal_hits) | set(global_hits)
+
+            after_exact = [
+                desc
+                for desc in batch_descriptions
+                if desc not in exactly_resolved
+            ]
+
+            exact_elapsed = time.perf_counter() - exact_start
+            merchant_start = time.perf_counter()
+
+            merchant_hits = match_known_merchants_batch(
+                after_exact,
+                normalized_merchants
+            )
+            
+            after_merchants = [
+                desc
+                for desc in after_exact
+                if desc not in merchant_hits
+            ]
+            merchant_elapsed = time.perf_counter() - merchant_start
+            similarity_start = time.perf_counter()
+            resolved_lookup = (
+                list(global_resolved.keys())
+                + list(category_by_description.keys())
+            )
+
+            resolved_categories = {
+                **global_resolved,
+                **category_by_description
+            }
+            
+            similarity_hits = find_similar_cached_descriptions_batch(
+                after_merchants,
+                resolved_lookup,
+                resolved_categories
+            )
+            similarity_elapsed = time.perf_counter() - similarity_start
             recheck_elapsed = time.perf_counter() - recheck_start
+            
+            for desc, cat in personal_hits.items():
+                category_by_description[desc] = cat
 
+            for desc, cat in global_hits.items():
+                category_by_description[desc] = cat
             for desc, cat in merchant_hits.items():
                 category_by_description[desc] = cat
                 for row in rows_by_description.get(desc, []):
@@ -378,13 +426,25 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
                 for row in rows_by_description.get(desc, []):
                     global_cache.add_record(desc, row['date'], row['amount'], cat)
 
+            still_needing_llm_descriptions = {
+                desc
+                for desc in after_merchants
+                if desc not in similarity_hits
+            }
+
             still_needing_llm = [
-                item for item in batch
-                if item['description'] not in merchant_hits and item['description'] not in similarity_hits
+                item
+                for item in batch
+                if item['description'] in still_needing_llm_descriptions
             ]
+            
             print(
-                f"  [stage timing] merchant+similarity re-check: {recheck_elapsed:.2f}s "
-                f"({len(merchant_hits)} merchant hit(s), {len(similarity_hits)} similarity hit(s), "
+                f"  [stage timing] exact: {exact_elapsed:.2f}s | "
+                f"merchant: {merchant_elapsed:.2f}s | "
+                f"similarity: {similarity_elapsed:.2f}s | "
+                f"total re-check: {recheck_elapsed:.2f}s "
+                f"({len(merchant_hits)} merchant hit(s), "
+                f"{len(similarity_hits)} similarity hit(s), "
                 f"{len(still_needing_llm)}/{len(batch)} still need the LLM)",
                 file=sys.stderr,
             )
@@ -433,6 +493,8 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
                         # actual rebuild only happens lazily on the next
                         # get_merchant_automaton() call.
                         invalidate_merchant_automaton()
+                    elif not has_merchant:
+                        personal_resolved[desc] = cat
         except Exception as e:
             # A batch-level failure (Gemini down, a bug, anything) no
             # longer aborts the WHOLE run - only THIS batch, and every
