@@ -1,0 +1,152 @@
+# Handoff — Categorisation Pipeline Speed-Up, Backend Restructure, Retry Overhaul
+
+**Scope:** `App/API/backend.py` (rewritten as a thin entrypoint), `App/API/extensions.py` (new), `App/API/shared.py` (new), `App/API/routes/*.py` (new - `auth.py`, `categories.py`, `admin.py`, `transactions.py`, `charts.py`, `health.py`), `App/API/cache.py`, `App/API/categoriseAugDB.py`, `App/API/categoriseAPI2.py`, `App/API/checkingName.py`, `App/API/requirements.txt`, `App/UI/api.js`, `App/UI/customHooks/homescreen/useFileProcessor.js`, `App/UI/AppContext.js`, `App/UI/customHooks/homescreen/useInitialLoadLogic.js`, `App/UI/screens/HomeScreen.js`, `App/UI/components/contents/TransactionRow.js`, `App/UI/styles/contentsStyles.js`.
+
+The biggest single session so far. Started as "investigate the fuzzy-matching slowness" (a roadmap item flagged in handoff2/handoff7/handoff8) and grew into: an algorithmic fix for that, a full backend file restructure, a rewrite of the LLM tier's caching/failure behaviour, and an overhaul of how the frontend retries failures. The repo is the source of truth; this document can become stale.
+
+---
+
+## READ THIS FIRST
+
+**The repo is the source of truth. This document can be, and eventually will be, stale.**
+
+1. Pull the current version of every file listed above directly from `main` before changing anything.
+2. If the repo contradicts this doc, **the repo wins.**
+3. `pip install -r requirements.txt` before deploying — `numpy` and `pyahocorasick` are new dependencies. Pinned to `numpy==2.5.1` / `pyahocorasick==2.3.1` specifically because the originally-pinned older versions have no prebuilt wheel for Python 3.14 (Render's current default) and fall back to a slow/fragile from-source build. Don't downgrade these without checking wheel availability for whatever Python version Render is on at the time.
+4. No database migration needed for anything in this session - only in-process caching, matching logic, and routing changed.
+5. Gunicorn start command is unchanged (`backend:app` still works) - `backend.py` re-exports `app` from `extensions.py`.
+
+---
+
+## Part 1: Why this happened - the fuzzy-matching slowness
+
+Flagged repeatedly in earlier handoffs as the next bottleneck: the merchant-match and global-similarity cache tiers each did a Python loop calling `rapidfuzz.process.extractOne()` once per unresolved description, scanning the *entire* merchant table / global description history every single time. Cost scales as `O(N unresolved x M merchants)` and gets worse every month as both tables grow.
+
+### The fix: Aho-Corasick for exact substring, n-gram/IDF for fuzzy fallback
+
+Two different techniques for two different sub-problems, in `categoriseAugDB.py`:
+
+- **`get_merchant_automaton()` / Aho-Corasick** - answers "does any known merchant name appear literally inside this description" in one pass over the description, regardless of merchant count. Benchmarked: **32x-1419x faster** as merchant count scales from 200 to 10,000. Cached at process level (`_global_merchant_automaton_cache`), invalidated (not patched - patching an already-built automaton would leave its failure-links stale) whenever a merchant is added.
+- **`candidates_sharing_a_word()` / n-gram + IDF weighting** - a pre-filter for the *fuzzy* fallback (both the merchant tier's `partial_ratio` fallback and the global similarity tier's `fuzz.ratio`). Breaks strings into 3-character chunks (trigrams), builds an inverted index once, and only fuzzy-scores the candidates sharing the most (IDF-weighted, so common boilerplate trigrams don't drown out rare discriminating ones) trigrams with the query - not the whole table.
+  - **`SHORT_CANDIDATE_LENGTH` bypass**: candidates at or under 6 characters always get included regardless of trigram overlap. Found by testing: a single-character deletion near the start of a short word (`"tesco"` -> `"teco"`) can wipe out *every* shared trigram, since every trigram downstream of the deletion point has different content. Short merchant names (`tesco`, `asda`, `boots`) are exactly the ones vulnerable to this, and there are few enough of them that always-including them is cheap.
+- **BK-tree was built, benchmarked, and rejected.** Genuinely zero blind spots (works on true edit distance, not surface trigrams), but a hand-rolled Python BK-tree lost to rapidfuzz's optimized C++ `cdist`/`extractOne` by ~7x at this data scale - visiting fewer candidates doesn't help when each visit costs far more in Python-level overhead than the "wasted" C-level comparisons it saves. Don't resurrect this without re-benchmarking at a much larger scale (tens of thousands of resolved descriptions) first.
+- **`rapidfuzz.process.cdist`** turned out to be a much smaller win than initially assumed - it doesn't reduce the *number* of comparisons (still `O(N x M)`), only the per-call overhead and (on a multi-core machine) parallelism. On this sandbox's single core it measured ~1x. Real production benefit depends on Render's actual core count for the deployed instance - not verified.
+
+### Known, accepted limitation
+
+The n-gram/IDF filter has one confirmed failure mode: if the global cache ever accumulates **many near-duplicate descriptions differing only in a small trailing detail** (e.g. thousands of `"legacy resolved description number N"` style rows), a typo landing right at that trailing detail can push the true match's discriminating trigrams out of existence entirely - no re-weighting recovers it, since it's not a ranking problem, it's that the true match's own trigrams don't exist anywhere near the query's post-typo trigrams. This needs a specific adversarial data pattern to trigger and doesn't match what real bank transaction descriptions look like. Documented, not fixed - revisit only if real usage ever shows this pattern (a lot of near-duplicate global descriptions differing only in a reference number).
+
+---
+
+## Part 2: The 3-phase cache split
+
+`run_cache_tiers()` (single function, ran exact -> merchant -> similarity -> LLM sequentially, all in one HTTP request) split into three independently callable phases in `categoriseAPI2.py`:
+
+- `run_exact_tier()` - personal/global exact dict lookups, O(1) regardless of scale. Also handles the ambiguous/pending NEEDS_MANUAL_REVIEW detection (that's still pure cache-history logic, not fuzzy work).
+- `run_merchant_tier()` - Aho-Corasick + n-gram-filtered fuzzy fallback against the `merchants` table.
+- `run_similarity_tier()` - n-gram-filtered fuzzy fallback against the global cache's own resolved-description history.
+
+`run_cache_tiers()` still exists as a **chaining convenience wrapper** (calls all three in sequence, returns the combined result) for any caller that wants the old single-call behaviour - but the actual `/categorize/cached` endpoint now has three siblings: `/categorize/cached/exact`, `/categorize/cached/merchant`, `/categorize/cached/similarity`. The frontend (`useFileProcessor.js`) calls these three in sequence per chunk, applying and committing each phase's results (and bumping `chartDataVersion`) before moving to the next - so exact-match results (the bulk of most chunks) reach the screen near-instantly instead of sitting behind however long the fuzzy tiers take for the few descriptions that actually need them.
+
+---
+
+## Part 3: Backend file restructure
+
+`backend.py` was ~2000 lines holding every route. Mechanically split (via `sed` line-range extraction, not manual retyping, to avoid transcription errors) into:
+
+- `extensions.py` - the shared Flask `app`, `JWTManager`, rate `Limiter`. Every route file imports these three from here rather than creating its own.
+- `shared.py` - `TRANSIENT_CATEGORY_VALUES` and `update_transaction_categories()`, used by more than one route file.
+- `routes/auth.py`, `routes/categories.py`, `routes/admin.py`, `routes/transactions.py`, `routes/charts.py`, `routes/health.py` - every route, grouped by topic, using `@app.route(...)` directly against the shared `app` object (not Blueprint objects - simpler, no url_prefix/registration ceremony to get wrong, every route keeps its exact existing path).
+- `backend.py` - now ~35 lines: imports `app` from `extensions`, imports every `routes/*` module (which is what makes their `@app.route(...)` decorators actually register), re-exports `app` for gunicorn.
+
+Verified by importing the whole restructured app with a stubbed database and dumping the Flask route table: **all 40 routes present** (37 original + 3 new phase endpoints), zero duplicates, zero missing.
+
+---
+
+## Part 4: The database round-trip fixes
+
+Three separate instances of the same underlying bug class, found one at a time:
+
+1. **`shared.py`'s `update_transaction_categories()`** - used to `cur.execute()` once per transaction row. At `CACHE_CHUNK_SIZE=1000` this was **1000 sequential round trips**, which is what actually caused a real production `WORKER TIMEOUT` -> `SIGKILL` -> corrupted connection pool (`SSL error: decryption failed or bad record mac` on the next request) incident. Fixed: one `execute_values()` call, one `UPDATE...FROM (VALUES...)`, regardless of row count.
+2. **`cache.py`'s `CategoryCache.save()`** - three `cur.executemany()` calls (inserts, resolves, deletes). `executemany()` is a well-known psycopg2 trap: despite the name, it does **not** batch into fewer round trips, it's just a loop calling `execute()` once per row internally. All three converted to `execute_values()` - the resolve one needed a correlated subquery per VALUES row to preserve the exact "only resolve ONE matching record, even if duplicates exist" semantics the original had.
+3. **`categoriseAugDB.py`'s `add_merchant()` / new `add_merchants_batch()`** - same fix, applied to the `merchants` table. `add_merchants_batch()` takes a list of `(normalized_name, category)` pairs and writes them all in one call + one commit.
+
+All three verified against real Postgres syntax where possible, or against a mock cursor confirming call arguments/row shapes when a live DB wasn't available in this environment - **not fully load-tested against a live Postgres instance for the trickier queries** (the `DELETE...USING (VALUES...)` and the correlated-subquery `UPDATE` in `cache.py`). Recommend deliberately exercising a manual-review resolve and a category delete after deploy to confirm those specific paths.
+
+---
+
+## Part 5: `run_llm_tier` rewrite - three combined behaviours
+
+All three of these interact with each other and were built/fixed together in `categoriseAPI2.py`:
+
+### 5a. Mid-run merchant + similarity re-check
+
+Before each Gemini batch, the batch's remaining descriptions get re-checked against `match_known_merchants_batch()` and `find_similar_cached_descriptions_batch()` using **everything learned so far in the same run** (not just what existed before the run started). A later batch containing a close variant of something an earlier batch already resolved (different store number, slightly different formatting) gets caught for free, skipping the LLM call entirely for that item.
+
+**Important interaction bug found and fixed while building this**: the automaton/word-index caches only get invalidated inside `add_merchants_batch()` - but the merchant DB write is now deferred to the end of the run (see 5b), so without an explicit fix, a merchant learned in batch 3 would never be visible to batch 4's re-check within the same run. Fixed by calling `invalidate_merchant_automaton()` immediately when a merchant is learned in-memory (`normalized_merchants[normalized] = cat`), decoupled from when it's actually written to the DB. Invalidating is free (just marks a cache-level variable stale); the actual rebuild only happens lazily, at most once per batch that needs it.
+
+### 5b. Merchant writes: one call per run, not one per batch, not one per merchant
+
+`newly_learned_merchants` accumulates across the **entire** run (every Gemini batch), written via **one** `add_merchants_batch()` call at the very end - not per-batch anymore (an earlier version of this fix wrote per-batch; this was tightened further per explicit request). If an exception occurs partway through, the whole loop's `except` clause writes whatever was collected up to that point before continuing (see 5c) - so a failure on batch 5 of 10 still keeps batches 1-4's newly-learned merchants.
+
+### 5c. `run_llm_tier` never throws anymore
+
+Previously, any exception inside the batch loop propagated all the way up, the route's own `except` caught it, rolled back, and returned a 500 - which meant `update_transaction_categories()` never ran, so **nothing** from the whole request landed in the `transactions` table, even batches that had already succeeded. Now: a batch-level failure is caught *inside* the loop, that batch (and every batch not yet attempted) gets marked `NOT_YET_CATEGORISED` (see 5d for why that name, not `'FAILED - rerun'`), and the loop `break`s - but the function falls through to the **same unconditional** merchant-write / cache-save / result-building code the success path uses. So a partial failure now correctly persists merchants, category_records, *and* (via the route's normal success path continuing to run) `transactions.category` for everything that succeeded before the failure point.
+
+Verified with a mocked `categorize_batch` that succeeds twice then raises: confirmed `run_llm_tier` returns normally (no exception), items 1-2 got real categories, items 3-4 (the failed batch + the untouched one) got `NOT_YET_CATEGORISED`, and both merchants and category_records were written despite the mid-run failure.
+
+### 5d. Sentinel merge: `'FAILED - rerun'` -> `NOT_YET_CATEGORISED`
+
+Found by tracing a user question: the backend had its own `'FAILED - rerun'` string for a failed batch/item, completely separate from the frontend's `NOT_YET_CATEGORISED` (set when the frontend's own auto-retry gives up on a network call) - despite meaning the same thing. The frontend's retry button, pending-state display, and staleness check only ever recognized its own value, so a transaction the backend marked `'FAILED - rerun'` was invisible to all of that.
+
+Merged: `NOT_YET_CATEGORISED = "NOT YET CATEGORISED"` added to the backend's `checkingName.py` (it only existed in the frontend's `checkingName.js` before), matched character-for-character. `shared.py`'s `TRANSIENT_CATEGORY_VALUES` updated to use it - kept the same "never persisted to the DB, left NULL" behaviour `'FAILED - rerun'` always had; only the name changed.
+
+### 5e. Model fallback
+
+`FALLBACK_MODELS` list in `categoriseAugDB.py`, tried in order on a transient server error (429/503/504/UNAVAILABLE/DEADLINE_EXCEEDED, and now also 404/NOT_FOUND - see below). Attempt N (0-indexed) uses `models_to_try[min(N, len-1)]` - primary gets the first attempt, every attempt after a failure moves to (and stays on) the next model. Total attempt count (`max_retries`) is unchanged from before models existed - distributed across models, not multiplied.
+
+**Learned mid-session, the hard way**: `gemini-2.5-flash-lite` (the original fallback choice) started returning hard `404 NOT_FOUND` ("no longer available to new users") in production, apparently rolled out early/unannounced ahead of its official October 2026 deprecation date (confirmed via Google's own developer forums showing reports from the same week). Switched to `gemini-3.1-flash-lite` (current stable, Google's own recommended migration target for this exact use case). **Also added 404/NOT_FOUND to the retryable conditions** - previously a dead model in the chain caused a hard, non-retryable failure; now it's treated as a "switch to the next model" signal, same as an overload. Worth periodically re-checking Google AI Studio for whether either model in this file is still current - this class of bug (a model silently disappearing under you) has now demonstrably happened once already.
+
+### 5f. Diagnostic logging (temporary, since removed) and stage timing (kept)
+
+A round of `[merchant diagnostic]` print statements was added and removed during a debugging session for an empty `merchants` table that turned out to be an unrelated stale Expo Go client issue, not a backend bug. What's still in the code: per-stage `[stage timing]` print statements (merchant+similarity re-check duration, Gemini call duration, merchant write duration, cache save duration) - genuinely useful for diagnosing *where* time goes within one request, kept per explicit request.
+
+---
+
+## Part 6: Frontend retry overhaul
+
+### 6a. Auto-retry with exponential backoff
+
+`runCachePhase` and `runLlmChunk` in `useFileProcessor.js` both retry up to `AUTO_RETRY_ATTEMPTS` (3) times before giving up, with exponential backoff (`AUTO_RETRY_DELAY_MS * 2^(attempt-1)`: 3s, 6s, 12s) between attempts - not a flat delay. Only after all attempts fail does anything get marked `NOT_YET_CATEGORISED` and surfaced as an error.
+
+### 6b. One "Categorise" button, not two
+
+The separate "Retry categorising N transactions" button is gone. `processFiles()` now reads `NOT_YET_CATEGORISED` items fresh from state, retries those **first**, then processes any newly selected files **second**. The button no longer requires a file to be selected if there's retry work waiting on its own - a person with only failed transactions to retry shouldn't need to pick a file first.
+
+### 6c. `allTransactionsLoaded` gate
+
+New context flag, distinct from the pre-existing `initialLoading` (which clears after just the *first* batch of transaction history, for UI responsiveness). `allTransactionsLoaded` only flips true once the progressive batch-loading `while` loop in `useInitialLoadLogic.js` fully finishes. The Categorise button is disabled until then, to avoid missing transactions that hadn't arrived yet.
+
+### 6d. `NOT_YET_CATEGORISED` display in `ContentsScreen`
+
+`TransactionRow.js` now distinguishes two previously-identical "pending" states: a transaction with no category at all still shows `...` (genuinely being processed/never touched), but one sitting at `NOT_YET_CATEGORISED` now shows `↻ Try again` with a distinct reddish row/text style (`rowFailed`/`cellFailed` in `contentsStyles.js`), separate from the yellow `NEEDS_MANUAL_REVIEW` styling. Stays non-interactive per row (disabled, same as before) - there's no per-row retry, only the single Categorise button retries anything.
+
+---
+
+## Open thread - not yet answered, pick up here
+
+Mid-conversation, the user was tracing through exactly how `run_llm_tier`'s mid-run re-check works (confirmed: merchant hits check exact+fuzzy against `merchants`; similarity hits are fuzzy-only against `global_resolved` + this-run's `category_by_description`; personal_cache is never consulted by the re-check at all) and said:
+
+> "ok have a look at the repo. i think i have an even faster solution tho."
+
+**They had not yet stated the idea when this session ended.** Whatever it is, it was prompted specifically by discussing the asymmetry between merchant-tagged results (which update merchants + global_cache) and non-merchant results (which only update personal_cache, and are therefore invisible to the mid-run similarity re-check's `global_resolved` lookup - since that only ever reads from `global_cache.resolved_descriptions()`, never from personal_cache). That asymmetry is a plausible direction for whatever the idea was - worth asking about it directly at the start of the next session rather than guessing further.
+
+---
+
+## Known gaps / not done this session
+
+- **No automated test suite** - flagged in every handoff doc since the first one. Still the single biggest gap given the algorithmic and behavioural complexity added this session.
+- **The n-gram/IDF fuzzy-match limitation** (Part 1) is accepted, not fixed - revisit only if real data ever shows the specific failure pattern.
+- **`cdist`'s real-world multi-core benefit** was never confirmed against the actual Render instance's core count.
+- **The trickier `execute_values` rewrites in `cache.py`** (`DELETE...USING(VALUES...)`, the correlated-subquery `UPDATE`) were verified via mock, not a live Postgres instance - recommend deliberately exercising a manual-review resolve and a category delete after deploy.
+- **`revoked_tokens` pruning and the dead `rename_category_everywhere()`** - both flagged as open in earlier handoffs, still open.

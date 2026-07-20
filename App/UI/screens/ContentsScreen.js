@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { Text, View, TouchableOpacity, TextInput, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useContentsData } from '../customHooks/contents/useContentsData.js';
+import { useContentsData } from '../customHooks/contentsscreen/useContentsData.js';
 import TransactionRow from '../components/contents/TransactionRow.js';
 import TableHeader from '../components/contents/TableHeader.js';
 import CategoryChipRow from '../components/contents/CategoryChipRow.js';
