@@ -50,17 +50,22 @@ SIMILARITY_THRESHOLD = 85
 # signal about the ANSWER, not about which model is reachable, and
 # switching models wouldn't fix it.
 #
-# gemini-2.5-flash-lite is Google's own recommended choice for exactly
-# this kind of task (high-volume classification) - cheap, fast, and
-# critically, on SEPARATE capacity from gemini-2.5-flash, so a 503 on
-# the primary doesn't necessarily mean this one is overloaded too.
+# gemini-3.1-flash-lite is Google's own currently-recommended
+# migration target for exactly this kind of task (high-volume,
+# latency-sensitive classification) - the 2.5 Flash-Lite line started
+# returning hard 404s ("no longer available") for newer accounts in
+# July 2026, well ahead of its official October 2026 shutdown date, so
+# it's no longer a safe fallback choice. Use the STABLE model id here,
+# not "-preview" variants - the 3.1 Flash-Lite preview was itself
+# already shut down in May 2026, a reminder that preview models can
+# disappear with little warning even when the stable release is fine.
 #
-# Google deprecates/renames models over time (the entire 2.0 Flash
-# line was shut down June 2026) - worth checking this is still current
-# in Google AI Studio occasionally. An outdated entry here just fails
-# with its own error and gets skipped, same as any other transient
-# failure - it won't silently break anything, just won't help.
-FALLBACK_MODELS = ["gemini-2.5-flash-lite"]
+# Google deprecates/renames models on this kind of short notice
+# regularly - worth checking this is still current in Google AI Studio
+# occasionally. An outdated entry here just fails with its own error
+# (a 404, same as just seen) and gets skipped like any other failure -
+# it won't silently break anything, just won't help until updated.
+FALLBACK_MODELS = ["gemini-3.1-flash-lite"]
 
 # The genai SDK does NOT set any timeout on its HTTP calls by default -
 # a slow/hanging Gemini response just blocks the request indefinitely.
@@ -891,16 +896,27 @@ def categorize_batch(client, transactions, categories, max_retries=3, gemini_tim
             # in useFileProcessor.js - those are timeouts WE impose;
             # this is Google's own infrastructure timing itself out and
             # telling us so with an actual error response).
-            # All three are transient - back off and retry rather than
-            # treating them as a hard failure. These affect the WHOLE
-            # request (it never reached the model), so everything
-            # currently pending stays pending for the retry.
+            # 404/NOT_FOUND = the model itself has been deprecated/
+            # removed - genuinely happened in production (gemini-2.5-
+            # flash-lite started 404ing for newer accounts in July 2026,
+            # months ahead of its officially announced shutdown date).
+            # Not "transient" in the retry-the-same-model sense, but
+            # from the model-fallback perspective it's the same actionable
+            # signal as an overload: stop using this model, try the next
+            # one in models_to_try. Treating it as retryable is what
+            # actually lets that switch happen instead of failing hard
+            # the moment one entry in the fallback chain goes stale.
+            # All of these affect the WHOLE request (it never reached
+            # a working model), so everything currently pending stays
+            # pending for the retry.
             is_retryable = (
                 "429" in str(e)
                 or "503" in str(e)
                 or "504" in str(e)
+                or "404" in str(e)
                 or "UNAVAILABLE" in str(e)
                 or "DEADLINE_EXCEEDED" in str(e)
+                or "NOT_FOUND" in str(e)
             )
             if is_retryable and attempt < max_retries - 1:
                 next_model = models_to_try[min(attempt + 1, len(models_to_try) - 1)]
