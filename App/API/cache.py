@@ -14,6 +14,7 @@ queries during cache checking.
 """
 
 from checkingName import NEEDS_MANUAL_REVIEW
+from psycopg2.extras import execute_values
 
 # Shared across every request handled by this worker process - NOT
 # per-request, NOT per-user. The 'global' scope of category_records is
@@ -429,14 +430,28 @@ class CategoryCache:
         with self.conn.cursor() as cur:
 
             # INSERTS
+            #
+            # execute_values, not executemany - psycopg2's executemany()
+            # is a common trap: despite the name, it does NOT batch
+            # multiple rows into fewer network round trips by default,
+            # it just loops and calls execute() once per row internally.
+            # Same cost profile as a manual Python for-loop. This
+            # scales directly with CACHE_CHUNK_SIZE (one insert per
+            # transaction that needed a NEEDS_MANUAL_REVIEW placeholder
+            # written), so at a large enough chunk size this was the
+            # same class of bug that caused the WORKER TIMEOUT fixed in
+            # update_transaction_categories (shared.py) - just not yet
+            # the one that had actually crashed.
             if self._pending_inserts:
-                cur.executemany(
+                execute_values(
+                    cur,
                     """
                     INSERT INTO category_records
                     (description, txn_date, amount, category, scope, user_id)
-                    VALUES (%s,%s,%s,%s,%s,%s)
+                    VALUES %s
                     """,
-                    self._pending_inserts
+                    self._pending_inserts,
+                    template="(%s,%s,%s,%s,%s,%s)",
                 )
 
 
@@ -451,18 +466,29 @@ class CategoryCache:
                 # Postgres while RAM only marked one as resolved - RAM
                 # and the database would disagree the moment the next
                 # preload() happens. This keeps them in agreement.
-                cur.executemany(
+                #
+                # Batched via execute_values rather than executemany -
+                # same reasoning as INSERTS above. The correlated
+                # subquery still runs ONCE PER VALUES ROW (referencing
+                # that row's own v.* columns), so the "only ever resolve
+                # one matching record" guarantee is exactly as strict as
+                # before - this changes how many round trips the whole
+                # batch costs, not what any individual row's update is
+                # allowed to match.
+                execute_values(
+                    cur,
                     """
-                    UPDATE category_records
-                    SET category = %s
-                    WHERE id = (
+                    UPDATE category_records AS t
+                    SET category = v.new_category
+                    FROM (VALUES %s) AS v(new_category, description, txn_date, amount, category, scope, user_id)
+                    WHERE t.id = (
                         SELECT id FROM category_records
-                        WHERE description = %s
-                        AND txn_date = %s
-                        AND amount = %s
-                        AND category = %s
-                        AND scope = %s
-                        AND user_id IS NOT DISTINCT FROM %s
+                        WHERE description = v.description
+                        AND txn_date = v.txn_date
+                        AND amount = v.amount
+                        AND category = v.category
+                        AND scope = v.scope
+                        AND user_id IS NOT DISTINCT FROM v.user_id
                         LIMIT 1
                     )
                     """,
@@ -478,7 +504,8 @@ class CategoryCache:
                         )
                         for category, desc, date, amount, scope, user_id
                         in self._pending_resolves
-                    ]
+                    ],
+                    template="(%s,%s,%s,%s,%s,%s,%s)",
                 )
 
 
@@ -543,21 +570,30 @@ class CategoryCache:
             # "match regardless of category" mode), so the category
             # filter is conditional rather than a plain equality check.
             if self._pending_deletes:
-                cur.executemany(
+                # Batched via execute_values + DELETE...USING(VALUES...)
+                # - same reasoning as INSERTS/RESOLVES above. category
+                # can legitimately be NULL per row (remove_record's
+                # "match regardless of category" mode) - v.category IS
+                # NULL is evaluated per VALUES row, same conditional
+                # logic as the original per-row query, just batched.
+                execute_values(
+                    cur,
                     """
-                    DELETE FROM category_records
-                    WHERE description = %s
-                    AND txn_date = %s
-                    AND amount = %s
-                    AND (%s::text IS NULL OR category = %s)
-                    AND scope = %s
-                    AND user_id IS NOT DISTINCT FROM %s
+                    DELETE FROM category_records AS t
+                    USING (VALUES %s) AS v(description, txn_date, amount, category, scope, user_id)
+                    WHERE t.description = v.description
+                    AND t.txn_date = v.txn_date
+                    AND t.amount = v.amount
+                    AND (v.category IS NULL OR t.category = v.category)
+                    AND t.scope = v.scope
+                    AND t.user_id IS NOT DISTINCT FROM v.user_id
                     """,
                     [
-                        (description, date, amount, category, category, scope, user_id)
+                        (description, date, amount, category, scope, user_id)
                         for description, date, amount, category, scope, user_id
                         in self._pending_deletes
-                    ]
+                    ],
+                    template="(%s,%s,%s,%s,%s,%s)",
                 )
 
 
