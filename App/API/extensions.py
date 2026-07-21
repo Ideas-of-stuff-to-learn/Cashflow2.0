@@ -30,7 +30,12 @@ from database import get_connection, release_connection
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+
+CORS(
+    app,
+    supports_credentials=True,
+    origins=["http://localhost:3000"],  # swap for real web dev/prod origin(s) as you go
+)
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
 
@@ -45,6 +50,12 @@ app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
 
+app.config['JWT_TOKEN_LOCATION'] = ['headers', 'cookies']  # both, so RN keeps working unchanged
+app.config['JWT_COOKIE_SECURE'] = True
+app.config['JWT_COOKIE_SAMESITE'] = 'None'  # adjust once you know your web/API domain layout
+app.config['JWT_COOKIE_CSRF_PROTECT'] = True
+app.config['JWT_ACCESS_COOKIE_NAME'] = 'access_token_cookie'
+app.config['JWT_REFRESH_COOKIE_NAME'] = 'refresh_token_cookie'
 # Deliberately much shorter than a normal access token, and passed
 # explicitly as expires_delta on the ONE call site that uses it
 # (admin_impersonate_user, in routes/admin.py) rather than being a
@@ -80,3 +91,5 @@ limiter = Limiter(
     default_limits=["20 per day", "50 per hour"],
     storage_uri="memory://",
 )
+
+

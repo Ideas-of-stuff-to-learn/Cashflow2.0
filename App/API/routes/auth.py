@@ -11,6 +11,7 @@ from flask import request, jsonify
 from flask_jwt_extended import (
     jwt_required, get_jwt_identity, get_jwt,
     create_access_token, create_refresh_token, decode_token,
+    set_access_cookies, set_refresh_cookies, unset_jwt_cookies
 )
 import bcrypt
 
@@ -113,7 +114,10 @@ def login():
         # see refresh() below.
         access_token = create_access_token(identity=str(user_id), fresh=True)
         refresh_token = create_refresh_token(identity=str(user_id))
-        return jsonify({'access_token': access_token, 'refresh_token': refresh_token}), 200
+        resp = jsonify({'access_token': access_token, 'refresh_token': refresh_token})
+        set_access_cookies(resp, access_token)
+        set_refresh_cookies(resp, refresh_token)
+        return resp, 200
     finally:
         release_connection(conn)
 
@@ -168,7 +172,10 @@ def signup():
         # reasoning as login()'s fresh=True above.
         access_token = create_access_token(identity=str(new_id), fresh=True)
         refresh_token = create_refresh_token(identity=str(new_id))
-        return jsonify({'access_token': access_token, 'refresh_token': refresh_token}), 201
+        resp = jsonify({'access_token': access_token, 'refresh_token': refresh_token})
+        set_access_cookies(resp, access_token)
+        set_refresh_cookies(resp, refresh_token)
+        return resp, 201
     except Exception as e:
         conn.rollback()
         app.logger.error(f'Signup failed: {e}')
@@ -197,7 +204,9 @@ def refresh():
     """
     current_user = get_jwt_identity()
     new_access_token = create_access_token(identity=current_user, fresh=False)
-    return jsonify({'access_token': new_access_token}), 200
+    resp = jsonify({'access_token': new_access_token})
+    set_access_cookies(resp, new_access_token)
+    return resp, 200
 
 
 @app.route('/auth/logout', methods=['POST'])
@@ -248,7 +257,9 @@ def logout_route():
                 pass
 
         conn.commit()
-        return jsonify({'status': 'ok'}), 200
+        resp = jsonify({'status': 'ok'})
+        unset_jwt_cookies(resp)
+        return resp, 200
     except Exception as e:
         conn.rollback()
         app.logger.error(f'Logout failed: {e}')
