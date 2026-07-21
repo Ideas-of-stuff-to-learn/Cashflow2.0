@@ -34,7 +34,7 @@ app = Flask(__name__)
 CORS(
     app,
     supports_credentials=True,
-    origins=["http://localhost:3000"],  # swap for real web dev/prod origin(s) as you go
+    origins=["http://localhost:5173"],  # swap for real web dev/prod origin(s) as you go
 )
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
