@@ -11,7 +11,7 @@ from flask import request, jsonify
 from flask_jwt_extended import (
     jwt_required, get_jwt_identity, get_jwt,
     create_access_token, create_refresh_token, decode_token,
-    set_access_cookies, set_refresh_cookies, unset_jwt_cookies
+    set_access_cookies, set_refresh_cookies, unset_jwt_cookies, get_csrf_token
 )
 import bcrypt
 
@@ -37,6 +37,7 @@ def auth_me():
             'role': role_name,
             'level': level,
             'permissions': sorted(perms),
+            'csrf_access_token': get_csrf_token(request.cookies.get('access_token_cookie')),
         }), 200
     except Exception as e:
         app.logger.error(f'Fetching own identity failed for user {current_user}: {e}')
@@ -114,7 +115,12 @@ def login():
         # see refresh() below.
         access_token = create_access_token(identity=str(user_id), fresh=True)
         refresh_token = create_refresh_token(identity=str(user_id))
-        resp = jsonify({'access_token': access_token, 'refresh_token': refresh_token})
+        resp = jsonify({
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'csrf_access_token': get_csrf_token(access_token),
+            'csrf_refresh_token': get_csrf_token(refresh_token),
+        })
         set_access_cookies(resp, access_token)
         set_refresh_cookies(resp, refresh_token)
         return resp, 200
@@ -172,7 +178,12 @@ def signup():
         # reasoning as login()'s fresh=True above.
         access_token = create_access_token(identity=str(new_id), fresh=True)
         refresh_token = create_refresh_token(identity=str(new_id))
-        resp = jsonify({'access_token': access_token, 'refresh_token': refresh_token})
+        resp = jsonify({
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'csrf_access_token': get_csrf_token(access_token),
+            'csrf_refresh_token': get_csrf_token(refresh_token),
+        })
         set_access_cookies(resp, access_token)
         set_refresh_cookies(resp, refresh_token)
         return resp, 201
@@ -204,7 +215,10 @@ def refresh():
     """
     current_user = get_jwt_identity()
     new_access_token = create_access_token(identity=current_user, fresh=False)
-    resp = jsonify({'access_token': new_access_token})
+    resp = jsonify({
+        'access_token': new_access_token,
+        'csrf_access_token': get_csrf_token(new_access_token),
+    })
     set_access_cookies(resp, new_access_token)
     return resp, 200
 

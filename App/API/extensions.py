@@ -56,6 +56,7 @@ app.config['JWT_COOKIE_SAMESITE'] = 'None'  # adjust once you know your web/API 
 app.config['JWT_COOKIE_CSRF_PROTECT'] = True
 app.config['JWT_ACCESS_COOKIE_NAME'] = 'access_token_cookie'
 app.config['JWT_REFRESH_COOKIE_NAME'] = 'refresh_token_cookie'
+app.config['JWT_CSRF_METHODS'] = ['POST', 'PUT', 'PATCH', 'DELETE']
 # Deliberately much shorter than a normal access token, and passed
 # explicitly as expires_delta on the ONE call site that uses it
 # (admin_impersonate_user, in routes/admin.py) rather than being a

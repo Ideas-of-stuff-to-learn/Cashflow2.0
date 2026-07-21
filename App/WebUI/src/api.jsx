@@ -14,10 +14,8 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 110000;
 // requests specifically, where the worker timeout governs timing.
 const COLD_START_TIMEOUT_MS = 70000;
 
-function getCsrfTokenFromCookie(cookieName) {
-    const match = document.cookie.match(new RegExp(`${cookieName}=([^;]+)`));
-    return match ? match[1] : null;
-}
+let csrfAccessToken = null;
+let csrfRefreshToken = null;
 
 function now() {
     return (typeof performance !== 'undefined' && performance.now)
@@ -109,26 +107,36 @@ async function parseJsonResponse(response, fallbackMessage) {
 // authorizedFetch can tell "genuinely logged out" apart from "server
 // was briefly unreachable" and give an accurate, retry-worthy error
 // for the latter instead.
+let refreshPromise = null;
+
 async function tryRefreshAccessToken() {
-    let response;
-    try {
-        response = await fetchWithTimeout(`${BASE_URL}/auth/refresh`, {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'X-CSRF-TOKEN': getCsrfTokenFromCookie('csrf_refresh_token') },
-        }, COLD_START_TIMEOUT_MS);
-    } catch (e) {
-        const transientError = new Error('Token refresh failed - server unreachable or timed out.');
-        transientError.isTransient = true;
-        throw transientError;
-    }
+    if (refreshPromise) return refreshPromise;
 
-    // Genuine rejection (expired/revoked/missing refresh cookie) - not
-    // transient, nothing to clear client-side since there's no client-held
-    // token, the server just didn't renew the cookie.
-    return response.ok;
+    refreshPromise = (async () => {
+        let response;
+        try {
+            response = await fetchWithTimeout(`${BASE_URL}/auth/refresh`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'X-CSRF-TOKEN': csrfRefreshToken },
+            }, COLD_START_TIMEOUT_MS);
+        } catch (e) {
+            const transientError = new Error('Token refresh failed - server unreachable or timed out.');
+            transientError.isTransient = true;
+            throw transientError;
+        } finally {
+            refreshPromise = null;
+        }
+
+        if (response.ok) {
+            const data = await response.json();
+            csrfAccessToken = data.csrf_access_token;
+        }
+        return response.ok;
+    })();
+
+    return refreshPromise;
 }
-
 // The one place every authenticated call in this file goes through.
 // Attaches the current access token, makes the request, and if the
 // backend answers 401 (expired access token, or revoked via
@@ -145,7 +153,7 @@ async function authorizedFetch(url, options = {}, timeoutMs, onTiming) {
         credentials: 'include',
         headers: {
             ...options.headers,
-            'X-CSRF-TOKEN': getCsrfTokenFromCookie('csrf_access_token'),
+            'X-CSRF-TOKEN': csrfAccessToken,
         },
     }, timeoutMs, onTiming);
 
@@ -158,13 +166,12 @@ async function authorizedFetch(url, options = {}, timeoutMs, onTiming) {
             credentials: 'include',
             headers: {
                 ...options.headers,
-                'X-CSRF-TOKEN': getCsrfTokenFromCookie('csrf_access_token'),
+                'X-CSRF-TOKEN': csrfAccessToken,
             },
         }, timeoutMs, onTiming);
     }
     return response;
 }
-
 // Resets `color` back to `default_color` for the given category names -
 // admin-only, same scoping convention as updateCategory (applies to a
 // selected set, not the whole table). Returns the full refreshed
@@ -257,7 +264,10 @@ export async function signup(username, password) {
         body: JSON.stringify({ username, password }),
     }, COLD_START_TIMEOUT_MS);
 
-    return parseJsonResponse(response, 'Signup failed');
+    const data = await parseJsonResponse(response, 'Signup failed');
+    csrfAccessToken = data.csrf_access_token;
+    csrfRefreshToken = data.csrf_refresh_token;
+    return data;
 }
 
 export async function login(username, password) {
@@ -268,7 +278,10 @@ export async function login(username, password) {
         body: JSON.stringify({ username, password }),
     }, COLD_START_TIMEOUT_MS);
 
-    return parseJsonResponse(response, 'Login failed');
+    const data = await parseJsonResponse(response, 'Login failed');
+    csrfAccessToken = data.csrf_access_token;
+    csrfRefreshToken = data.csrf_refresh_token;
+    return data;
 }
 
 // Returns { username, role, level, permissions } for whoever the
@@ -279,10 +292,10 @@ export async function login(username, password) {
 // that need to know "am I even allowed to see this control."
 export async function getMe() {
     const response = await authorizedFetch(`${BASE_URL}/auth/me`, { method: 'GET' });
-
-    return await parseJsonResponse(response, 'Failed to fetch account info');
+    const data = await parseJsonResponse(response, 'Failed to fetch account info');
+    if (data.csrf_access_token) csrfAccessToken = data.csrf_access_token;
+    return data;
 }
-
 // Actually revokes the current session server-side now (see
 // handoff5.txt/handoff6.txt for why the OLD logout() - which only ever
 // cleared local SecureStore - was never enough on its own). Sends the
@@ -307,11 +320,16 @@ export async function getMe() {
 // but that's an acceptable tradeoff for an instant logout experience
 // versus the old behaviour of waiting for the round-trip first.
 export async function logout() {
+    if (refreshPromise) {
+        await refreshPromise.catch(() => {});
+    }
     await fetch(`${BASE_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'X-CSRF-TOKEN': getCsrfTokenFromCookie('csrf_access_token') },
+        headers: { 'X-CSRF-TOKEN': csrfAccessToken },
     }).catch(() => {});
+    csrfAccessToken = null;
+    csrfRefreshToken = null;
 }
 
 export async function categorizeCached(transactions, { timeoutMs, onTiming } = {}) {
