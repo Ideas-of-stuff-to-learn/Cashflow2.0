@@ -94,29 +94,6 @@ async function parseJsonResponse(response, fallbackMessage) {
     return data;
 }
 
-// --- Token storage ---
-// Two tokens now, not one - see handoff6.txt. jwt_token is the
-// short-lived (24h) ACCESS token sent on every normal request.
-// jwt_refresh_token is the longer-lived (30 day) REFRESH token, only
-// ever sent to /auth/refresh, used to silently obtain a new access
-// token without asking for a password again.
-async function storeTokens({ accessToken, refreshToken } = {}) {
-    if (accessToken) await SecureStore.setItemAsync('jwt_token', accessToken);
-    if (refreshToken) await SecureStore.setItemAsync('jwt_refresh_token', refreshToken);
-}
-
-async function getRefreshToken() {
-    return await SecureStore.getItemAsync('jwt_refresh_token');
-}
-
-async function clearTokens() {
-    await SecureStore.deleteItemAsync('jwt_token');
-    await SecureStore.deleteItemAsync('jwt_refresh_token');
-}
-
-export async function getToken() {
-    return await SecureStore.getItemAsync('jwt_token');
-}
 
 // Exchanges the stored refresh token for a new access token. Returns
 // the new access token on success, or null if the refresh token itself
