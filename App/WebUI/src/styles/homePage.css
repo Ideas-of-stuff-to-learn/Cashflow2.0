@@ -1,0 +1,15 @@
+.scroll-view { min-height: 100vh; background: #fff; overflow-y: auto; }
+.scroll-content { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+.title { font-size: 24px; font-weight: bold; margin-bottom: 8px; }
+.subtitle { font-size: 16px; color: #555; margin-bottom: 24px; }
+.range-text { font-size: 13px; color: #777; margin-bottom: 20px; text-align: center; }
+.btn { background: #2E5C8A; padding: 12px 24px; border-radius: 8px; margin-bottom: 12px; width: 100%; text-align: center; color: #fff; font-size: 16px; font-weight: 600; border: none; cursor: pointer; }
+.btn:disabled { opacity: 0.5; }
+.btn-secondary { background: #3D8B5F; margin-top: 12px; }
+.file-info { background: #F0F4F8; padding: 16px; border-radius: 8px; margin-bottom: 12px; width: 100%; }
+.file-info-text { font-size: 14px; color: #333; margin-bottom: 4px; }
+.status { font-size: 14px; color: #2E5C8A; margin-bottom: 8px; font-style: italic; }
+.error { color: #D94F4F; margin-bottom: 12px; font-size: 14px; }
+.logout-btn { background: #D94F4F; padding: 12px 24px; border-radius: 8px; margin-top: 12px; width: 100%; color: #fff; font-size: 16px; font-weight: 600; border: none; cursor: pointer; }
+.banner { width: 100%; }
+.banner-text { color: #D94F4F; }
