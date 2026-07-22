@@ -18,3 +18,5 @@ export function isStale(transaction, categoryNames) {
 export function makeKey(t) {
     return `${t.description}|${t.date}|${t.amount}`;
 }
+
+export const ROW_HEIGHT = 46;

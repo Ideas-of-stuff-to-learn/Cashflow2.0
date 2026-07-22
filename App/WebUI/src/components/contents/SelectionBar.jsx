@@ -1,5 +1,5 @@
-import { View, Text, TouchableOpacity } from 'react-native';
-import { styles } from '../../styles/contentsStyles';
+import '../../styles/contentsStyles.css';
+import { ROW_HEIGHT } from '../../utils/contentsscreen/contentsUtils';
 
 export default function SelectionBar({
     selectedCount,
@@ -11,35 +11,35 @@ export default function SelectionBar({
     deleting,
 }) {
     return (
-        <View style={styles.selectionBar}>
-            <View style={styles.selectionTopRow}>
-                <Text style={styles.selectionText}>{selectedCount} selected</Text>
-                <TouchableOpacity style={styles.selectionButton} onPress={onCancel}>
-                    <Text style={styles.selectionButtonText}>Cancel</Text>
-                </TouchableOpacity>
-            </View>
-            <View style={styles.selectionBottomRow}>
-                <TouchableOpacity style={styles.selectionButtonSmall} onPress={onSelectAll}>
-                    <Text style={styles.selectionButtonTextSmall}>Select All</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.selectionButtonSmall} onPress={onDeselectAll}>
-                    <Text style={styles.selectionButtonTextSmall}>Deselect All</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.selectionButtonSmall, styles.selectionButtonPrimary, selectedCount === 0 && styles.selectionButtonDisabled]}
-                    onPress={onChangeCategory}
+        <div className="selection-bar">
+            <div className="selection-top-row">
+                <span className="selection-text">{selectedCount} selected</span>
+                <button className="selection-button" onClick={onCancel}>
+                    <span className="selection-button-text">Cancel</span>
+                </button>
+            </div>
+            <div className="selection-bottom-row">
+                <button className="selection-button-small" onClick={onSelectAll}>
+                    <span className="selection-button-text-small">Select All</span>
+                </button>
+                <button className="selection-button-small" onClick={onDeselectAll}>
+                    <span className="selection-button-text-small">Deselect All</span>
+                </button>
+                <button
+                    className={`selection-button-small selection-button-primary ${selectedCount === 0 ? 'selection-button-disabled' : ''}`}
+                    onClick={onChangeCategory}
                     disabled={selectedCount === 0}
                 >
-                    <Text style={styles.selectionButtonTextPrimary}>Change category</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.selectionButtonSmall, styles.selectionButtonDanger, (selectedCount === 0 || deleting) && styles.selectionButtonDisabled]}
-                    onPress={onDelete}
+                    <span className="selection-button-text-primary">Change category</span>
+                </button>
+                <button
+                    className={`selection-button-small selection-button-danger ${(selectedCount === 0 || deleting) ? 'selection-button-disabled' : ''}`}
+                    onClick={onDelete}
                     disabled={selectedCount === 0 || deleting}
                 >
-                    <Text style={styles.selectionButtonTextDanger}>Delete</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
+                    <span className="selection-button-text-danger">Delete</span>
+                </button>
+            </div>
+        </div>
     );
 }

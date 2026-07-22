@@ -1,23 +1,22 @@
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, TouchableOpacity, Text } from 'react-native';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import SpendingOverview from '../components/charts/SpendingOverview';
-import YearlyChartSection from '../components/charts/Yearlychartsection';
-import CategorySlicer from '../components/charts/categorySlicer';
+import YearlyChartSection from '../components/charts/YearlyChartSection';
+import CategorySlicer from '../components/charts/CategorySlicer';
 import DetailedChartSection from '../components/charts/DetailedChartSection';
 import StatusBanners from '../components/charts/StatusBanners';
 import StackOrderEditor from '../components/charts/StackOrderEditor';
 import { useChartData } from '../customHooks/charts/useChartData';
 import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartReveal';
-import { styles } from '../styles/chartStyes';
+import '../styles/chartStyles.css';
 
-export default function ChartsScreen({ navigation }) {
+export default function ChartsScreen() {
+    const navigate = useNavigate();
     const {
         categorising,
         initialLoading,
         processingStage,
     } = useApp();
-    const insets = useSafeAreaInsets();
 
     const {
         showingDummyData,
@@ -46,82 +45,62 @@ export default function ChartsScreen({ navigation }) {
         closeDrilldown,
     } = useChartData();
 
-
     const showYearChart = useDetailedChartReveal();
 
     return (
-      <ScrollView style={styles.container}
-    contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}>
+        <div className="charts-container">
+            <div className="charts-scroll-content">
+                <h1 className="charts-title">Spending by Category</h1>
+                <StatusBanners initialLoading={initialLoading} processingStage={processingStage} showingDummyData={showingDummyData} />
 
-        <Text style={styles.title}>Spending by Category</Text>
-        <StatusBanners initialLoading={initialLoading} processingStage={processingStage} showingDummyData={showingDummyData} />
+                <SpendingOverview
+                    hasData={hasData}
+                    filteredChartData2={allTimeChartData2}
+                    categorising={categorising}
+                    initialLoading={initialLoading}
+                    selectedBar={selectedBar}
+                />
 
-        <SpendingOverview
-            hasData={hasData}
-            filteredChartData2={allTimeChartData2}
-            categorising={categorising}
-            initialLoading={initialLoading}
-            selectedBar={selectedBar}
-        />
+                <CategorySlicer
+                    availableCategories={availableCategories}
+                    selectedCategories={selectedCategories}
+                    setSelectedCategories={setSelectedCategories}
+                    toggleItem={toggleItem}
+                    selectAll={selectAll}
+                />
 
-        <CategorySlicer
-            availableCategories={availableCategories}
-            selectedCategories={selectedCategories}
-            setSelectedCategories={setSelectedCategories}
-            toggleItem={toggleItem}
-            selectAll={selectAll}
-        />
+                <StackOrderEditor
+                    effectiveOrder={effectiveOrder}
+                    isCustomOrder={isCustomOrder}
+                    updateOrder={updateOrder}
+                    resetOrder={resetOrder}
+                    persist={persist}
+                    togglePersist={togglePersist}
+                />
 
-        <StackOrderEditor
-            effectiveOrder={effectiveOrder}
-            isCustomOrder={isCustomOrder}
-            updateOrder={updateOrder}
-            resetOrder={resetOrder}
-            persist={persist}
-            togglePersist={togglePersist}
-        />
+                <YearlyChartSection
+                    ready={showYearChart}
+                    hasData={hasData}
+                    showingDummyData={showingDummyData}
+                    yearChartData={yearChartData}
+                    yearIncomeLineData={yearIncomeLineData}
+                    selectedYear={selectedYear}
+                    selectedYearSegment={selectedYearSegment}
+                    selectedYearTotal={selectedYearTotal}
+                />
 
-        <YearlyChartSection
-            ready={showYearChart}
-            hasData={hasData}
-            showingDummyData={showingDummyData}
-            yearChartData={yearChartData}
-            yearIncomeLineData={yearIncomeLineData}
-            selectedYear={selectedYear}
-            selectedYearSegment={selectedYearSegment}
-            selectedYearTotal={selectedYearTotal}
-        />
+                <DetailedChartSection
+                    selectedYear={selectedYear}
+                    monthChartData={monthChartData}
+                    monthIncomeLineData={monthIncomeLineData}
+                    selectedSegment={selectedSegment}
+                    closeDrilldown={closeDrilldown}
+                />
 
-        <DetailedChartSection
-            selectedYear={selectedYear}
-            monthChartData={monthChartData}
-            monthIncomeLineData={monthIncomeLineData}
-            selectedSegment={selectedSegment}
-            closeDrilldown={closeDrilldown}
-        />
-        {/* 
-           Category colour customisation - inline, not a modal 
-           
-            <CategoryRecolor
-                availableCategories={availableCategories}
-                recolorSelected={recolorSelected}
-                categoryColors={categoryColors}
-                toggleRecolorCategory={toggleRecolorCategory}
-                recolorSelectAll={recolorSelectAll}
-                recolorDeselectAll={recolorDeselectAll}
-                colorPickerOpen={colorPickerOpen}
-                setColorPickerOpen={setColorPickerOpen}
-                applyingColor={applyingColor}
-                applyColor={applyColor}
-                resetToDefaults={resetToDefaults}
-            />
-        */}
-          <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.goBack()}
-          >
-          <Text style={styles.buttonText}>Back to Home</Text>
-          </TouchableOpacity>
-      </ScrollView>
+                <button className="charts-button" onClick={() => navigate(-1)}>
+                    Back to Home
+                </button>
+            </div>
+        </div>
     );
 }

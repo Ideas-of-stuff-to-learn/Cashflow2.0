@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
-import { InteractionManager } from 'react-native';
 
 export function useDetailedChartReveal() {
     const [showDetailedChart, setShowDetailedChart] = useState(false);
 
     useEffect(() => {
-        const task = InteractionManager.runAfterInteractions(() => {
+        const frameId = requestAnimationFrame(() => {
             setShowDetailedChart(true);
         });
 
-        return () => task.cancel();
+        return () => cancelAnimationFrame(frameId);
     }, []);
 
     return showDetailedChart;

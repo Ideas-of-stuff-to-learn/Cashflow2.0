@@ -1,31 +1,26 @@
-import { View, TouchableOpacity, Text } from 'react-native';
-import { styles } from '../../styles/chartStyes';
+import '../../styles/chartStyles.css';
 
 export default function CategorySlicer({ availableCategories, selectedCategories, setSelectedCategories, toggleItem, selectAll }) {
     return (
         <>
-            <Text style={styles.slicerLabel}>Categories</Text>
-            <View style={styles.chipWrap}>
-                <TouchableOpacity
-                    style={[styles.chip, selectedCategories.size === 0 && styles.chipActive]}
-                    onPress={() => selectAll(setSelectedCategories)}
+            <p className="slicer-label">Categories</p>
+            <div className="chip-wrap">
+                <button
+                    className={`chip ${selectedCategories.size === 0 ? 'chip-active' : ''}`}
+                    onClick={() => selectAll(setSelectedCategories)}
                 >
-                    <Text style={[styles.chipText, selectedCategories.size === 0 && styles.chipTextActive]}>
-                        All
-                    </Text>
-                </TouchableOpacity>
+                    <span className={`chip-text ${selectedCategories.size === 0 ? 'chip-text-active' : ''}`}>All</span>
+                </button>
                 {availableCategories.map(cat => (
-                    <TouchableOpacity
+                    <button
                         key={cat}
-                        style={[styles.chip, selectedCategories.has(cat) && styles.chipActive]}
-                        onPress={() => toggleItem(selectedCategories, setSelectedCategories, cat)}
+                        className={`chip ${selectedCategories.has(cat) ? 'chip-active' : ''}`}
+                        onClick={() => toggleItem(selectedCategories, setSelectedCategories, cat)}
                     >
-                        <Text style={[styles.chipText, selectedCategories.has(cat) && styles.chipTextActive]}>
-                            {cat}
-                        </Text>
-                    </TouchableOpacity>
+                        <span className={`chip-text ${selectedCategories.has(cat) ? 'chip-text-active' : ''}`}>{cat}</span>
+                    </button>
                 ))}
-            </View>
+            </div>
         </>
     );
 }

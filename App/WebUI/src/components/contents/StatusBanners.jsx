@@ -1,5 +1,6 @@
-import { View, Text, TouchableOpacity } from 'react-native';
-import { styles } from '../../styles/contentsStyles';
+import '../../styles/contentsStyles.css';
+import { ROW_HEIGHT } from '../../utils/contentsscreen/contentsUtils';
+
 
 export default function StatusBanners({
     outOfSyncMessage,
@@ -11,34 +12,30 @@ export default function StatusBanners({
     return (
         <>
             {outOfSyncMessage && (
-                <View style={styles.outOfSyncBanner}>
-                    <Text style={styles.outOfSyncBannerText}>
-                        ⚠️ {outOfSyncMessage}
-                    </Text>
-                </View>
+                <div className="out-of-sync-banner">
+                    <p className="out-of-sync-banner-text">⚠️ {outOfSyncMessage}</p>
+                </div>
             )}
 
             {initialLoading && (
-                <View style={styles.banner}>
+                <div className="banner">
                     {initialLoadError ? (
                         <>
-                            <Text style={styles.bannerText}>{initialLoadError}</Text>
-                            <TouchableOpacity style={[styles.button, { marginTop: 8 }]} onPress={onRetry}>
-                                <Text style={styles.buttonText}>Retry</Text>
-                            </TouchableOpacity>
+                            <p className="banner-text">{initialLoadError}</p>
+                            <button className="button" style={{ marginTop: 8 }} onClick={onRetry}>
+                                Retry
+                            </button>
                         </>
                     ) : (
-                        <Text style={styles.bannerText}>⏳ Loading your data...</Text>
+                        <p className="banner-text">⏳ Loading your data...</p>
                     )}
-                </View>
+                </div>
             )}
 
             {categorising && (
-                <View style={styles.banner}>
-                    <Text style={styles.bannerText}>
-                        ⏳ Categorising in background...
-                    </Text>
-                </View>
+                <div className="banner">
+                    <p className="banner-text">⏳ Categorising in background...</p>
+                </div>
             )}
         </>
     );

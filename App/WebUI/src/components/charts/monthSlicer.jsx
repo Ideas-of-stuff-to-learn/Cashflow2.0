@@ -1,31 +1,26 @@
-import { ScrollView, TouchableOpacity, Text } from 'react-native';
-import { styles } from '../../styles/chartStyes';
+import '../../styles/chartStyles.css';
 
 export default function MonthSlicer({ months, selectedMonths, setSelectedMonths, toggleItem, selectAll }) {
     return (
         <>
-            <Text style={styles.slicerLabel}>Months</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-                <TouchableOpacity
-                    style={[styles.chip, selectedMonths.size === 0 && styles.chipActive]}
-                    onPress={() => selectAll(setSelectedMonths)}
+            <p className="slicer-label">Months</p>
+            <div className="chip-row">
+                <button
+                    className={`chip ${selectedMonths.size === 0 ? 'chip-active' : ''}`}
+                    onClick={() => selectAll(setSelectedMonths)}
                 >
-                    <Text style={[styles.chipText, selectedMonths.size === 0 && styles.chipTextActive]}>
-                        All
-                    </Text>
-                </TouchableOpacity>
+                    <span className={`chip-text ${selectedMonths.size === 0 ? 'chip-text-active' : ''}`}>All</span>
+                </button>
                 {months.map(month => (
-                    <TouchableOpacity
+                    <button
                         key={month}
-                        style={[styles.chip, selectedMonths.has(month) && styles.chipActive]}
-                        onPress={() => toggleItem(selectedMonths, setSelectedMonths, month)}
+                        className={`chip ${selectedMonths.has(month) ? 'chip-active' : ''}`}
+                        onClick={() => toggleItem(selectedMonths, setSelectedMonths, month)}
                     >
-                        <Text style={[styles.chipText, selectedMonths.has(month) && styles.chipTextActive]}>
-                            {month}
-                        </Text>
-                    </TouchableOpacity>
+                        <span className={`chip-text ${selectedMonths.has(month) ? 'chip-text-active' : ''}`}>{month}</span>
+                    </button>
                 ))}
-            </ScrollView>
+            </div>
         </>
     );
 }

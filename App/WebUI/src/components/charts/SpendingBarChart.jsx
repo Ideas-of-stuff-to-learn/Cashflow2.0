@@ -1,18 +1,18 @@
-import React from 'react';
-import { BarChart } from 'react-native-gifted-charts';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts';
 
-function SpendingBarChart({ data }) {
+// filteredChartData2 shape from gifted-charts convention: array of
+// { value, label, ... }. Recharts wants an array of plain objects with
+// a shared key per field, so map to { name, value }.
+export default function SpendingBarChart({ data }) {
+    const chartData = data.map(d => ({ name: d.label, value: d.value }));
+
     return (
-        <BarChart
-            data={data}
-            barWidth={32}
-            spacing={20}
-            roundedTop
-            frontColor="#2E5C8A"
-            yAxisThickness={1}
-            xAxisThickness={1}
-        />
+        <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={chartData}>
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Bar dataKey="value" fill="#2E5C8A" radius={[4, 4, 0, 0]} />
+            </BarChart>
+        </ResponsiveContainer>
     );
 }
-
-export default React.memo(SpendingBarChart);

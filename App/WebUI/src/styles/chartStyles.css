@@ -1,0 +1,47 @@
+.charts-container { min-height: 100vh; background: #fff; overflow-y: auto; }
+.charts-scroll-content { padding: 20px; padding-bottom: 40px; }
+.charts-title { font-size: 24px; font-weight: bold; margin-top: 24px; margin-bottom: 8px; }
+.charts-button { background: #2E5C8A; padding: 12px 24px; border-radius: 8px; margin-bottom: 24px; color: #fff; font-size: 16px; font-weight: 600; border: none; cursor: pointer; width: 100%; text-align: center; }
+
+.colour-chip { display: flex; align-items: center; border: 1.5px solid; border-radius: 16px; padding: 4px 10px; margin-right: 6px; margin-bottom: 6px; }
+.colour-dot { width: 10px; height: 10px; border-radius: 5px; margin-right: 6px; }
+
+.dropdown-toggle { background: #2E5C8A; border-radius: 8px; padding: 10px 14px; margin: 4px 0 8px; text-align: center; color: #fff; font-size: 13px; font-weight: 600; border: none; cursor: pointer; width: 100%; }
+.dropdown-toggle:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.swatch-grid { display: flex; flex-wrap: wrap; margin-bottom: 16px; padding: 8px; background: #F0F4F8; border-radius: 8px; }
+.swatch { width: 40px; height: 40px; border-radius: 20px; margin: 6px; border: 1px solid rgba(0,0,0,0.1); cursor: pointer; }
+
+.empty-text { font-size: 14px; color: #888; text-align: center; margin: 24px 0; }
+.banner { background: #FFF3CD; padding: 8px; border-radius: 6px; margin-bottom: 8px; }
+.banner-text { color: #856404; font-size: 13px; text-align: center; }
+
+.slicer-label { font-size: 14px; font-weight: 600; color: #333; margin-top: 16px; margin-bottom: 6px; }
+.chip-row { display: flex; overflow-x: auto; margin-bottom: 8px; }
+.chip-wrap { display: flex; flex-wrap: wrap; margin-bottom: 8px; }
+.chip { border: 1px solid #2E5C8A; border-radius: 16px; padding: 4px 12px; margin-right: 6px; margin-bottom: 6px; background: none; cursor: pointer; }
+.chip-active { background: #2E5C8A; }
+.chip-text { font-size: 12px; color: #2E5C8A; }
+.chip-text-active { color: #fff; }
+
+.section-label { font-size: 14px; color: #555; margin-bottom: 4px; }
+.tapped-value-text { font-size: 16px; font-weight: 600; margin-top: 8px; margin-bottom: 16px; }
+
+/* Range slider - styled to resemble the RN Slider's blue-filled track */
+.zoom-slider { width: 100%; height: 32px; accent-color: #2E5C8A; cursor: pointer; }
+.zoom-row { display: flex; align-items: center; margin-bottom: 4px; gap: 8px; }
+.zoom-row .section-label { margin-bottom: 0; white-space: nowrap; }
+
+/* Stack order editor */
+.stack-order-container { margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+.stack-order-toggle { width: 100%; padding: 12px; background: #f5f5f5; border: none; cursor: pointer; text-align: left; font-size: 13px; font-weight: 600; color: #333; }
+.stack-order-hint { font-size: 11px; color: #888; padding: 8px 12px 4px; }
+.stack-order-row { display: flex; align-items: center; padding: 8px 12px; border-bottom: 1px solid #eee; background: #fff; }
+.stack-order-label { flex: 1; font-size: 13px; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stack-order-buttons { display: flex; gap: 4px; }
+.stack-order-btn { width: 32px; height: 32px; border-radius: 6px; border: 1px solid #2E5C8A; background: #fff; color: #2E5C8A; font-size: 16px; cursor: pointer; }
+.stack-order-btn:disabled { border-color: #ddd; color: #ccc; cursor: not-allowed; }
+.stack-order-controls { padding: 12px; border-top: 1px solid #eee; background: #fafafa; }
+.stack-order-persist-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.stack-order-persist-label { font-size: 13px; color: #333; }
+.stack-order-reset { width: 100%; padding: 8px; text-align: center; border: 1px solid #d94f4f; border-radius: 6px; background: none; color: #d94f4f; font-size: 13px; font-weight: 600; cursor: pointer; }

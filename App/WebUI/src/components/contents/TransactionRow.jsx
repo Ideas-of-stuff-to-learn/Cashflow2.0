@@ -1,7 +1,7 @@
 import { memo } from 'react';
-import { Text, View, TouchableOpacity } from 'react-native';
 import { NEEDS_MANUAL_REVIEW, NOT_YET_CATEGORISED } from '../../checkingName';
-import { styles } from '../../styles/contentsStyles';
+import '../../styles/contentsStyles.css';
+import { ROW_HEIGHT } from '../../utils/contentsscreen/contentsUtils';
 
 // Extracted as its own file (not just outside ContentsScreen) so
 // React.memo works properly - memo does a shallow prop comparison per
@@ -20,6 +20,7 @@ import { styles } from '../../styles/contentsStyles';
 // precisely so they can close over `item` - a stable reference - without
 // the parent needing to create a per-item callback that would itself be
 // a new reference on every render.
+
 const TransactionRow = memo(function TransactionRow({
     item,
     index,
@@ -34,7 +35,7 @@ const TransactionRow = memo(function TransactionRow({
     const isWaiting = !item.category;
     const isPending = isWaiting || isFailed;
 
-    function handlePress() {
+    function handleClick() {
         if (isPending) return;
         if (inSelectionMode) {
             onToggle(item.id);
@@ -43,46 +44,56 @@ const TransactionRow = memo(function TransactionRow({
         }
     }
 
-    function handleLongPress() {
+    // Web has no native "long press" - closest equivalent is a timer
+    // started on mousedown/touchstart, cancelled on mouseup/touchend or
+    // if the press is released too soon. This preserves the same
+    // "long press to enter selection mode" interaction RN gave you for
+    // free via onLongPress.
+    let pressTimer = null;
+    function handlePressStart() {
         if (isPending) return;
-        onEnterSelectionMode(item.id);
+        pressTimer = setTimeout(() => onEnterSelectionMode(item.id), 500);
+    }
+    function handlePressEnd() {
+        if (pressTimer) clearTimeout(pressTimer);
     }
 
     return (
-        <TouchableOpacity
-            style={[
-                styles.row,
-                index % 2 === 0 && styles.rowAlt,
-                isManual && styles.rowManual,
-                isFailed && styles.rowFailed,
-                isSelected && styles.rowSelected,
-            ]}
-            onPress={handlePress}
-            onLongPress={handleLongPress}
+        <button
+            className={[
+                'row',
+                index % 2 === 0 ? 'row-alt' : '',
+                isManual ? 'row-manual' : '',
+                isFailed ? 'row-failed' : '',
+                isSelected ? 'row-selected' : '',
+            ].filter(Boolean).join(' ')}
+            onClick={handleClick}
+            onMouseDown={handlePressStart}
+            onMouseUp={handlePressEnd}
+            onMouseLeave={handlePressEnd}
+            onTouchStart={handlePressStart}
+            onTouchEnd={handlePressEnd}
             disabled={isPending}
         >
             {inSelectionMode && (
-                <View style={styles.checkboxCell}>
-                    <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
-                        {isSelected && <Text style={styles.checkboxMark}>✓</Text>}
-                    </View>
-                </View>
+                <div className="checkbox-cell">
+                    <div className={`checkbox ${isSelected ? 'checkbox-checked' : ''}`}>
+                        {isSelected && <span className="checkbox-mark">✓</span>}
+                    </div>
+                </div>
             )}
-            <Text style={[styles.cell, styles.cellDate]}>{item.date}</Text>
-            <Text style={[styles.cell, styles.cellDesc]} numberOfLines={2}>
-                {item.description}
-            </Text>
-            <Text style={[styles.cell, styles.cellAmount]}>
-                £{Math.abs(item.amount || 0).toFixed(2)}
-            </Text>
-            <Text style={[styles.cell, styles.cellCat,
-                isManual && styles.cellManual,
-                isWaiting && styles.cellPending,
-                isFailed && styles.cellFailed,
-            ]}>
+            <span className="cell cell-date">{item.date}</span>
+            <span className="cell cell-desc">{item.description}</span>
+            <span className="cell cell-amount">£{Math.abs(item.amount || 0).toFixed(2)}</span>
+            <span className={[
+                'cell', 'cell-cat',
+                isManual ? 'cell-manual' : '',
+                isWaiting ? 'cell-pending' : '',
+                isFailed ? 'cell-failed' : '',
+            ].filter(Boolean).join(' ')}>
                 {isWaiting ? '...' : isFailed ? '↻ Try again' : item.category}
-            </Text>
-        </TouchableOpacity>
+            </span>
+        </button>
     );
 });
 

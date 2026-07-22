@@ -1,7 +1,5 @@
-import { Text, TouchableOpacity } from 'react-native';
-import Slider from '@react-native-community/slider';
 import { useState } from 'react';
-import { styles } from '../../styles/chartStyes';
+import '../../styles/chartStyles.css';
 import SpendingStackChart from './SpendingStackedChart';
 import { monthLabel } from '../../utils/charts/yearlyChartUtils';
 
@@ -18,21 +16,20 @@ export default function DetailedChartSection({
 
     return (
         <>
-            <Text style={styles.sectionLabel}>{selectedYear} by month</Text>
-            <TouchableOpacity onPress={closeDrilldown}>
-                <Text style={styles.chipText}>Close ✕</Text>
-            </TouchableOpacity>
+            <p className="section-label">{selectedYear} by month</p>
+            <button className="chip-text" onClick={closeDrilldown} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                Close ✕
+            </button>
 
-            <Text style={styles.sectionLabel}>Zoom: {heightScale.toFixed(1)}x</Text>
-            <Slider
-                style={{ width: '100%', height: 40 }}
-                minimumValue={1}
-                maximumValue={5}
-                value={1}
+            <p className="section-label">Zoom: {heightScale.toFixed(1)}x</p>
+            <input
+                type="range"
+                className="zoom-slider"
+                min={1}
+                max={5}
                 step={0.5}
-                onValueChange={(val) => setHeightScale(val)}
-                minimumTrackTintColor="#2E5C8A"
-                maximumTrackTintColor="#ccc"
+                value={heightScale}
+                onChange={e => setHeightScale(parseFloat(e.target.value))}
             />
 
             <SpendingStackChart
@@ -42,9 +39,9 @@ export default function DetailedChartSection({
             />
 
             {selectedSegment && (
-                <Text style={styles.tappedValueText}>
+                <p className="tapped-value-text">
                     {monthLabel(selectedSegment.month)} {selectedSegment.year} — {selectedSegment.category}: £{selectedSegment.value.toFixed(2)}
-                </Text>
+                </p>
             )}
         </>
     );

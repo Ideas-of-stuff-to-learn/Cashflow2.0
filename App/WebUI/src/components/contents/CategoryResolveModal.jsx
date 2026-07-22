@@ -1,5 +1,5 @@
-import { Modal, Pressable, View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { styles } from '../../styles/contentsStyles';
+import '../../styles/contentsStyles.css';
+import { ROW_HEIGHT } from '../../utils/contentsscreen/contentsUtils';
 
 export default function CategoryResolveModal({
     reviewItem,
@@ -10,48 +10,43 @@ export default function CategoryResolveModal({
     onPickCategory,
     onClose,
 }) {
+    if (!reviewItem && !bulkPickerVisible) return null;
+
     return (
-        <Modal
-            visible={!!reviewItem || bulkPickerVisible}
-            transparent
-            animationType="fade"
-            onRequestClose={onClose}
-        >
-            <Pressable style={styles.modalBackdrop} onPress={onClose}>
-                <Pressable style={styles.modalCard} onPress={() => {}}>
-                    <View style={styles.modalTitleRow}>
-                        <Text style={styles.modalTitle}>
-                            {bulkPickerVisible
-                                ? `Categorise ${selectedCount} transaction${selectedCount === 1 ? '' : 's'}`
-                                : 'Categorise this transaction'}
-                        </Text>
-                        {manualReviewCount > 0 && (
-                            <Text style={styles.modalRemainingCount}>
-                                {manualReviewCount} left
-                            </Text>
-                        )}
-                    </View>
-                    {!bulkPickerVisible && reviewItem && (
-                        <>
-                            <Text style={styles.modalDesc}>{reviewItem.description}</Text>
-                            <Text style={styles.modalAmount}>
-                                £{Math.abs(reviewItem.amount || 0).toFixed(2)} · {reviewItem.date}
-                            </Text>
-                        </>
+        <div className="modal-backdrop" onClick={onClose}>
+            <div className="modal-card" onClick={e => e.stopPropagation()}>
+                <div className="modal-title-row">
+                    <h2 className="modal-title">
+                        {bulkPickerVisible
+                            ? `Categorise ${selectedCount} transaction${selectedCount === 1 ? '' : 's'}`
+                            : 'Categorise this transaction'}
+                    </h2>
+                    {manualReviewCount > 0 && (
+                        <span className="modal-remaining-count">
+                            {manualReviewCount} left
+                        </span>
                     )}
-                    <ScrollView style={styles.modalList}>
-                        {selectableCategories.map(cat => (
-                            <TouchableOpacity
-                                key={cat}
-                                style={styles.modalOption}
-                                onPress={() => onPickCategory(cat)}
-                            >
-                                <Text style={styles.modalOptionText}>{cat}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-                </Pressable>
-            </Pressable>
-        </Modal>
+                </div>
+                {!bulkPickerVisible && reviewItem && (
+                    <>
+                        <p className="modal-desc">{reviewItem.description}</p>
+                        <p className="modal-amount">
+                            £{Math.abs(reviewItem.amount || 0).toFixed(2)} · {reviewItem.date}
+                        </p>
+                    </>
+                )}
+                <div className="modal-list">
+                    {selectableCategories.map(cat => (
+                        <button
+                            key={cat}
+                            className="modal-option"
+                            onClick={() => onPickCategory(cat)}
+                        >
+                            <span className="modal-option-text">{cat}</span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+        </div>
     );
 }

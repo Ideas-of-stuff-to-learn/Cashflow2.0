@@ -1,28 +1,28 @@
-import { ScrollView, TouchableOpacity, Text } from 'react-native';
-import { styles } from '../../styles/contentsStyles';
+import '../../styles/contentsStyles.css';
+import { ROW_HEIGHT } from '../../utils/contentsscreen/contentsUtils';
 
 export default function CategoryChipRow({ availableCategories, selectedCategories, onToggleCategory, onClearCategories }) {
     return (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-            <TouchableOpacity
-                style={[styles.chip, selectedCategories.size === 0 && styles.chipActive]}
-                onPress={onClearCategories}
+        <div className="chip-row">
+            <button
+                className={`chip ${selectedCategories.size === 0 ? 'chip-active' : ''}`}
+                onClick={onClearCategories}
             >
-                <Text style={[styles.chipText, selectedCategories.size === 0 && styles.chipTextActive]}>
+                <span className={`chip-text ${selectedCategories.size === 0 ? 'chip-text-active' : ''}`}>
                     All
-                </Text>
-            </TouchableOpacity>
+                </span>
+            </button>
             {availableCategories.map(cat => (
-                <TouchableOpacity
+                <button
                     key={cat}
-                    style={[styles.chip, selectedCategories.has(cat) && styles.chipActive]}
-                    onPress={() => onToggleCategory(cat)}
+                    className={`chip ${selectedCategories.has(cat) ? 'chip-active' : ''}`}
+                    onClick={() => onToggleCategory(cat)}
                 >
-                    <Text style={[styles.chipText, selectedCategories.has(cat) && styles.chipTextActive]}>
+                    <span className={`chip-text ${selectedCategories.has(cat) ? 'chip-text-active' : ''}`}>
                         {cat}
-                    </Text>
-                </TouchableOpacity>
+                    </span>
+                </button>
             ))}
-        </ScrollView>
+        </div>
     );
 }

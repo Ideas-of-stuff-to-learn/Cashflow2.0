@@ -1,0 +1,11 @@
+.stack-chart-scroll { height: 300px; overflow-y: auto; }
+.stack-chart-hscroll { overflow-x: auto; }
+
+.stack-segment { border: none; cursor: pointer; padding: 0; transition: opacity 0.1s; }
+.stack-segment:hover, .stack-segment:active { opacity: 0.6; }
+
+.y-axis-label { font-size: 11px; color: #888; text-align: right; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar-label { font-size: 10px; color: #555; text-align: center; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.grid-line { position: absolute; left: 0; height: 1px; background: #eee; }
+.x-axis-line { position: absolute; left: 0; height: 1px; background: #ccc; }

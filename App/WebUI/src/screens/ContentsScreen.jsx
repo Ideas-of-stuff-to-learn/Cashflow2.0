@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
-import { Text, View, TouchableOpacity, TextInput, FlatList } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigate } from 'react-router-dom';
 import { useContentsData } from '../customHooks/contentsscreen/useContentsData';
 import TransactionRow from '../components/contents/TransactionRow';
 import TableHeader from '../components/contents/TableHeader';
@@ -8,10 +7,10 @@ import CategoryChipRow from '../components/contents/CategoryChipRow';
 import SelectionBar from '../components/contents/SelectionBar';
 import StatusBanners from '../components/contents/StatusBanners';
 import CategoryResolveModal from '../components/contents/CategoryResolveModal';
-import { styles, ROW_HEIGHT } from '../styles/contentsStyles';
+import '../styles/contentsStyles.css';
 
-export default function ContentsScreen({ navigation, route }) {
-    const insets = useSafeAreaInsets();
+export default function ContentsScreen() {
+    const navigate = useNavigate();
 
     const {
         transactions,
@@ -43,43 +42,18 @@ export default function ContentsScreen({ navigation, route }) {
         onToggle, onOpenPicker, onEnterSelectionMode,
     } = useContentsData();
 
-    // renderRow reads selectedIds and selectionMode from state directly -
-    // no stale refs. renderRow recreates when either changes, but that's
-    // fine: renderRow itself is cheap. What matters is that TransactionRow
-    // (React.memo) gets accurate isSelected/inSelectionMode booleans so it
-    // can correctly skip re-rendering rows whose values didn't change.
-    // Tapping a checkbox: selectedIds changes -> renderRow recreates ->
-    // FlatList calls it for visible rows -> memo compares per-row booleans
-    // -> only the one row whose isSelected flipped actually re-renders.
-    const renderRow = useCallback(({ item, index }) => {
-        return (
-            <TransactionRow
-                item={item}
-                index={index}
-                isSelected={selectedIds.has(item.id)}
-                inSelectionMode={selectionMode}
-                onToggle={onToggle}
-                onOpenPicker={onOpenPicker}
-                onEnterSelectionMode={onEnterSelectionMode}
-            />
-        );
-    }, [selectedIds, selectionMode, onToggle, onOpenPicker, onEnterSelectionMode]);
-
     return (
-    <View style={[styles.container, { paddingBottom: insets.bottom}]}>
-        <Text style={styles.title}>Your CSV contents will go here</Text>
-        <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.goBack()}
-        >
-        <Text style={styles.buttonText}>Back to Home</Text>
-        </TouchableOpacity>
-            <TextInput
-                style={styles.search}
+        <div className="container">
+            <h1 className="title">Your CSV contents will go here</h1>
+            <button className="button" onClick={() => navigate(-1)}>
+                Back to Home
+            </button>
+
+            <input
+                className="search"
                 placeholder="Search descriptions..."
-                placeholderTextColor="#999"
                 value={searchText}
-                onChangeText={setSearchText}
+                onChange={e => setSearchText(e.target.value)}
             />
 
             <CategoryChipRow
@@ -109,16 +83,16 @@ export default function ContentsScreen({ navigation, route }) {
                 />
             )}
 
-            <View style={styles.rowCountRow}>
-                <Text style={styles.rowCount}>
+            <div className="row-count-row">
+                <span className="row-count">
                     {filtered.length} of {transactions.length} transactions
-                </Text>
+                </span>
                 {!selectionMode && (
-                    <TouchableOpacity onPress={() => setSelectionMode(true)}>
-                        <Text style={styles.selectEntryText}>Select</Text>
-                    </TouchableOpacity>
+                    <button className="select-entry-text" onClick={() => setSelectionMode(true)}>
+                        Select
+                    </button>
                 )}
-            </View>
+            </div>
 
             <TableHeader
                 selectionMode={selectionMode}
@@ -127,22 +101,20 @@ export default function ContentsScreen({ navigation, route }) {
                 onToggleSort={toggleSort}
             />
 
-            <FlatList
-                data={filtered}
-                keyExtractor={item => item.id || `${item.date}-${item.description}-${item.amount}`}
-                renderItem={renderRow}
-                style={styles.table}
-                windowSize={5}
-                maxToRenderPerBatch={20}
-                updateCellsBatchingPeriod={50}
-                removeClippedSubviews={true}
-                initialNumToRender={20}
-                getItemLayout={(data, index) => ({
-                    length: ROW_HEIGHT,
-                    offset: ROW_HEIGHT * index,
-                    index,
-                })}
-            />
+            <div className="table">
+                {filtered.map((item, index) => (
+                    <TransactionRow
+                        key={item.id || `${item.date}-${item.description}-${item.amount}`}
+                        item={item}
+                        index={index}
+                        isSelected={selectedIds.has(item.id)}
+                        inSelectionMode={selectionMode}
+                        onToggle={onToggle}
+                        onOpenPicker={onOpenPicker}
+                        onEnterSelectionMode={onEnterSelectionMode}
+                    />
+                ))}
+            </div>
 
             <CategoryResolveModal
                 reviewItem={reviewItem}
@@ -153,6 +125,6 @@ export default function ContentsScreen({ navigation, route }) {
                 onPickCategory={handleCategoryPick}
                 onClose={closeModal}
             />
-    </View>
+        </div>
     );
 }

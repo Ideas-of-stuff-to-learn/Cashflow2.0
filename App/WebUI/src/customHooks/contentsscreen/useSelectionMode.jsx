@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { Alert } from 'react-native';
 import { deleteTransactions } from '../../api';
 
 export function useSelectionMode({ transactions, filtered, setTransactions, bumpChartDataVersion }) {
@@ -25,9 +24,6 @@ export function useSelectionMode({ transactions, filtered, setTransactions, bump
         toggleSelected(id);
     }, [toggleSelected]);
 
-    // Reads `filtered` at call time (not memoised) - same as the
-    // original inline function, since it only needs whatever's
-    // currently on screen at the moment the button is pressed.
     const selectAllFiltered = useCallback(() => {
         const ids = filtered.filter(t => t.category).map(t => t.id);
         setSelectedIds(new Set(ids));
@@ -37,36 +33,28 @@ export function useSelectionMode({ transactions, filtered, setTransactions, bump
         setSelectedIds(new Set());
     }, []);
 
-    const handleDeleteSelected = useCallback(() => {
+    const handleDeleteSelected = useCallback(async () => {
         const ids = [...selectedIds];
         if (ids.length === 0) return;
 
-        Alert.alert(
-            `Delete ${ids.length} transaction${ids.length === 1 ? '' : 's'}?`,
-            'This cannot be undone.',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: async () => {
-                        const removed = transactions.filter(t => selectedIds.has(t.id));
-                        setDeleting(true);
-                        setTransactions(prev => prev.filter(t => !selectedIds.has(t.id)));
-                        exitSelectionMode();
-                        try {
-                            await deleteTransactions(ids);
-                            bumpChartDataVersion();
-                        } catch (e) {
-                            console.warn('Delete failed:', e.message);
-                            setTransactions(prev => [...prev, ...removed]);
-                        } finally {
-                            setDeleting(false);
-                        }
-                    },
-                },
-            ],
+        const confirmed = window.confirm(
+            `Delete ${ids.length} transaction${ids.length === 1 ? '' : 's'}?\nThis cannot be undone.`
         );
+        if (!confirmed) return;
+
+        const removed = transactions.filter(t => selectedIds.has(t.id));
+        setDeleting(true);
+        setTransactions(prev => prev.filter(t => !selectedIds.has(t.id)));
+        exitSelectionMode();
+        try {
+            await deleteTransactions(ids);
+            bumpChartDataVersion();
+        } catch (e) {
+            console.warn('Delete failed:', e.message);
+            setTransactions(prev => [...prev, ...removed]);
+        } finally {
+            setDeleting(false);
+        }
     }, [selectedIds, transactions, setTransactions, bumpChartDataVersion, exitSelectionMode]);
 
     return {
