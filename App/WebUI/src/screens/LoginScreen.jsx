@@ -30,7 +30,7 @@ export default function LoginScreen() {
                 const me = await getMe();
                 if (cancelled) return;
                 completeLogin(me.username);
-                navigate('/home', { replace: true });
+                navigate('/contents', { replace: true });
             } catch (e) {
                 if (cancelled) return;
                 const msg = e.message || '';
