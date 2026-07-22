@@ -303,6 +303,7 @@ export async function getMe() {
     const response = await authorizedFetch(`${BASE_URL}/auth/me`, { method: 'GET' });
     const data = await parseJsonResponse(response, 'Failed to fetch account info');
     if (data.csrf_access_token) csrfAccessToken = data.csrf_access_token;
+    if (data.csrf_refresh_token) csrfRefreshToken = data.csrf_refresh_token;
     return data;
 }
 // Actually revokes the current session server-side now (see

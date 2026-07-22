@@ -38,13 +38,15 @@ def auth_me():
             'level': level,
             'permissions': sorted(perms),
             'csrf_access_token': get_csrf_token(request.cookies.get('access_token_cookie')),
+            'csrf_refresh_token': get_csrf_token(request.cookies.get('refresh_token_cookie')),
         }), 200
     except Exception as e:
         app.logger.error(f'Fetching own identity failed for user {current_user}: {e}')
         return jsonify({'error': 'Failed to fetch account info'}), 500
     finally:
         release_connection(conn)
-
+        
+        
 def get_user_by_username(conn, username):
     """Returns (id, password_hash) for a username, or None if not found."""
     with conn.cursor() as cur:
