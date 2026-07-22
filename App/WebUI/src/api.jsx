@@ -506,18 +506,11 @@ export async function categorizeLLM(
 export async function parseCSVFiles(files) {
     const formData = new FormData();
     for (const file of files) {
-        formData.append('files', {
-            uri: file.uri,
-            name: file.name,
-            type: 'text/csv',
-        });
+        formData.append('files', file, file.name);
     }
 
     const response = await authorizedFetch(`${BASE_URL}/api/parse-csv`, {
         method: 'POST',
-        // DO NOT set Content-Type manually here - React Native sets it
-        // automatically with the correct multipart boundary when
-        // you pass FormData. Setting it manually breaks it.
         body: formData,
     });
 
