@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { signup } from '../api';
 import { useApp } from '../AppContext';
 import '../styles/LoginScreen.css'; // reuse the same styles - identical layout
+import { POST_LOGIN_ROUTE } from '../config/routes';
 
 export default function SignupScreen() {
     const [username, setUsername] = useState('');
@@ -33,7 +34,7 @@ export default function SignupScreen() {
             const trimmedUsername = username.trim();
             await signup(trimmedUsername, password);
             completeLogin(trimmedUsername);
-            navigate('/home', { replace: true });
+            navigate(POST_LOGIN_ROUTE, { replace: true });
         } catch (e) {
             setError(e.message);
         } finally {

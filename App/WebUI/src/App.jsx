@@ -19,7 +19,7 @@ export default function App() {
           <Route element={<Layout />}>
           {/*<Route path="/charts" element={<RequireAuth><ChartsScreen /></RequireAuth>} />
           <Route path="/contents" element={<RequireAuth><ContentsScreen /></RequireAuth>} />*/}
-          <Route path="/contents" element={<RequireAuth><DashboardScreen /></RequireAuth>} />
+          <Route path="/dashboard" element={<RequireAuth><DashboardScreen /></RequireAuth>} />
         </Route>
         </Routes>
       </BrowserRouter>

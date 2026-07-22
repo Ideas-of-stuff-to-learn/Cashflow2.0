@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { login, getMe } from '../api';
 import { useApp } from '../AppContext';
 import '../styles/LoginScreen.css'
+import { POST_LOGIN_ROUTE } from '../config/routes';
 
 export default function LoginScreen() {
     const [username, setUsername] = useState('');
@@ -30,7 +31,7 @@ export default function LoginScreen() {
                 const me = await getMe();
                 if (cancelled) return;
                 completeLogin(me.username);
-                navigate('/contents', { replace: true });
+                navigate(POST_LOGIN_ROUTE, { replace: true });
             } catch (e) {
                 if (cancelled) return;
                 const msg = e.message || '';
@@ -60,7 +61,7 @@ export default function LoginScreen() {
             const trimmedUsername = username.trim();
             await login(trimmedUsername, password);
             completeLogin(trimmedUsername);
-            navigate('/home', { replace: true });
+            navigate(POST_LOGIN_ROUTE, { replace: true });
         } catch (e) {
             setError(e.message);
         } finally {
