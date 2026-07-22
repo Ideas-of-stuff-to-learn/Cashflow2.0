@@ -34,10 +34,19 @@ function now() {
 // client-side slightly BEFORE that happens means we get a clear,
 // catchable timeout error instead of an ambiguous network failure, and
 // callers can react to it deliberately (see useFileProcessor.js).
-async function fetchWithTimeout(url, options, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, onTiming) {
+async function fetchWithTimeout(url, options, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, onTiming, externalSignal) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     const startedAt = now();
+
+    // If the caller also gave us a signal (e.g. tied to a component's
+    // unmount/logout), abort our own controller the moment theirs
+    // fires - lets an external cancellation reason (not just our own
+    // timeout) actually stop the in-flight fetch.
+    if (externalSignal) {
+        if (externalSignal.aborted) controller.abort();
+        else externalSignal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
 
     try {
         const response = await fetch(url, { ...options, signal: controller.signal });
@@ -147,7 +156,7 @@ async function tryRefreshAccessToken() {
 // matching the exact message every existing caller already checks for
 // - no call site elsewhere in this file needed to change its own
 // error handling for this.
-async function authorizedFetch(url, options = {}, timeoutMs, onTiming) {
+async function authorizedFetch(url, options = {}, timeoutMs, onTiming, signal) {
     let response = await fetchWithTimeout(url, {
         ...options,
         credentials: 'include',
@@ -155,7 +164,7 @@ async function authorizedFetch(url, options = {}, timeoutMs, onTiming) {
             ...options.headers,
             'X-CSRF-TOKEN': csrfAccessToken,
         },
-    }, timeoutMs, onTiming);
+    }, timeoutMs, onTiming, signal);
 
     if (response.status === 401) {
         const refreshed = await tryRefreshAccessToken();
@@ -168,7 +177,7 @@ async function authorizedFetch(url, options = {}, timeoutMs, onTiming) {
                 ...options.headers,
                 'X-CSRF-TOKEN': csrfAccessToken,
             },
-        }, timeoutMs, onTiming);
+        }, timeoutMs, onTiming, signal);
     }
     return response;
 }
@@ -188,16 +197,15 @@ export async function resetCategoryDefaults(names) {
 
 // Total number of CSV files this user has ever uploaded - powers the
 // "you've uploaded N files" summary on the home screen.
-export async function getUploadCount() {
-    const response = await authorizedFetch(`${BASE_URL}/uploads/count`, { method: 'GET' });
+export async function getUploadCount(signal) {
+    const response = await authorizedFetch(`${BASE_URL}/uploads/count`, { method: 'GET' }, undefined, undefined, signal);
 
     const data = await parseJsonResponse(response, 'Failed to fetch upload count');
     return data.count;
 }
 
-export async function getCategories() {
-    const response = await authorizedFetch(`${BASE_URL}/categories`, { method: 'GET' });
-
+export async function getCategories(signal) {
+    const response = await authorizedFetch(`${BASE_URL}/categories`, { method: 'GET' }, undefined, undefined, signal);
     const data = await parseJsonResponse(response, 'Failed to fetch categories');
     return data.categories;
 }
@@ -228,7 +236,7 @@ export async function updateCategory(categoryName, { newName, color } = {}) {
 // With { offset, limit }: fetches one page and returns
 // { transactions, total, offset, limit } so the caller knows the full
 // count and can loop for subsequent pages.
-export async function getTransactionHistory({ offset, limit } = {}) {
+export async function getTransactionHistory({ offset, limit } = {}, signal) {
     const params = new URLSearchParams();
     if (offset !== undefined) params.set('offset', offset);
     if (limit !== undefined) params.set('limit', limit);
@@ -237,11 +245,12 @@ export async function getTransactionHistory({ offset, limit } = {}) {
     const response = await authorizedFetch(
         `${BASE_URL}/transactions${qs ? '?' + qs : ''}`,
         { method: 'GET' },
+        undefined,
+        undefined,
+        signal,
     );
 
     const data = await parseJsonResponse(response, 'Failed to fetch transaction history');
-    // Paginated call: return the full envelope so caller has total/offset/limit.
-    // Non-paginated call: return just the array, same as before.
     return limit !== undefined ? data : data.transactions;
 }
 
