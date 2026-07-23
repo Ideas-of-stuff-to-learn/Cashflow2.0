@@ -10,7 +10,7 @@ import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartRe
 import { NOT_YET_CATEGORISED } from '../checkingName';
 
 import HomepageInfo from '../components/homepage/homepageInfo';
-import YearlyChartSection from '../components/charts/YearlyChartSection';
+import YearlyChartSection from '../components/charts/Yearlychartsection'
 import DetailedChartSection from '../components/charts/DetailedChartSection';
 import FilterPane from '../components/dashboard/FilterPane';
 
