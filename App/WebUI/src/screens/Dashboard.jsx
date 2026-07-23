@@ -12,12 +12,11 @@ import { NOT_YET_CATEGORISED } from '../checkingName';
 import HomepageInfo from '../components/homepage/homepageInfo';
 import YearlyChartSection from '../components/charts/YearlyChartSection';
 import DetailedChartSection from '../components/charts/DetailedChartSection';
-import StackOrderEditor from '../components/charts/StackOrderEditor';
-import CategoryChipRow from '../components/contents/CategoryChipRow';
 import TableHeader from '../components/contents/TableHeader';
 import TransactionRow from '../components/contents/TransactionRow';
 import SelectionBar from '../components/contents/SelectionBar';
 import CategoryResolveModal from '../components/contents/CategoryResolveModal';
+import FilterPane from '../components/dashboard/FilterPane';
 
 import '../styles/dashboardStyles.css';
 
@@ -39,12 +38,15 @@ export default function DashboardScreen() {
         hasData, effectiveOrder, updateOrder, resetOrder, persist, togglePersist, isCustomOrder,
         yearChartData, yearIncomeLineData, selectedYear, selectedYearSegment, selectedYearTotal,
         monthChartData, monthIncomeLineData, selectedSegment, showingDummyData, closeDrilldown,
+        availableCategories, selectedCategories: chartSelectedCategories,
+        setSelectedCategories: setChartSelectedCategories, toggleItem: chartToggleItem, selectAll: chartSelectAll,
     } = useChartData();
     const showYearChart = useDetailedChartReveal();
 
     const {
-        searchText, setSearchText, selectedCategories, toggleCategory, clearCategories,
-        sortField, sortAsc, toggleSort, availableCategories, filtered,
+        searchText, setSearchText, selectedCategories: contentsSelectedCategories,
+        toggleCategory: toggleContentsCategory, clearCategories: clearContentsCategories,
+        sortField, sortAsc, toggleSort, filtered,
         selectionMode, setSelectionMode, selectedIds, exitSelectionMode,
         selectAllFiltered, deselectAll, deleting, handleDeleteSelected,
         reviewItem, bulkPickerVisible, openBulkPicker, outOfSyncMessage,
@@ -53,7 +55,7 @@ export default function DashboardScreen() {
     } = useContentsData();
 
     return (
-        <div className="dashboard-grid">
+        <div className="dashboard-flex">
             <div className="dashboard-home-box">
                 <HomepageInfo dateRangeInfo={dateRangeInfo} uploadCount={uploadCount} />
                 {initialLoadError && (
@@ -80,51 +82,61 @@ export default function DashboardScreen() {
                 <button className="logout-btn" onClick={handleLogout}>Log Out</button>
             </div>
 
-            <div className="dashboard-charts-box">
-                <StackOrderEditor
-                    effectiveOrder={effectiveOrder} isCustomOrder={isCustomOrder}
-                    updateOrder={updateOrder} resetOrder={resetOrder}
-                    persist={persist} togglePersist={togglePersist}
-                />
-                <YearlyChartSection
-                    ready={showYearChart} hasData={hasData} showingDummyData={showingDummyData}
-                    yearChartData={yearChartData} yearIncomeLineData={yearIncomeLineData}
-                    selectedYear={selectedYear} selectedYearSegment={selectedYearSegment}
-                    selectedYearTotal={selectedYearTotal}
-                />
-                <DetailedChartSection
-                    selectedYear={selectedYear} monthChartData={monthChartData}
-                    monthIncomeLineData={monthIncomeLineData} selectedSegment={selectedSegment}
-                    closeDrilldown={closeDrilldown}
-                />
-            </div>
-
-            <div className="dashboard-contents-box">
-                <input className="search" placeholder="Search descriptions..." value={searchText} onChange={e => setSearchText(e.target.value)} />
-                <TableHeader selectionMode={selectionMode} sortField={sortField} sortAsc={sortAsc} onToggleSort={toggleSort} />
-                <CategoryChipRow
-                    availableCategories={availableCategories} selectedCategories={selectedCategories}
-                    onToggleCategory={toggleCategory} onClearCategories={clearCategories}
-                />
-                {selectionMode && (
-                    <SelectionBar
-                        selectedCount={selectedIds.size} onCancel={exitSelectionMode}
-                        onSelectAll={selectAllFiltered} onDeselectAll={deselectAll}
-                        onChangeCategory={() => selectedIds.size > 0 && openBulkPicker()}
-                        onDelete={handleDeleteSelected} deleting={deleting}
+            <div className="dashboard-main">
+                <div className="dashboard-charts-box">
+                    <YearlyChartSection
+                        ready={showYearChart} hasData={hasData} showingDummyData={showingDummyData}
+                        yearChartData={yearChartData} yearIncomeLineData={yearIncomeLineData}
+                        selectedYear={selectedYear} selectedYearSegment={selectedYearSegment}
+                        selectedYearTotal={selectedYearTotal}
                     />
-                )}
-                <div className="dashboard-table">
-                    {filtered.map((item, index) => (
-                        <TransactionRow
-                            key={item.id || `${item.date}-${item.description}-${item.amount}`}
-                            item={item} index={index}
-                            isSelected={selectedIds.has(item.id)} inSelectionMode={selectionMode}
-                            onToggle={onToggle} onOpenPicker={onOpenPicker} onEnterSelectionMode={onEnterSelectionMode}
+                    <DetailedChartSection
+                        selectedYear={selectedYear} monthChartData={monthChartData}
+                        monthIncomeLineData={monthIncomeLineData} selectedSegment={selectedSegment}
+                        closeDrilldown={closeDrilldown}
+                    />
+                </div>
+
+                <div className="dashboard-contents-box">
+                    <input className="search" placeholder="Search descriptions..." value={searchText} onChange={e => setSearchText(e.target.value)} />
+                    <TableHeader selectionMode={selectionMode} sortField={sortField} sortAsc={sortAsc} onToggleSort={toggleSort} />
+                    {selectionMode && (
+                        <SelectionBar
+                            selectedCount={selectedIds.size} onCancel={exitSelectionMode}
+                            onSelectAll={selectAllFiltered} onDeselectAll={deselectAll}
+                            onChangeCategory={() => selectedIds.size > 0 && openBulkPicker()}
+                            onDelete={handleDeleteSelected} deleting={deleting}
                         />
-                    ))}
+                    )}
+                    <div className="dashboard-table">
+                        {filtered.map((item, index) => (
+                            <TransactionRow
+                                key={item.id || `${item.date}-${item.description}-${item.amount}`}
+                                item={item} index={index}
+                                isSelected={selectedIds.has(item.id)} inSelectionMode={selectionMode}
+                                onToggle={onToggle} onOpenPicker={onOpenPicker} onEnterSelectionMode={onEnterSelectionMode}
+                            />
+                        ))}
+                    </div>
                 </div>
             </div>
+
+            <FilterPane
+                availableCategories={availableCategories}
+                chartSelectedCategories={chartSelectedCategories}
+                setChartSelectedCategories={setChartSelectedCategories}
+                contentsSelectedCategories={contentsSelectedCategories}
+                toggleContentsCategory={toggleContentsCategory}
+                clearContentsCategories={clearContentsCategories}
+                chartToggleItem={chartToggleItem}
+                chartSelectAll={chartSelectAll}
+                effectiveOrder={effectiveOrder}
+                isCustomOrder={isCustomOrder}
+                updateOrder={updateOrder}
+                resetOrder={resetOrder}
+                persist={persist}
+                togglePersist={togglePersist}
+            />
 
             <CategoryResolveModal
                 reviewItem={reviewItem} bulkPickerVisible={bulkPickerVisible}

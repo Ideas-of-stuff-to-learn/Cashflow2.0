@@ -1,0 +1,161 @@
+.filter-pane {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: #F8F9FA;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 12px;
+    height: fit-content;
+    max-height: 85vh;
+    overflow-y: auto;
+    width: 220px;
+    flex-shrink: 0;
+}
+
+.filter-pane-minimized {
+    width: auto;
+    padding: 8px;
+}
+
+.filter-pane-expand-btn {
+    background: #2E5C8A;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 8px;
+    cursor: pointer;
+    font-size: 13px;
+    writing-mode: horizontal-tb;
+    white-space: nowrap;
+}
+
+.filter-pane-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #ddd;
+}
+
+.filter-pane-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+.filter-pane-icon-btn {
+    background: none;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    width: 26px;
+    height: 26px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #2E5C8A;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.filter-pane-icon-btn:hover {
+    background: #eee;
+}
+
+.filter-pane-section {
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eee;
+}
+
+.filter-pane-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.filter-pane-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 6px;
+}
+
+.filter-pane-hint {
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 6px;
+}
+
+.filter-pane-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    font-size: 13px;
+    color: #333;
+    cursor: pointer;
+}
+
+.filter-pane-order-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.filter-pane-order-label {
+    font-size: 12px;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.filter-pane-order-buttons {
+    display: flex;
+    gap: 4px;
+}
+
+.filter-pane-order-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: 1px solid #2E5C8A;
+    background: #fff;
+    color: #2E5C8A;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.filter-pane-order-btn:disabled {
+    border-color: #ddd;
+    color: #ccc;
+    cursor: not-allowed;
+}
+
+.filter-pane-persist-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #333;
+    margin-top: 8px;
+    cursor: pointer;
+}
+
+.filter-pane-reset-btn {
+    width: 100%;
+    margin-top: 8px;
+    padding: 6px;
+    border: 1px solid #d94f4f;
+    border-radius: 6px;
+    background: none;
+    color: #d94f4f;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
