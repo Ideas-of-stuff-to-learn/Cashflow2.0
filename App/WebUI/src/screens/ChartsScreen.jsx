@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import SpendingOverview from '../components/charts/SpendingOverview';
-import YearlyChartSection from '../components/charts/YearlyChartSection';
+import YearlyChartSection from '../components/charts/Yearlychartsection';
 import CategorySlicer from '../components/charts/CategorySlicer';
 import DetailedChartSection from '../components/charts/DetailedChartSection';
 import StatusBanners from '../components/charts/StatusBanners';
