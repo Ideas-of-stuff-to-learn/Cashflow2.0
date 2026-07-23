@@ -1,0 +1,77 @@
+name: Deploy WebUI to GitHub Pages
+
+# What triggers this workflow to run.
+on:
+  # Automatically deploy every time main is updated - the normal,
+  # "push and it goes live" flow.
+  push:
+    branches: [main]
+  # Also allow triggering a deploy manually from the Actions tab,
+  # without needing a new commit - useful for re-deploying after
+  # changing a repo setting, or just testing the workflow itself.
+  workflow_dispatch:
+
+# Permissions this workflow needs to actually publish to GitHub Pages.
+# The modern Pages deployment method (not the old "push to a gh-pages
+# branch" trick) uses a dedicated deployment API that requires these
+# explicit grants - missing any of them causes the deploy step to fail
+# even if the build itself succeeds.
+permissions:
+  contents: read   # check out the repo's code
+  pages: write     # actually publish to Pages
+  id-token: write  # OIDC token exchange - proves this deploy really
+                   # came from this workflow run, required by Pages
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Pull the repo's code so later steps have something to build.
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # Installs Node so npm commands work on this runner - matches
+      # whatever Node version your app actually needs (check with
+      # `node -v` locally if unsure; 20 is a safe modern default).
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Everything below runs with App/WebUI as the working directory,
+      # since that's where package.json/vite.config.js actually live -
+      # not the repo root.
+      - name: Install dependencies
+        working-directory: App/WebUI
+        run: npm install
+
+      # Runs Vite's production build - outputs to App/WebUI/dist,
+      # using the base path we set in vite.config.js.
+      - name: Build
+        working-directory: App/WebUI
+        run: npm run build
+      # Packages App/WebUI/dist as a Pages-compatible artifact -
+      # doesn't publish it yet, just prepares it for the deploy job
+      # below to pick up.
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: App/WebUI/dist
+
+  deploy:
+    # Depends on the build job above finishing successfully first -
+    # this job only runs once there's an artifact to actually deploy.
+    needs: build
+    runs-on: ubuntu-latest
+    # Tells GitHub this job deploys to the "github-pages" environment -
+    # this is what makes the live URL show up in your repo's UI/
+    # deployments tab, and ties into the permissions granted earlier.
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # The actual publish step - takes the artifact from the build
+      # job and makes it live at your Pages URL.
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
