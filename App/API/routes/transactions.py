@@ -4,9 +4,11 @@ routes/transactions.py
 CSV upload/parsing, listing/deleting transactions, upload count, and
 the categorization pipeline endpoints (/categorize/cached,
 /categorize/llm, /categorize/resolve). The cache-tier logic itself
-lives in categoriseAPI2.py / categoriseAugDB.py - this file is just the
-HTTP layer over it.
+lives in categorise/ (exact/merchant/similarity/LLM tiers) and
+matching/ (merchant matching, similarity matching, Gemini calls) -
+this file is just the HTTP layer over it.
 """
+
 import csv
 import io
 from time import perf_counter
