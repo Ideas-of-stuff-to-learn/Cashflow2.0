@@ -34,7 +34,7 @@ app = Flask(__name__)
 CORS(
     app,
     supports_credentials=True,
-    origins=["http://localhost:5173", "https://ideas-of-stuff-to-learn.github.io"],
+    origins=["https://ideas-of-stuff-to-learn.github.io"],
 )
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
@@ -49,10 +49,10 @@ app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
 # refresh token itself expires or is revoked.
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
-
+IS_LOCAL_DEV = os.environ.get('FLASK_ENV') == 'development'
 app.config['JWT_TOKEN_LOCATION'] = ['headers', 'cookies']  # both, so RN keeps working unchanged
-app.config['JWT_COOKIE_SECURE'] = True
-app.config['JWT_COOKIE_SAMESITE'] = 'None'  # adjust once you know your web/API domain layout
+app.config['JWT_COOKIE_SECURE'] = not IS_LOCAL_DEV
+app.config['JWT_COOKIE_SAMESITE'] = 'Lax' if IS_LOCAL_DEV else 'None'
 app.config['JWT_COOKIE_CSRF_PROTECT'] = True
 app.config['JWT_ACCESS_COOKIE_NAME'] = 'access_token_cookie'
 app.config['JWT_REFRESH_COOKIE_NAME'] = 'refresh_token_cookie'

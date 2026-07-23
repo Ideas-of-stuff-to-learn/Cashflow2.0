@@ -1,1 +1,1 @@
-export const POST_LOGIN_ROUTE = '/dashboard';
+export const POST_LOGIN_ROUTE = '/';
