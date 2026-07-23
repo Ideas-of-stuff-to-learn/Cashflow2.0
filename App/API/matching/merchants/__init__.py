@@ -1,0 +1,4 @@
+from matching.merchants.storage import load_merchants, add_merchant, add_merchants_batch, patch_merchants_category_rename
+from matching.merchants.matcher import match_known_merchant, match_known_merchants_batch
+from matching.merchants.cache_state import invalidate_merchant_automaton
+from matching.merchants.normalise import normalise_for_matching
