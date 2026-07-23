@@ -16,7 +16,7 @@ from google import genai
 
 from cache import CategoryCache
 from checkingName import NEEDS_MANUAL_REVIEW, NOT_YET_CATEGORISED
-from categoriseAugDB import chunked, load_merchants, add_merchants_batch, load_categories
+from matching import chunked, load_merchants, add_merchants_batch, load_categories
 from categorise.helpers import uniqueDescriptions, rowsByDescription
 from .empty_result import empty_llm_result
 from .batch_recheck import run_batch_recheck

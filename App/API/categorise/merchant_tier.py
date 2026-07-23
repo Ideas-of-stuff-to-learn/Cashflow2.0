@@ -6,7 +6,7 @@ descriptions the exact tier couldn't resolve.
 """
 
 from cache import CategoryCache
-from categoriseAugDB import match_known_merchants_batch, load_merchants
+from matching import match_known_merchants_batch, load_merchants
 from .helpers import uniqueDescriptions, rowsByDescription, build_result_rows
 
 

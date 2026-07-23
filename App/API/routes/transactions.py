@@ -24,7 +24,7 @@ from categorise.exact_tier import combined_status, run_exact_tier
 from categorise.merchant_tier import run_merchant_tier
 from categorise.similarity_tier import run_similarity_tier
 
-from categoriseAugDB import load_categories
+from matching import load_categories
 from checkingName import NEEDS_MANUAL_REVIEW
 from shared import TRANSIENT_CATEGORY_VALUES, update_transaction_categories
 

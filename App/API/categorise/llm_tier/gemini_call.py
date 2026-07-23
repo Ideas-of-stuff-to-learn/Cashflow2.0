@@ -11,8 +11,7 @@ batch_recheck.py instead.
 import time
 
 from checkingName import NEEDS_MANUAL_REVIEW
-from categoriseAugDB import categorize_batch, normalize_for_matching, invalidate_merchant_automaton
-
+from matching import categorize_batch, normalise_for_matching, invalidate_merchant_automaton
 
 def run_gemini_call(client, still_needing_llm, default_categories, gemini_timeout_ms, global_cache, personal_cache, normalized_merchants, personal_resolved, category_by_description, newly_learned_merchants, ambiguous_descriptions, failed_descriptions, rows_by_description, timings):
     """Calls categorize_batch for `still_needing_llm` (a list of
@@ -60,7 +59,7 @@ def run_gemini_call(client, still_needing_llm, default_categories, gemini_timeou
         else:
             category_by_description[desc] = cat
 
-            normalized = normalize_for_matching(merchant) if merchant and isinstance(merchant, str) else ''
+            normalized = normalise_for_matching(merchant) if merchant and isinstance(merchant, str) else ''
             has_merchant = len(normalized) >= 3
             target_cache = global_cache if has_merchant else personal_cache
 

@@ -6,7 +6,7 @@ own already-resolved description history.
 """
 
 from cache import CategoryCache
-from categoriseAugDB import find_similar_cached_descriptions_batch
+from matching import find_similar_cached_descriptions_batch
 from .helpers import uniqueDescriptions, rowsByDescription, build_result_rows
 
 

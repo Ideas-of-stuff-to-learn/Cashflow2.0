@@ -12,8 +12,7 @@ n-gram-filtered, no LLM call) compared to what they might save.
 
 import time
 
-from categoriseAugDB import match_known_merchants_batch, find_similar_cached_descriptions_batch
-
+from matching import match_known_merchants_batch, find_similar_cached_descriptions_batch
 
 def run_batch_recheck(batch_descriptions, personal_resolved, global_resolved, category_by_description, normalized_merchants, rows_by_description, timings):
     """Runs the exact -> merchant -> similarity re-check for one LLM
