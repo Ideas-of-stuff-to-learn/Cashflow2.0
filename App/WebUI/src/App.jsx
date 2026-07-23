@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppProvider } from './AppContext';
+import { Navigate } from 'react-router-dom';
 import LoginScreen from './screens/LoginScreen';
 import RequireAuth from './components/RequiresAuth';
 import SignupScreen from './screens/SignupScreen';
@@ -13,6 +14,7 @@ export default function App() {
     <AppProvider>
       <BrowserRouter basename="/Cashflow2.0">
         <Routes>
+          <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<LoginScreen />} />
           {/*<Route path="/home" element={<RequireAuth><HomeScreen /></RequireAuth>} />*/}
           <Route path="/signup" element={<SignupScreen />} />
