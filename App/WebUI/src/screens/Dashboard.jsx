@@ -13,7 +13,7 @@ import HomepageInfo from '../components/homepage/homepageInfo';
 import YearlyChartSection from '../components/charts/Yearlychartsection'
 import DetailedChartSection from '../components/charts/DetailedChartSection';
 import FilterPane from '../components/dashboard/FilterPane';
-//dfs
+
 import '../styles/dashboardStyles.css';
 
 export default function DashboardScreen() {
