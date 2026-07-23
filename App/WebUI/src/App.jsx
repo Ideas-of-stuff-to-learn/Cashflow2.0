@@ -11,7 +11,7 @@ import DashboardScreen from './screens/Dashboard';
 export default function App() {
   return (
     <AppProvider>
-      <BrowserRouter>
+      <BrowserRouter basename="/Cashflow2.0">
         <Routes>
           <Route path="/login" element={<LoginScreen />} />
           {/*<Route path="/home" element={<RequireAuth><HomeScreen /></RequireAuth>} />*/}

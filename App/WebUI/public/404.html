@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script>
+      // GitHub Pages serves this file for ANY unknown path (e.g. a
+      // direct visit or refresh on /Cashflow2.0/login). We can't
+      // actually serve the real app from here - GitHub just shows
+      // this static file - so instead we redirect back to index.html,
+      // stashing the path the person actually wanted in sessionStorage
+      // so index.html can restore it once React/react-router has
+      // loaded and taken over.
+      sessionStorage.redirect = location.href;
+    </script>
+    <meta http-equiv="refresh" content="0; url=/Cashflow2.0/" />
+  </head>
+  <body></body>
+</html>
