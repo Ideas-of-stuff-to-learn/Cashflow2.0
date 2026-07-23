@@ -16,7 +16,7 @@ from cache import CategoryCache
 from categoriseAugDB import load_categories, patch_merchants_category_rename
 from checkingName import NEEDS_MANUAL_REVIEW
 from permissions import require_permission, get_user_role_and_permissions
-
+import re
 
 @app.route('/categories', methods=['GET'])
 @jwt_required()

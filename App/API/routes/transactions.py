@@ -18,10 +18,12 @@ from psycopg2.extras import execute_values
 from extensions import app, limiter
 from database import get_connection, release_connection
 from cache import CategoryCache
-from categoriseAPI2 import (
-    run_cache_tiers, run_llm_tier, combined_status,
-    run_exact_tier, run_merchant_tier, run_similarity_tier,
-)
+from categorise.pipeline import run_cache_tiers
+from categorise.llm_tier import run_llm_tier
+from categorise.exact_tier import combined_status, run_exact_tier
+from categorise.merchant_tier import run_merchant_tier
+from categorise.similarity_tier import run_similarity_tier
+
 from categoriseAugDB import load_categories
 from checkingName import NEEDS_MANUAL_REVIEW
 from shared import TRANSIENT_CATEGORY_VALUES, update_transaction_categories
