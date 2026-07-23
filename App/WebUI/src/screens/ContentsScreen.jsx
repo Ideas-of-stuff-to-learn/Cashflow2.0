@@ -1,4 +1,3 @@
-import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useContentsData } from '../customHooks/contentsscreen/useContentsData';
 import TransactionRow from '../components/contents/TransactionRow';
@@ -45,8 +44,8 @@ export default function ContentsScreen() {
     return (
         <div className="container">
             <h1 className="title">Your CSV contents will go here</h1>
-            <button className="button" onClick={() => navigate(-1)}>
-                Back to Home
+            <button className="button" onClick={() => navigate('/dashboard')}>
+                Back to Dashboard
             </button>
 
             <input

@@ -5,17 +5,11 @@ const POSITION_KEY = 'dashboardFilterPanePosition';
 const MINIMIZED_KEY = 'dashboardFilterPaneMinimized';
 
 export default function FilterPane({
-    // Category filter - unified, drives both chart and contents state
     availableCategories,
-    chartSelectedCategories,
-    setChartSelectedCategories,
     contentsSelectedCategories,
     toggleContentsCategory,
     clearContentsCategories,
-    chartToggleItem,
-    chartSelectAll,
 
-    // Stack order
     effectiveOrder,
     isCustomOrder,
     updateOrder,
@@ -39,19 +33,6 @@ export default function FilterPane({
     useEffect(() => {
         try { localStorage.setItem(MINIMIZED_KEY, String(minimized)); } catch {}
     }, [minimized]);
-
-    // One click drives BOTH the chart filter and the contents filter
-    // together, so selecting a category narrows both the charts and
-    // the transaction table at the same time.
-    function handleToggleCategory(cat) {
-        chartToggleItem(chartSelectedCategories, setChartSelectedCategories, cat);
-        toggleContentsCategory(cat);
-    }
-
-    function handleSelectAll() {
-        chartSelectAll(setChartSelectedCategories);
-        clearContentsCategories();
-    }
 
     function moveUp(index) {
         if (index === 0) return;
@@ -94,8 +75,8 @@ export default function FilterPane({
                 <label className="filter-pane-checkbox-row">
                     <input
                         type="checkbox"
-                        checked={chartSelectedCategories.size === 0}
-                        onChange={handleSelectAll}
+                        checked={contentsSelectedCategories.size === 0}
+                        onChange={clearContentsCategories}
                     />
                     <span>All</span>
                 </label>
@@ -103,8 +84,8 @@ export default function FilterPane({
                     <label key={cat} className="filter-pane-checkbox-row">
                         <input
                             type="checkbox"
-                            checked={chartSelectedCategories.size === 0 || chartSelectedCategories.has(cat)}
-                            onChange={() => handleToggleCategory(cat)}
+                            checked={contentsSelectedCategories.size === 0 || contentsSelectedCategories.has(cat)}
+                            onChange={() => toggleContentsCategory(cat)}
                         />
                         <span>{cat}</span>
                     </label>

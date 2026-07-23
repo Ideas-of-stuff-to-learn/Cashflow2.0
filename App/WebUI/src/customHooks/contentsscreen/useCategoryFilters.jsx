@@ -1,8 +1,8 @@
 import { useState, useMemo, useCallback } from 'react';
+import { useApp } from '../../AppContext';
 
 export function useTransactionFilters(transactions) {
     const [searchText, setSearchText] = useState('');
-    const [selectedCategories, setSelectedCategories] = useState(new Set());
     const [sortField, setSortField] = useState('date');
     const [sortAsc, setSortAsc] = useState(false);
 
@@ -10,7 +10,7 @@ export function useTransactionFilters(transactions) {
         const cats = new Set(transactions.map(t => t.category).filter(Boolean));
         return [...cats].sort();
     }, [transactions]);
-
+    const { contentsSelectedCategories: selectedCategories, toggleContentsCategory: toggleCategory, clearContentsCategories: clearCategories } = useApp();
     // Parse once and cache - date parsing is the most expensive single
     // step inside the sort, and the sort runs on every filter change.
     // Keeping a parallel array of timestamps avoids re-parsing the same
@@ -65,17 +65,6 @@ export function useTransactionFilters(transactions) {
         return rows;
     }, [transactions, parsedDates, searchText, selectedCategories, sortField, sortAsc]);
 
-    const toggleCategory = useCallback((cat) => {
-        setSelectedCategories(prev => {
-            const next = new Set(prev);
-            next.has(cat) ? next.delete(cat) : next.add(cat);
-            return next;
-        });
-    }, []);
-
-    const clearCategories = useCallback(() => {
-        setSelectedCategories(new Set());
-    }, []);
 
     const toggleSort = useCallback((field) => {
         if (sortField === field) {

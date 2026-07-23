@@ -25,6 +25,19 @@ export function AppProvider({ children }) {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [chartSummary, setChartSummary] = useState({ yearly: [], monthly: [] });
     const [userRole, setUserRole] = useState(null);
+    const [contentsSelectedCategories, setContentsSelectedCategories] = useState(new Set());
+
+    const toggleContentsCategory = useCallback((cat) => {
+        setContentsSelectedCategories(prev => {
+            const next = new Set(prev);
+            next.has(cat) ? next.delete(cat) : next.add(cat);
+            return next;
+        });
+    }, []);
+
+    const clearContentsCategories = useCallback(() => {
+        setContentsSelectedCategories(new Set());
+    }, []);
 
     const retryInitialLoad = useCallback(() => {
         setLoadRetryCount(c => c + 1);
@@ -198,6 +211,9 @@ export function AppProvider({ children }) {
             endSession,
             uploadCount,
             refetchUploadCount,
+            contentsSelectedCategories,
+            toggleContentsCategory,
+            clearContentsCategories,
         }}>
             {children}
         </AppContext.Provider>

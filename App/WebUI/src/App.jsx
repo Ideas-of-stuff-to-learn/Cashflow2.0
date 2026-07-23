@@ -17,8 +17,8 @@ export default function App() {
           {/*<Route path="/home" element={<RequireAuth><HomeScreen /></RequireAuth>} />*/}
           <Route path="/signup" element={<SignupScreen />} />
           <Route element={<Layout />}>
-          {/*<Route path="/charts" element={<RequireAuth><ChartsScreen /></RequireAuth>} />
-          <Route path="/contents" element={<RequireAuth><ContentsScreen /></RequireAuth>} />*/}
+          {/*<Route path="/charts" element={<RequireAuth><ChartsScreen /></RequireAuth>} />*/}
+          <Route path="/contents" element={<RequireAuth><ContentsScreen /></RequireAuth>} />
           <Route path="/dashboard" element={<RequireAuth><DashboardScreen /></RequireAuth>} />
         </Route>
         </Routes>

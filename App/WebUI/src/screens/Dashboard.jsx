@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { useInitialLoadLogic } from '../customHooks/homescreen/useInitialLoadLogic';
@@ -6,23 +7,21 @@ import { useFilePicker } from '../customHooks/homescreen/useFilePicker';
 import { useFileProcessor } from '../customHooks/homescreen/useFileProcessor';
 import { useChartData } from '../customHooks/charts/useChartData';
 import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartReveal';
-import { useContentsData } from '../customHooks/contentsscreen/useContentsData';
 import { NOT_YET_CATEGORISED } from '../checkingName';
 
 import HomepageInfo from '../components/homepage/homepageInfo';
 import YearlyChartSection from '../components/charts/YearlyChartSection';
 import DetailedChartSection from '../components/charts/DetailedChartSection';
-import TableHeader from '../components/contents/TableHeader';
-import TransactionRow from '../components/contents/TransactionRow';
-import SelectionBar from '../components/contents/SelectionBar';
-import CategoryResolveModal from '../components/contents/CategoryResolveModal';
 import FilterPane from '../components/dashboard/FilterPane';
 
 import '../styles/dashboardStyles.css';
 
 export default function DashboardScreen() {
     const navigate = useNavigate();
-    const { categorising, transactions, initialLoadError, retryInitialLoad, allTransactionsLoaded } = useApp();
+    const {
+        categorising, transactions, initialLoadError, retryInitialLoad, allTransactionsLoaded,
+        contentsSelectedCategories, toggleContentsCategory, clearContentsCategories,
+    } = useApp();
     const { dateRangeInfo, uploadCount, refetchUploadCount } = useInitialLoadLogic();
     const { handleLogout } = useLogout();
     const { pickFiles, selectedFiles, status, setStatus, error, setError } = useFilePicker();
@@ -38,21 +37,19 @@ export default function DashboardScreen() {
         hasData, effectiveOrder, updateOrder, resetOrder, persist, togglePersist, isCustomOrder,
         yearChartData, yearIncomeLineData, selectedYear, selectedYearSegment, selectedYearTotal,
         monthChartData, monthIncomeLineData, selectedSegment, showingDummyData, closeDrilldown,
-        availableCategories, selectedCategories: chartSelectedCategories,
-        setSelectedCategories: setChartSelectedCategories, toggleItem: chartToggleItem, selectAll: chartSelectAll,
+        availableCategories, setSelectedCategories: setChartSelectedCategories,
     } = useChartData();
     const showYearChart = useDetailedChartReveal();
 
-    const {
-        searchText, setSearchText, selectedCategories: contentsSelectedCategories,
-        toggleCategory: toggleContentsCategory, clearCategories: clearContentsCategories,
-        sortField, sortAsc, toggleSort, filtered,
-        selectionMode, setSelectionMode, selectedIds, exitSelectionMode,
-        selectAllFiltered, deselectAll, deleting, handleDeleteSelected,
-        reviewItem, bulkPickerVisible, openBulkPicker, outOfSyncMessage,
-        manualReviewCount, handleCategoryPick, closeModal, selectableCategories,
-        onToggle, onOpenPicker, onEnterSelectionMode,
-    } = useContentsData();
+    // Chart's own selectedCategories is a one-way mirror of the
+    // persistent contentsSelectedCategories (lifted to AppContext) -
+    // NOT an independent second copy. This is what keeps Dashboard's
+    // charts, Dashboard's FilterPane, and ContentsScreen's own filter
+    // all showing the same selection, in both directions, and
+    // surviving navigation between the two screens.
+    useEffect(() => {
+        setChartSelectedCategories(new Set(contentsSelectedCategories));
+    }, [contentsSelectedCategories, setChartSelectedCategories]);
 
     return (
         <div className="dashboard-flex">
@@ -79,6 +76,11 @@ export default function DashboardScreen() {
                 >
                     {loading ? '...' : notYetCategorisedCount > 0 ? `Categorise (retry ${notYetCategorisedCount})` : 'Categorise'}
                 </button>
+
+                <button className="btn btn-secondary" onClick={() => navigate('/contents')}>
+                    Go to CSV Contents
+                </button>
+
                 <button className="logout-btn" onClick={handleLogout}>Log Out</button>
             </div>
 
@@ -96,53 +98,19 @@ export default function DashboardScreen() {
                         closeDrilldown={closeDrilldown}
                     />
                 </div>
-
-                <div className="dashboard-contents-box">
-                    <input className="search" placeholder="Search descriptions..." value={searchText} onChange={e => setSearchText(e.target.value)} />
-                    <TableHeader selectionMode={selectionMode} sortField={sortField} sortAsc={sortAsc} onToggleSort={toggleSort} />
-                    {selectionMode && (
-                        <SelectionBar
-                            selectedCount={selectedIds.size} onCancel={exitSelectionMode}
-                            onSelectAll={selectAllFiltered} onDeselectAll={deselectAll}
-                            onChangeCategory={() => selectedIds.size > 0 && openBulkPicker()}
-                            onDelete={handleDeleteSelected} deleting={deleting}
-                        />
-                    )}
-                    <div className="dashboard-table">
-                        {filtered.map((item, index) => (
-                            <TransactionRow
-                                key={item.id || `${item.date}-${item.description}-${item.amount}`}
-                                item={item} index={index}
-                                isSelected={selectedIds.has(item.id)} inSelectionMode={selectionMode}
-                                onToggle={onToggle} onOpenPicker={onOpenPicker} onEnterSelectionMode={onEnterSelectionMode}
-                            />
-                        ))}
-                    </div>
-                </div>
             </div>
 
             <FilterPane
                 availableCategories={availableCategories}
-                chartSelectedCategories={chartSelectedCategories}
-                setChartSelectedCategories={setChartSelectedCategories}
                 contentsSelectedCategories={contentsSelectedCategories}
                 toggleContentsCategory={toggleContentsCategory}
                 clearContentsCategories={clearContentsCategories}
-                chartToggleItem={chartToggleItem}
-                chartSelectAll={chartSelectAll}
                 effectiveOrder={effectiveOrder}
                 isCustomOrder={isCustomOrder}
                 updateOrder={updateOrder}
                 resetOrder={resetOrder}
                 persist={persist}
                 togglePersist={togglePersist}
-            />
-
-            <CategoryResolveModal
-                reviewItem={reviewItem} bulkPickerVisible={bulkPickerVisible}
-                selectedCount={selectedIds.size} manualReviewCount={manualReviewCount}
-                selectableCategories={selectableCategories} onPickCategory={handleCategoryPick}
-                onClose={closeModal}
             />
         </div>
     );
