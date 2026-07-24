@@ -126,6 +126,36 @@ export function selectMonthsForDrilldown(monthly, year, targetCount = DEFAULT_DR
     return [...backfill, ...realMonths].sort((a, b) => (a.year - b.year) || (a.month - b.month));
 }
 
+// New function - adjacent-year-only backfill, no invented placeholder
+// data at all. Unlike selectMonthsForDrilldown above (which reaches
+// back through the WHOLE history), this only ever pulls real months
+// from the current year plus the single immediately-preceding year -
+// nothing invented, nothing padded. If that's still fewer than
+// targetCount, the result is just shorter - same "never fake data"
+// principle as the original function, just with a stricter search
+// range (one year back, not unlimited).
+export function selectMonthsForDrilldownAdjacentOnly(monthly, year, targetCount = DEFAULT_DRILLDOWN_TARGET) {
+    if (year == null) return [];
+
+    const allEntries = groupMonthlyByYearMonth(monthly);
+
+    const realMonths = allEntries
+        .filter(e => e.year === year)
+        .sort((a, b) => a.month - b.month);
+
+    const needed = targetCount - realMonths.length;
+    if (needed <= 0) return realMonths;
+
+    // ONLY the immediately preceding year - no further back.
+    const adjacentYearPool = allEntries
+        .filter(e => e.year === year - 1)
+        .sort((a, b) => b.month - a.month); // closest-to-target-year first
+
+    const backfill = adjacentYearPool.slice(0, needed);
+
+    return [...backfill, ...realMonths].sort((a, b) => (a.year - b.year) || (a.month - b.month));
+}
+
 // Same idea as buildYearStackData, one level down - builds one stacked
 // bar per (year, month) entry already selected by
 // selectMonthsForDrilldown. Kept separate from that selection step so

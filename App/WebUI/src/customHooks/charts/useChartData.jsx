@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { useStackOrder } from './useStackOrder';
 import { useApp } from '../../AppContext';
 import { buildDummyTotals, toggleItem, selectAll } from '../../utils/charts/chartUtils';
-import { buildYearStackData, selectMonthsForDrilldown, buildMonthStackDataFromEntries } from '../../utils/charts/yearlyChartUtils';
+import { buildYearStackData, selectMonthsForDrilldownAdjacentOnly, buildMonthStackDataFromEntries } from '../../utils/charts/yearlyChartUtils';
 
 export function useChartData() {
     const { categoryNames, categoryColors, processingStage, chartSummary } = useApp();
@@ -149,7 +149,7 @@ export function useChartData() {
     // which already holds the account's full history (no per-year
     // fetch), so this is synchronous and doesn't touch the network.
     const drilldownMonths = useMemo(
-        () => selectMonthsForDrilldown(summary.monthly, selectedYear),
+        () => selectMonthsForDrilldownAdjacentOnly(summary.monthly, selectedYear),
         [summary.monthly, selectedYear]
     );
 
