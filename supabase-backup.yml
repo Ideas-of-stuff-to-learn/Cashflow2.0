@@ -1,0 +1,59 @@
+# .github/workflows/supabase-backup.yml
+#
+# Scheduled database backup for the Supabase Postgres database.
+# Runs pg_dump on a timer and saves the result as a downloadable
+# GitHub Actions artifact - a safety net given Supabase's free tier
+# includes no automated backups of its own.
+#
+# SETUP REQUIRED before this will work:
+# 1. Add a repository secret named SUPABASE_DB_URL containing the full
+#    Postgres connection string for the database (found in the
+#    Supabase dashboard under Project Settings -> Database ->
+#    Connection string - use the "URI" format, with the real password
+#    filled in, not the placeholder).
+# 2. That's it - no other setup needed, pg_dump/psql come pre-installed
+#    on GitHub's ubuntu-latest runners.
+#
+# RESTORING a backup later (manual process, run locally, not part of
+# this workflow):
+#   1. Download the artifact from the Actions tab for the run you want.
+#   2. Unzip it to get backup.sql.
+#   3. Restore into a FRESH, empty database first (not directly into
+#      the live one) to check it looks right:
+#        psql "your-fresh-database-connection-string" < backup.sql
+#   4. Once verified, either point the app at the restored database,
+#      or selectively copy back just what's needed.
+
+name: Supabase Database Backup
+
+on:
+  schedule:
+    # Runs once a day at 03:00 UTC. Adjust the cron expression to
+    # change frequency - e.g. '0 3 * * 0' for once a week instead.
+    - cron: '0 3 * * *'
+  # Also allows triggering a backup manually from the Actions tab,
+  # without waiting for the next scheduled run.
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Postgres client tools
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Dump the database
+        run: |
+          pg_dump "${{ secrets.SUPABASE_DB_URL }}" \
+            --no-owner --no-privileges \
+            > backup-$(date +'%Y-%m-%d').sql
+
+      - name: Upload backup as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-backup-${{ github.run_id }}
+          path: backup-*.sql
+          # How long GitHub keeps this artifact before automatically
+          # deleting it. Increase if a longer retention window is
+          # wanted (check GitHub's current plan limits for the max).
+          retention-days: 30
