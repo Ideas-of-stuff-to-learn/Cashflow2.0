@@ -1,15 +1,15 @@
 # .github/workflows/supabase-keep-alive.yml
 #
 # Pings the Supabase project every few days to reset its inactivity
-# timer, preventing the free tier's 7-day auto-pause.
+# timer, preventing the free tier's 7-day auto-pause. Queries an
+# actual table (categories) rather than the bare API root, since
+# Supabase's pause detection is based on genuine database activity,
+# not just an API-gateway response.
 #
-# NOTE: hitting the bare /rest/v1/ root does NOT reliably count as
-# activity - Supabase's own docs specifically describe pausing as
-# based on "user database activity" / "user queries", and a plain
-# API-gateway response with no real table read behind it may not
-# register at all. This queries an ACTUAL table (categories - small,
-# stable, always has rows) so a genuine database read happens every
-# time.
+# Also appends a timestamped success/failure line to DBaliveLog.txt at
+# the repo root, and commits that change back - so there's a visible,
+# permanent history of every ping (success or failure), not just
+# ephemeral Actions run logs.
 #
 # IMPORTANT: this is a widely used, generally reliable workaround, but
 # it is NOT an officially guaranteed Supabase feature - treat it as a
@@ -18,27 +18,47 @@
 # happen.
 #
 # SETUP REQUIRED before this will work:
-# 1. Add a repository secret named SUPABASE_URL - your project's API
-#    URL, found in the Supabase dashboard under Project Settings -> API
-#    (looks like https://xxxxx.supabase.co).
+# 1. Add a repository secret named SUPABASE_URL - just the base
+#    project URL, e.g. https://xxxxx.supabase.co (no trailing slash,
+#    nothing appended after .co).
 # 2. Add a repository secret named SUPABASE_ANON_KEY - the "anon"
-#    public API key, found on that same Project Settings -> API page.
+#    public API key, found under Project Settings -> API Keys
+#    (Legacy API Keys tab) - NOT the service_role key.
+# 3. RLS must allow anon SELECT on the "categories" table (or whichever
+#    table PING_TABLE below points at) - see the migration report's
+#    RLS section for the exact policy SQL.
 
 name: Supabase Keep-Alive
 
 on:
   schedule:
+    # Every 3 days at 08:00 UTC - comfortably inside the 7-day pause
+    # window, with buffer in case a single run fails.
     - cron: '0 8 */3 * *'
+  # Also allows triggering a ping manually from the Actions tab.
   workflow_dispatch:
+
+env:
+  # Change this to any real table name that exists in the database.
+  PING_TABLE: categories
+
+permissions:
+  # Needed so this workflow can commit the updated log file back to
+  # the repo - the default read-only token isn't enough to push.
+  contents: write
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Read one row from categories (genuine DB activity)
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Read one row from the ping table (genuine DB activity)
+        id: ping
         run: |
           response=$(curl -s -w "\n%{http_code}" \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/categories?limit=1" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/${{ env.PING_TABLE }}?limit=1" \
             -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
 
@@ -51,7 +71,25 @@ jobs:
 
           if [ "$status" == "200" ]; then
             echo "✅ Keep-alive ping succeeded - database is active."
+            echo "result=SUCCESS" >> "$GITHUB_OUTPUT"
           else
-            echo "❌ Ping failed - check SUPABASE_URL / SUPABASE_ANON_KEY secrets, the categories RLS policy, or whether the project is already paused."
-            exit 1
+            echo "❌ Ping failed - check secrets, RLS policy on ${{ env.PING_TABLE }}, or whether the project is already paused."
+            echo "result=FAILURE" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Append result to DBaliveLog.txt
+        run: |
+          timestamp=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          echo "$timestamp - ${{ steps.ping.outputs.result }}" >> DBaliveLog.txt
+
+      - name: Commit and push the updated log
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add DBaliveLog.txt
+          git diff --staged --quiet || git commit -m "Keep-alive ping: ${{ steps.ping.outputs.result }} ($(date -u +'%Y-%m-%d %H:%M UTC'))"
+          git push
+
+      - name: Fail the run if the ping itself failed
+        if: steps.ping.outputs.result == 'FAILURE'
+        run: exit 1
