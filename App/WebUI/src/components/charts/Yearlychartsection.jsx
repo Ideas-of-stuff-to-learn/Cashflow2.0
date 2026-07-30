@@ -45,12 +45,12 @@ export default function YearlyChartSection({
             />
             {selectedYearSegment && (
                 <p className="tapped-value-text">
-                    {selectedYearSegment.year} — {selectedYearSegment.category}: £{selectedYearSegment.value.toFixed(2)}
+                    {selectedYearSegment.year} — {selectedYearSegment.category}: £{selectedYearSegment.value.toFixed(0)}
                 </p>
             )}
             {selectedYear != null && (
                 <p className="tapped-value-text">
-                    {selectedYear} total: £{selectedYearTotal.toFixed(2)}
+                    {selectedYear} total: £{selectedYearTotal.toFixed(0)}
                 </p>
             )}
         </>
