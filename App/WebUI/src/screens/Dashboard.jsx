@@ -36,7 +36,7 @@ export default function DashboardScreen() {
     const {
         hasData, effectiveOrder, updateOrder, resetOrder, persist, togglePersist, isCustomOrder,
         yearChartData, yearIncomeLineData, selectedYear, selectedYearSegment, selectedYearTotal,
-        monthChartData, monthIncomeLineData, selectedSegment, showingDummyData, closeDrilldown,
+        monthChartData, monthIncomeLineData, selectedSegment, closeDrilldown,
         availableCategories, setSelectedCategories: setChartSelectedCategories,
     } = useChartData();
     const showYearChart = useDetailedChartReveal();
@@ -87,7 +87,7 @@ export default function DashboardScreen() {
             <div className="dashboard-main">
                 <div className="dashboard-charts-box">
                     <YearlyChartSection
-                        ready={showYearChart} hasData={hasData} showingDummyData={showingDummyData}
+                        ready={showYearChart} hasData={hasData}
                         yearChartData={yearChartData} yearIncomeLineData={yearIncomeLineData}
                         selectedYear={selectedYear} selectedYearSegment={selectedYearSegment}
                         selectedYearTotal={selectedYearTotal}

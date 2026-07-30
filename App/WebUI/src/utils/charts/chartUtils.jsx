@@ -69,19 +69,6 @@ export function sumByCategory(rows) {
 }
 
 
-export function buildDummyTotals(categoryNames) {
-    const totals = {};
-
-    categoryNames
-        .filter(category => category !== 'Income')
-        .forEach(category => {
-            totals[category] =
-                Math.floor(Math.random() * 900) + 50;
-        });
-
-    return totals;
-}
-
 // Fixed swatch palette for the colour picker - reusing the original
 // seeded colours, since they're already chosen to be distinct and
 // legible on the charts. Not tied to any specific category; any

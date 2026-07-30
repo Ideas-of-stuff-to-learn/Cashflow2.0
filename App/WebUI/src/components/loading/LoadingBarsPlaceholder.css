@@ -1,0 +1,34 @@
+.loading-bars-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+}
+
+.loading-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 80px;
+}
+
+.loading-bar {
+    width: 12px;
+    height: 20%;
+    background: #2E5C8A;
+    border-radius: 3px 3px 0 0;
+    animation: bar-oscillate 1.2s ease-in-out infinite;
+}
+
+@keyframes bar-oscillate {
+    0%, 100% { height: 20%; }
+    50% { height: 90%; }
+}
+
+.loading-bars-message {
+    margin-top: 16px;
+    font-size: 14px;
+    color: #888;
+    font-style: italic;
+}

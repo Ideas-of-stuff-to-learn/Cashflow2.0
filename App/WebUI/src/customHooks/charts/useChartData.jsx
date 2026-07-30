@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useStackOrder } from './useStackOrder';
 import { useApp } from '../../AppContext';
-import { buildDummyTotals, toggleItem, selectAll } from '../../utils/charts/chartUtils';
+import {toggleItem, selectAll } from '../../utils/charts/chartUtils';
 import { buildYearStackData, selectMonthsForDrilldownAdjacentOnly, buildMonthStackDataFromEntries } from '../../utils/charts/yearlyChartUtils';
 
 export function useChartData() {
@@ -24,22 +24,11 @@ export function useChartData() {
     const [selectedYearSegment, setSelectedYearSegment] = useState(null);
     const [selectedCategories, setSelectedCategories] = useState(new Set());
 
-    // Dummy data is shown only while we have genuinely nothing real to
-    // show yet AND something is actively in progress - NOT for the
-    // entire duration of a processing stage. A stage like checkingCache
-    // can span many separate chunks (see useFileProcessor.js), each of
-    // which commits real rows to the DB as it finishes - once
-    // summary.yearly has anything in it, that's real data and should
-    // be shown immediately, even if the stage hasn't moved on yet.
-    const showingDummyData = summary.yearly.length === 0
-        && (processingStage === 'parsing' || processingStage === 'checkingCache' || processingStage === 'waitingForLLM');
-
     // chartSummary itself now lives in AppContext (see the effect
     // there, keyed on chartDataVersion) - it stays fresh in the
     // background regardless of whether this screen is even mounted,
     // so there's nothing left to fetch here. This hook just reads it.
 
-    const dummyTotals = useMemo(() => buildDummyTotals(categoryNames), [categoryNames]);
 
     const availableCategories = useMemo(
         () => categoryNames.filter(c => c !== 'Income'),
@@ -70,13 +59,7 @@ export function useChartData() {
     // While showing dummy data, fabricate a single fake year's worth of
     // totals from the same category-name-shaped dummy generator used
     // elsewhere, so the year chart has SOMETHING to render.
-    const yearly = showingDummyData
-        ? Object.entries(dummyTotals).map(([category, total]) => ({
-            year: new Date().getFullYear(),
-            category,
-            total,
-        }))
-        : summary.yearly;
+    const yearly = summary.yearly;
 
     const hasData = yearly.length > 0;
 
@@ -164,7 +147,6 @@ export function useChartData() {
     );
 
     return {
-        showingDummyData,
         hasData,
         effectiveOrder,
         stackOrder,

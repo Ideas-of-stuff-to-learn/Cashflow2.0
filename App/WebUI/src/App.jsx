@@ -2,10 +2,6 @@
 While no data is available new account or data loading say a box saying preparing and a loading thing and randomly osicallting bars for fun
 Legend colour beside categories in UI. Not changeable just legend and perhaps hover detection tells colour too
 Income line labelled
-Long total numbers need thousands seperators
-Make the Spend by year bolder and bigger
-Add the badges to the dashbaord one too
-Raising the size change to live
 Shows totals on top of bars for monthly and yearly
 Make a hover function on the bars to show the category name and value [what is being displayed underneath] replacing the totals shown underneath the chart
 
