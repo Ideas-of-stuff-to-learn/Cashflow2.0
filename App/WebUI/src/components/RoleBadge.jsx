@@ -12,12 +12,13 @@ function capitalize(word) {
 }
 
 export default function RoleBadge() {
+    console.log('RoleBadge rendered');
     const { userRole } = useApp();
+    console.log('userRole value:', userRole);
 
     if (!userRole || !userRole.level) return null;
 
     const color = ROLE_COLORS[userRole.role] || DEFAULT_ROLE_COLOR;
-    console.log('RoleBadge userRole:', userRole);
     return (
         <span
             style={{
