@@ -12,9 +12,7 @@ function capitalize(word) {
 }
 
 export default function RoleBadge() {
-    console.log('RoleBadge rendered');
     const { userRole } = useApp();
-    console.log('userRole value:', userRole);
 
     if (!userRole || !userRole.level) return null;
 
