@@ -1,3 +1,15 @@
+/*
+While no data is available new account or data loading say a box saying preparing and a loading thing and randomly osicallting bars for fun
+Legend colour beside categories in UI. Not changeable just legend and perhaps hover detection tells colour too
+Income line labelled
+Total needs to be roudned to nearest whole number
+Long total numbers need thousands seperators
+Make the Spend by year bolder and bigger
+Add the badges to the dashbaord one too
+Raising the size change to live
+Backfill entire concept changing again:
+    To be understood by client
+*/
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppProvider } from './AppContext';
 import RequireAuth from './components/RequiresAuth';
