@@ -17,7 +17,7 @@ export default function RoleBadge() {
     if (!userRole || !userRole.level) return null;
 
     const color = ROLE_COLORS[userRole.role] || DEFAULT_ROLE_COLOR;
-
+    console.log('RoleBadge userRole:', userRole);
     return (
         <span
             style={{
