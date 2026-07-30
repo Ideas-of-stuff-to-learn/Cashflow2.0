@@ -1,0 +1,82 @@
+.progress-bar-container {
+    width: 100%;
+    margin: 8px 0;
+}
+
+.progress-bar-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.progress-bar-track {
+    flex: 1;
+    height: 8px;
+    background: #eee;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: #3D8B5F;
+    border-radius: 4px;
+    transition: width 0.4s ease;
+}
+
+.progress-bar-percent {
+    font-size: 12px;
+    font-weight: 600;
+    color: #3D8B5F;
+    min-width: 32px;
+    text-align: right;
+}
+
+.progress-bar-toggle {
+    font-size: 10px;
+    color: #888;
+}
+
+.progress-bar-details {
+    padding: 8px 12px;
+    background: #F8F9FA;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    font-size: 13px;
+}
+
+.progress-bar-phase {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 2px;
+}
+
+.progress-bar-batch {
+    color: #666;
+    margin-bottom: 4px;
+}
+
+.progress-bar-status {
+    color: #888;
+    font-style: italic;
+}
+
+.progress-bar-timing {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.progress-bar-timing-line {
+    color: #999;
+    font-size: 11px;
+    font-family: monospace;
+    margin-bottom: 2px;
+}

@@ -10,7 +10,8 @@ import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartRe
 import { NOT_YET_CATEGORISED } from '../checkingName';
 
 import HomepageInfo from '../components/homepage/homepageInfo';
-import YearlyChartSection from '../components/charts/Yearlychartsection'
+import ProgressBar from '../components/homepage/ProgressBar';
+import YearlyChartSection from '../components/charts/Yearlychartsection';
 import DetailedChartSection from '../components/charts/DetailedChartSection';
 import FilterPane from '../components/dashboard/FilterPane';
 
@@ -25,7 +26,7 @@ export default function DashboardScreen() {
     const { dateRangeInfo, uploadCount, refetchUploadCount } = useInitialLoadLogic();
     const { handleLogout } = useLogout();
     const { pickFiles, selectedFiles, status, setStatus, error, setError } = useFilePicker();
-    const { processFiles, loading } = useFileProcessor(setStatus, setError, selectedFiles);
+    const { processFiles, loading, progress } = useFileProcessor(setStatus, setError, selectedFiles);
     const notYetCategorisedCount = transactions.filter(t => t.category === NOT_YET_CATEGORISED).length;
 
     async function handleCategorisePress() {
@@ -41,12 +42,6 @@ export default function DashboardScreen() {
     } = useChartData();
     const showYearChart = useDetailedChartReveal();
 
-    // Chart's own selectedCategories is a one-way mirror of the
-    // persistent contentsSelectedCategories (lifted to AppContext) -
-    // NOT an independent second copy. This is what keeps Dashboard's
-    // charts, Dashboard's FilterPane, and ContentsScreen's own filter
-    // all showing the same selection, in both directions, and
-    // surviving navigation between the two screens.
     useEffect(() => {
         setChartSelectedCategories(new Set(contentsSelectedCategories));
     }, [contentsSelectedCategories, setChartSelectedCategories]);
@@ -67,7 +62,7 @@ export default function DashboardScreen() {
                         {selectedFiles.map(f => <p key={f.name} className="file-info-text">{f.name}</p>)}
                     </div>
                 )}
-                {status && <p className="status">{status}</p>}
+                <ProgressBar progress={progress} status={status} />
                 {error && <p className="error">{error}</p>}
                 <button
                     className="btn btn-secondary"

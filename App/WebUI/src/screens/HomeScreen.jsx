@@ -6,6 +6,7 @@ import { useFilePicker } from '../customHooks/homescreen/useFilePicker';
 import { useFileProcessor } from '../customHooks/homescreen/useFileProcessor';
 import { NOT_YET_CATEGORISED } from '../checkingName';
 import HomepageInfo from '../components/homepage/homepageInfo';
+import ProgressBar from '../components/homepage/ProgressBar';
 import '../styles/homePage.css'
 
 export default function HomeScreen() {
@@ -14,7 +15,7 @@ export default function HomeScreen() {
     const { dateRangeInfo, uploadCount, refetchUploadCount } = useInitialLoadLogic();
     const { handleLogout } = useLogout();
     const { pickFiles, selectedFiles, status, setStatus, error, setError } = useFilePicker();
-    const { processFiles, loading } = useFileProcessor(setStatus, setError, selectedFiles);
+    const { processFiles, loading, progress } = useFileProcessor(setStatus, setError, selectedFiles);
 
     const notYetCategorisedCount = transactions.filter(t => t.category === NOT_YET_CATEGORISED).length;
 
@@ -53,7 +54,7 @@ export default function HomeScreen() {
                         ))}
                     </div>
                 )}
-                {status && <p className="status">{status}</p>}
+                <ProgressBar progress={progress} status={status} />
                 {error && <p className="error">{error}</p>}
 
                 <button

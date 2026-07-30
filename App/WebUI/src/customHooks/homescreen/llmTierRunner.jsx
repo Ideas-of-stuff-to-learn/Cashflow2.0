@@ -2,12 +2,22 @@
 import { categorizeLLM } from '../../api';
 import { mergeById, chunkArray } from '../../utils/homescreen/homescreenUtils';
 import { NOT_YET_CATEGORISED } from '../../checkingName';
-import {LLM_CHUNK_SIZE, CLIENT_TIMEOUT_MS, GEMINI_REQUEST_TIMEOUT_MS, AUTO_RETRY_ATTEMPTS, AUTO_RETRY_DELAY_MS, sleep} from '../../config/categorisationConfig'
+import { LLM_CHUNK_SIZE, CLIENT_TIMEOUT_MS, GEMINI_REQUEST_TIMEOUT_MS, AUTO_RETRY_ATTEMPTS, AUTO_RETRY_DELAY_MS, sleep } from '../../config/categorisationConfig';
 
-// Runs one /categorize/llm chunk, automatically retrying up to
-// AUTO_RETRY_ATTEMPTS times total before giving up - same reasoning
-// as runCachePhase in cacheTierRunner.js. Returns null only once every
-// attempt has failed, or the chunk's result array on success.
+// Curated subset of the backend's full timings payload - the LLM tier
+// returns a lot more (merchant_write_ms, cache save times, per-tier
+// transaction counts) but these three are the ones actually worth
+// glancing at: how long Gemini itself took, and how much of this
+// chunk needed it at all vs. got resolved for free.
+function pickLlmTimingHighlights(backendTimings) {
+    if (!backendTimings) return null;
+    return {
+        gemini_ms: backendTimings.gemini_ms,
+        gemini_percentage: backendTimings.gemini_percentage,
+        exact_percentage: backendTimings.exact_percentage,
+    };
+}
+
 async function runLlmChunk(items, chunkIndex, chunkCount, { setStatus, runLabel }) {
     for (let attempt = 1; attempt <= AUTO_RETRY_ATTEMPTS; attempt++) {
         try {
@@ -45,22 +55,15 @@ async function runLlmChunk(items, chunkIndex, chunkCount, { setStatus, runLabel 
     return null;
 }
 
-// Runs the LLM tier over phase1 (the result of runCacheTiers) -
-// filters for anything still 'PENDING_LLM', chunks it, and works
-// through each chunk with automatic retry. Returns nothing - all its
-// output goes through setTransactions progressively, same as the
-// cache tier runner, and processingStage/categorising are set by the
-// caller (useFileProcessor.js), same reasoning as cacheTierRunner.js.
 export async function runLlmTier(phase1, {
-    setStatus, setError, setTransactions, bumpChartDataVersion, setProcessingStage, runLabel = 'Categorise',
+    setStatus, setError, setTransactions, bumpChartDataVersion, setProcessingStage, setProgress, runLabel = 'Categorise',
 }) {
     const pendingItems = phase1.filter(t => t.category === 'PENDING_LLM');
 
     if (pendingItems.length === 0) {
-        // Nothing reached the LLM tier at all - every item was already
-        // resolved by the cache tier. Normal, good outcome, not a bug.
         setStatus('All transactions resolved via cache - no LLM step needed.');
         setProcessingStage('done');
+        setProgress({ current: 0, total: 0, phase: '' });
         return;
     }
 
@@ -74,6 +77,7 @@ export async function runLlmTier(phase1, {
                 ? `Categorising batch ${i + 1}/${chunks.length} (${chunks[i].length} transactions)...`
                 : `Categorising ${chunks[i].length} new transactions...`
         );
+        setProgress(prev => ({ ...prev, current: i + 1, total: chunks.length, phase: 'Categorising' }));
 
         const chunkResult = await runLlmChunk(chunks[i], i, chunks.length, { setStatus, runLabel });
         if (chunkResult === null) {
@@ -102,7 +106,16 @@ export async function runLlmTier(phase1, {
 
         setTransactions(prev => mergeById(prev, workingPhase1));
         bumpChartDataVersion();
+        setProgress(prev => ({
+            ...prev,
+            lastTiming: {
+                phase: 'LLM',
+                httpElapsedMs: chunkResult.httpElapsedMs,
+                highlights: pickLlmTimingHighlights(chunkResult.backendTimings),
+            },
+        }));
     }
 
     setProcessingStage('done');
+    setProgress({ current: 0, total: 0, phase: '' });
 }

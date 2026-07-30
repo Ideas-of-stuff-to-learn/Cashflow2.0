@@ -1,17 +1,17 @@
 import { useState } from 'react';
-import { parseCSVFiles, categorizeCachedExact, categorizeCachedMerchant, categorizeCachedSimilarity, categorizeLLM } from '../../api';
+import { parseCSVFiles } from '../../api';
 import { useApp } from '../../AppContext';
-import { mergeById, chunkArray } from '../../utils/homescreen/homescreenUtils';
+import { mergeById } from '../../utils/homescreen/homescreenUtils';
 import { NOT_YET_CATEGORISED } from '../../checkingName';
-import {
-    CACHE_CHUNK_SIZE, LLM_CHUNK_SIZE, CLIENT_TIMEOUT_MS,
-    GEMINI_REQUEST_TIMEOUT_MS, AUTO_RETRY_ATTEMPTS, AUTO_RETRY_DELAY_MS, sleep,
-} from '../../config/categorisationConfig';
 import { runCacheTiers } from './cacheTierRunner';
 import { runLlmTier } from './llmTierRunner';
 
 export function useFileProcessor(setStatus, setError, selectedFiles) {
     const [loading, setLoading] = useState(false);
+    // total: 0 is the "nothing in progress" sentinel ProgressBar checks
+    // for to decide whether to render at all.
+    const [progress, setProgress] = useState({ current: 0, total: 0, phase: '' });
+
     const {
         transactions,
         setTransactions,
@@ -20,23 +20,19 @@ export function useFileProcessor(setStatus, setError, selectedFiles) {
         bumpChartDataVersion
     } = useApp();
 
-    // Runs the full cache-tier -> LLM-tier categorisation pipeline over
-    // whatever list it's given. Shared by both halves of processFiles()
-    // below (retrying previously NOT_YET_CATEGORISED rows, and newly
-    // parsed rows).
     async function categorizeTransactions(itemsNeedingCategorization, runLabel = 'Categorise') {
         setProcessingStage('checkingCache');
         setCategorising(true);
 
         const phase1 = await runCacheTiers(itemsNeedingCategorization, {
-            setStatus, setError, setTransactions, bumpChartDataVersion, runLabel,
+            setStatus, setError, setTransactions, bumpChartDataVersion, setProgress, runLabel,
         });
 
         setProcessingStage('waitingForLLM');
         setCategorising(true);
 
         await runLlmTier(phase1, {
-            setStatus, setError, setTransactions, bumpChartDataVersion, setProcessingStage, runLabel,
+            setStatus, setError, setTransactions, bumpChartDataVersion, setProcessingStage, setProgress, runLabel,
         });
     }
 
@@ -77,6 +73,10 @@ export function useFileProcessor(setStatus, setError, selectedFiles) {
             setStatus(null);
             setCategorising(false);
             setProcessingStage(prev => prev === 'done' ? 'done' : 'idle');
+            // Belt-and-braces reset - covers the error/early-return
+            // paths too, not just the clean-success path already
+            // handled inside llmTierRunner.js.
+            setProgress({ current: 0, total: 0, phase: '' });
         }
     }
 
@@ -84,5 +84,6 @@ export function useFileProcessor(setStatus, setError, selectedFiles) {
         processFiles,
         loading,
         setLoading,
+        progress,
     };
 }

@@ -4,11 +4,6 @@ import { mergeById, chunkArray } from '../../utils/homescreen/homescreenUtils';
 import { NOT_YET_CATEGORISED } from '../../checkingName';
 import { CACHE_CHUNK_SIZE, CLIENT_TIMEOUT_MS, AUTO_RETRY_ATTEMPTS, AUTO_RETRY_DELAY_MS, sleep } from '../../config/categorisationConfig';
 
-// Runs one cache-tier phase (exact/merchant/similarity) against
-// `items`, automatically retrying up to AUTO_RETRY_ATTEMPTS times
-// total before giving up - see that constant's comment for why.
-// Returns null only once every attempt has failed (caller decides
-// how to handle that), or the phase's result array on success.
 async function runCachePhase(phaseFn, items, phaseLabel, chunkIndex, chunkCount, { setStatus, runLabel }) {
     for (let attempt = 1; attempt <= AUTO_RETRY_ATTEMPTS; attempt++) {
         try {
@@ -44,14 +39,14 @@ async function runCachePhase(phaseFn, items, phaseLabel, chunkIndex, chunkCount,
     return null;
 }
 
-// Runs the full exact -> merchant -> similarity cache-tier pipeline
-// over `itemsNeedingCategorization`, chunked into CACHE_CHUNK_SIZE-
-// sized requests. Returns the accumulated result array (phase1) -
-// each item's category is either a real resolved category, or
-// 'PENDING_LLM' if nothing in the cache tiers could resolve it, or
-// NOT_YET_CATEGORISED if a chunk failed every retry attempt.
+// Runs the full exact -> merchant -> similarity cache-tier pipeline.
+// setProgress carries both the batch-position numbers AND, after each
+// phase, a lastTiming object {phase, httpElapsedMs} - just the round
+// trip time for cache-tier calls, since their backendTimings payload
+// isn't the interesting part here (that's curated for the LLM tier
+// instead, see llmTierRunner.js).
 export async function runCacheTiers(itemsNeedingCategorization, {
-    setStatus, setError, setTransactions, bumpChartDataVersion, runLabel = 'Categorise',
+    setStatus, setError, setTransactions, bumpChartDataVersion, setProgress, runLabel = 'Categorise',
 }) {
     const cacheChunks = chunkArray(itemsNeedingCategorization, CACHE_CHUNK_SIZE);
     let phase1 = [];
@@ -65,6 +60,7 @@ export async function runCacheTiers(itemsNeedingCategorization, {
                 ? `Checking cache: batch ${i + 1}/${cacheChunks.length} (${cacheChunks[i].length} transactions)...`
                 : `Checking cache (${cacheChunks[i].length} transactions)...`
         );
+        setProgress(prev => ({ ...prev, current: i + 1, total: cacheChunks.length, phase: 'Checking cache' }));
 
         const exactResult = await runCachePhase(
             categorizeCachedExact, chunkWorking, 'Exact', i, cacheChunks.length,
@@ -83,6 +79,10 @@ export async function runCacheTiers(itemsNeedingCategorization, {
 
             setTransactions(prev => mergeById(prev, chunkWorking));
             bumpChartDataVersion();
+            setProgress(prev => ({
+                ...prev,
+                lastTiming: { phase: 'Exact', httpElapsedMs: exactResult.httpElapsedMs },
+            }));
         }
 
         if (!stageFailed) {
@@ -99,6 +99,10 @@ export async function runCacheTiers(itemsNeedingCategorization, {
                     chunkWorking = chunkWorking.map(t => byId.get(t.id) ?? t);
                     setTransactions(prev => mergeById(prev, chunkWorking));
                     bumpChartDataVersion();
+                    setProgress(prev => ({
+                        ...prev,
+                        lastTiming: { phase: 'Merchant', httpElapsedMs: merchantResult.httpElapsedMs },
+                    }));
                 }
             }
         }
@@ -117,6 +121,10 @@ export async function runCacheTiers(itemsNeedingCategorization, {
                     chunkWorking = chunkWorking.map(t => byId.get(t.id) ?? t);
                     setTransactions(prev => mergeById(prev, chunkWorking));
                     bumpChartDataVersion();
+                    setProgress(prev => ({
+                        ...prev,
+                        lastTiming: { phase: 'Similarity', httpElapsedMs: similarityResult.httpElapsedMs },
+                    }));
                 }
             }
         }
