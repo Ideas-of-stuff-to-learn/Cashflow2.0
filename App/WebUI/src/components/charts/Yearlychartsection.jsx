@@ -20,7 +20,7 @@ export default function YearlyChartSection({
         return <p className="empty-text">No categorised transactions yet — upload a CSV to see charts.</p>;
     }
     function displayWithSeperators(number){
-        return number.toLocaleString()
+        return number.toLocaleString(undefined, { maximumFractionDigits: 0 });
     }
     return (
         <>
@@ -47,12 +47,12 @@ export default function YearlyChartSection({
             />
             {selectedYearSegment && (
                 <p className="tapped-value-text">
-                    {selectedYearSegment.year} — {selectedYearSegment.category}: £{displayWithSeperators(selectedYearSegment.value.toFixed(0))}
+                    {selectedYearSegment.year} — {selectedYearSegment.category}: £{displayWithSeperators(selectedYearSegment.value)}
                 </p>
             )}
             {selectedYear != null && (
                 <p className="tapped-value-text">
-                    {selectedYear} total: £{displayWithSeperators(selectedYearTotal.toFixed(0))}
+                    {selectedYear} total: £{displayWithSeperators(selectedYearTotal)}
                 </p>
             )}
         </>
