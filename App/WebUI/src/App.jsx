@@ -6,8 +6,12 @@ Long total numbers need thousands seperators
 Make the Spend by year bolder and bigger
 Add the badges to the dashbaord one too
 Raising the size change to live
+Shows totals on top of bars for monthly and yearly
+Make a hover function on the bars to show the category name and value [what is being displayed underneath] replacing the totals shown underneath the chart
+
 Backfill entire concept changing again:
-    To be understood by client
+    Make monthly as a window for 12 months that can go back and forth across all data
+    Month chart is always there doesn't appear as a condition just the window adjusts
 */
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppProvider } from './AppContext';

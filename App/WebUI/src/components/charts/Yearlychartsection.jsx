@@ -28,18 +28,21 @@ export default function YearlyChartSection({
                 <p className="empty-text">Showing example data while we categorise your transactions…</p>
             )}
             <p className="section-label">Spending by year — tap a segment to see months</p>
-            <div className="zoom-row">
-                <span className="section-label">Segment scale: {heightScale.toFixed(1)}x</span>
-                <input
-                    type="range"
-                    className="zoom-slider"
-                    min={1}
-                    max={5}
-                    step={0.5}
-                    value={heightScale}
-                    onChange={e => setHeightScale(parseFloat(e.target.value))}
-                />
-            </div>
+            {/* 
+                <div className="zoom-row">
+                    <span className="section-label">Segment scale: {heightScale.toFixed(1)}x</span>
+                    <input
+                        type="range"
+                        className="zoom-slider"
+                        min={1}
+                        max={5}
+                        step={0.5}
+                        value={heightScale}
+                        onChange={e => setHeightScale(parseFloat(e.target.value))}
+                    />
+                </div>
+            */}
+
             <SpendingStackChart
                 stackData={yearChartData}
                 incomeData={yearIncomeLineData}

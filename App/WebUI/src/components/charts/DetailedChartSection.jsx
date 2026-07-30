@@ -21,16 +21,19 @@ export default function DetailedChartSection({
                 Close ✕
             </button>
 
-            <p className="section-label">Zoom: {heightScale.toFixed(1)}x</p>
-            <input
-                type="range"
-                className="zoom-slider"
-                min={1}
-                max={5}
-                step={0.5}
-                value={heightScale}
-                onChange={e => setHeightScale(parseFloat(e.target.value))}
-            />
+            {/* 
+                <p className="section-label">Zoom: {heightScale.toFixed(1)}x</p>
+                <input
+                    type="range"
+                    className="zoom-slider"
+                    min={1}
+                    max={5}
+                    step={0.5}
+                    value={heightScale}
+                    onChange={e => setHeightScale(parseFloat(e.target.value))}
+                />
+
+            */}
 
             <SpendingStackChart
                 stackData={monthChartData}
