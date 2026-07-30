@@ -10,10 +10,10 @@ export default function SpendingOverview({ hasData, filteredChartData2, categori
         <>
             {hasData ? (
                 <SpendingBarChart data={filteredChartData2} />
-            ) : isLoading ? (
-                <LoadingBarsPlaceholder />
             ) : (
-                <p className="empty-text">No categorised transactions yet — upload a CSV to see charts.</p>
+                <LoadingBarsPlaceholder
+                    message={isLoading ? 'Preparing your data...' : 'No categorised transactions yet — upload a CSV to see charts.'}
+                />
             )}
             {selectedBar && (
                 <p className="tapped-value-text">

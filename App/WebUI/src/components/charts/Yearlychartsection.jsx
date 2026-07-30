@@ -19,7 +19,11 @@ export default function YearlyChartSection({
     if (isLoading) return <LoadingBarsPlaceholder message="Preparing your charts..." />;
 
     if (!hasData) {
-        return <p className="empty-text">No categorised transactions yet — upload a CSV to see charts.</p>;
+        return (
+            <LoadingBarsPlaceholder
+                message={isLoading ? 'Preparing your charts...' : 'No categorised transactions yet — upload a CSV to see charts.'}
+            />
+        );
     }
 
     function displayWithSeperators(number) {
