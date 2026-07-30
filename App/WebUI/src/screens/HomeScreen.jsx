@@ -8,6 +8,7 @@ import { NOT_YET_CATEGORISED } from '../checkingName';
 import HomepageInfo from '../components/homepage/homepageInfo';
 import ProgressBar from '../components/homepage/ProgressBar';
 import '../styles/homePage.css'
+import '../styles/shared.css'
 
 export default function HomeScreen() {
     const navigate = useNavigate();

@@ -16,6 +16,7 @@ import DetailedChartSection from '../components/charts/DetailedChartSection';
 import FilterPane from '../components/dashboard/FilterPane';
 
 import '../styles/dashboardStyles.css';
+import '../styles/shared.css';
 
 export default function DashboardScreen() {
     const navigate = useNavigate();
