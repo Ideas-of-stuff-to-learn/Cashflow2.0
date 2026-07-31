@@ -70,10 +70,8 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
     const chartHeight = BASE_CHART_HEIGHT * heightScale;
     const columnWidth = BAR_WIDTH + BAR_SPACING;
     const totalWidth = LEFT_PADDING * 2 + stackData.length * columnWidth;
-
-    const barTotals = stackData.map(bar =>
-        bar.stacks.reduce((sum, segment) => sum + segment.value, 0)
-    );
+    const barTotals = stackData.map(bar => bar.total ?? bar.stacks.reduce((sum, s) => sum + s.value, 0));
+    
     const incomeValues = (incomeData || []).map(d => d.value || 0);
     const maxValue = Math.max(1, ...barTotals, ...incomeValues);
 

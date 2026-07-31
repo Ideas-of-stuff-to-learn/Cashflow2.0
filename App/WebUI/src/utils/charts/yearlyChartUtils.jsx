@@ -50,9 +50,11 @@ export function buildYearStackData(yearly, categoryNames, categoryColors, select
 
     return years.map(year => {
         const categoryTotals = totalsByYear[year] || {};
+        let trueTotal = 0;
         const stacks = orderedCategories
             .map(category => {
                 const realValue = categoryTotals[category] || 0;
+                trueTotal += realValue; // NEW - accumulate the real, unpadded total
                 const visible = selectedCategories.size === 0 || selectedCategories.has(category);
                 return {
                     value: visible ? withMinHeight(realValue, minRenderHeight) : 0,
@@ -61,7 +63,7 @@ export function buildYearStackData(yearly, categoryNames, categoryColors, select
                     onPress: () => onSegmentPress({ year, category, value: realValue }),
                 };
             });
-        return { label: String(year), stacks };
+        return { label: String(year), stacks, total: trueTotal }; // NEW - total added
     });
 }
 
@@ -186,9 +188,11 @@ export function buildMonthStackDataFromEntries(entries, categoryNames, categoryC
         : categoryNames.filter(category => category !== 'Income');
 
     return entries.map(({ year, month, categoryTotals }) => {
+        let trueTotal = 0;
         const stacks = orderedCategories
             .map(category => {
                 const realValue = categoryTotals[category] || 0;
+                trueTotal += realValue; // NEW
                 const visible = selectedCategories.size === 0 || selectedCategories.has(category);
                 return {
                     value: visible ? withMinHeight(realValue, minRenderHeight) : 0,
@@ -199,7 +203,7 @@ export function buildMonthStackDataFromEntries(entries, categoryNames, categoryC
             });
         const monthName = MONTH_LABELS[month - 1] || String(month);
         const label = spansMultipleYears ? `${monthName} '${String(year).slice(2)}` : monthName;
-        return { label, stacks };
+        return { label, stacks, total: trueTotal }; // NEW
     });
 }
 
