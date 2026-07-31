@@ -2,7 +2,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useIsMobile } from '../customHooks/useIsMobile';
 
-const MOBILE_SCREENS = ['/home', '/charts', '/contents'];
+const MOBILE_SCREENS = ['/home', '/charts'];
 const DESKTOP_SCREEN = '/dashboard';
 
 // Replaces OrientationGuard + RootRedirect's split logic with a single
