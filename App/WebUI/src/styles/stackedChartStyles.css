@@ -1,4 +1,4 @@
-.stack-chart-scroll { height: 300px; overflow-y: auto; }
+.stack-chart-scroll { overflow-y: visible; }
 .stack-chart-hscroll { overflow-x: auto; overflow-y: visible; }
 
 .stack-segment { border: none; cursor: pointer; padding: 0; transition: opacity 0.1s; }
