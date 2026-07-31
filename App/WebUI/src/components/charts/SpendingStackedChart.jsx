@@ -152,7 +152,29 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
                                     />
                                 </svg>
                             )}
-
+                            {/* Per-bar totals - positioned above each bar using its TRUE total
+                                (not the heightScale-transformed segment heights), so the label
+                                stays anchored to the bar's real top regardless of zoom level. */}
+                            <div style={{ position: 'absolute', top: 0, left: 0, width: totalWidth, height: TOP_PADDING + chartHeight, pointerEvents: 'none'  }}>
+                                {stackData.map((bar, i) => {
+                                    const total = barTotals[i];
+                                    const barTopY = TOP_PADDING + chartHeight - (total / maxValue) * chartHeight;
+                                    return (
+                                        <span
+                                            key={i}
+                                            className="bar-total-label"
+                                            style={{
+                                                position: 'absolute',
+                                                left: LEFT_PADDING + i * columnWidth,
+                                                top: barTopY - 18,
+                                                width: BAR_WIDTH,
+                                            }}
+                                        >
+                                            £{Math.round(total).toLocaleString()}
+                                        </span>
+                                    );
+                                })}
+                            </div>
                             <div style={{ position: 'absolute', top: TOP_PADDING + chartHeight + 2, left: 0, width: totalWidth, height: LABEL_ROW_HEIGHT }}>
                                 {stackData.map((bar, i) => (
                                     <span
