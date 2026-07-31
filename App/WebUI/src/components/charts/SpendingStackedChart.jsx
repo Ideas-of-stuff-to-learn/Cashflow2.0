@@ -10,6 +10,14 @@ const LABEL_ROW_HEIGHT = 24;
 const Y_AXIS_LABEL_WIDTH = 46;
 const Y_AXIS_SECTIONS = 4;
 const TOP_PADDING = 10;
+// Extra space above the chart itself, reserved purely so a total
+// label sitting near/above the tallest bar has real room to scroll
+// into view. Everything (gridlines, bars, income line, labels) gets
+// shifted DOWN by this amount from where it used to sit, and the
+// scrollable container is made genuinely taller by this same amount -
+// without both of those, adding height to just one inner div does
+// nothing, since nothing else moved to make room above it.
+const LABEL_HEADROOM = 24;
 
 const StackBar = memo(function StackBar({ bar, barIndex, maxValue, chartHeight, columnWidth, heightScale }) {
     let cumulativeBottom = 0;
@@ -71,19 +79,23 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
     const columnWidth = BAR_WIDTH + BAR_SPACING;
     const totalWidth = LEFT_PADDING * 2 + stackData.length * columnWidth;
     const barTotals = stackData.map(bar => bar.total ?? bar.stacks.reduce((sum, s) => sum + s.value, 0));
-    
+
     const incomeValues = (incomeData || []).map(d => d.value || 0);
     const maxValue = Math.max(1, ...barTotals, ...incomeValues);
 
+    // Every y-position below is shifted down by LABEL_HEADROOM, so the
+    // topmost gridline (and therefore the tallest bar/label) has real
+    // empty space above it to scroll into, instead of starting flush
+    // at the very top of the scrollable area.
     const yAxisLabels = Array.from({ length: Y_AXIS_SECTIONS + 1 }, (_, i) => {
         const value = (maxValue / Y_AXIS_SECTIONS) * i;
-        return { value, y: TOP_PADDING + chartHeight - (value / maxValue) * chartHeight };
+        return { value, y: LABEL_HEADROOM + TOP_PADDING + chartHeight - (value / maxValue) * chartHeight };
     });
 
     const incomePoints = (incomeData || [])
         .map((d, i) => {
             const x = LEFT_PADDING + i * columnWidth + BAR_WIDTH / 2;
-            const y = TOP_PADDING + chartHeight - ((d.value || 0) / maxValue) * chartHeight;
+            const y = LABEL_HEADROOM + TOP_PADDING + chartHeight - ((d.value || 0) / maxValue) * chartHeight;
             return `${x},${y}`;
         })
         .join(' ');
@@ -98,8 +110,9 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
             )}
             <div className="stack-chart-scroll">
                 <div style={{ display: 'flex' }}>
-                    {/* Fixed y-axis label column */}
-                    <div style={{ width: Y_AXIS_LABEL_WIDTH, height: TOP_PADDING + chartHeight, position: 'relative', flexShrink: 0 }}>
+                    {/* Fixed y-axis label column - now genuinely taller by
+                        LABEL_HEADROOM, matching the shifted content. */}
+                    <div style={{ width: Y_AXIS_LABEL_WIDTH, height: LABEL_HEADROOM + TOP_PADDING + chartHeight, position: 'relative', flexShrink: 0 }}>
                         {yAxisLabels.map((label, i) => (
                             <span
                                 key={i}
@@ -112,7 +125,7 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
                     </div>
 
                     <div className="stack-chart-hscroll">
-                        <div style={{ width: totalWidth, height: TOP_PADDING + chartHeight + LABEL_ROW_HEIGHT, position: 'relative' }}>
+                        <div style={{ width: totalWidth, height: LABEL_HEADROOM + TOP_PADDING + chartHeight + LABEL_ROW_HEIGHT, position: 'relative' }}>
                             {yAxisLabels.map((label, i) => (
                                 <div
                                     key={i}
@@ -120,9 +133,9 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
                                     style={{ top: label.y, width: totalWidth }}
                                 />
                             ))}
-                            <div className="x-axis-line" style={{ top: TOP_PADDING + chartHeight, width: totalWidth }} />
+                            <div className="x-axis-line" style={{ top: LABEL_HEADROOM + TOP_PADDING + chartHeight, width: totalWidth }} />
 
-                            <div style={{ position: 'absolute', top: TOP_PADDING, left: 0, width: totalWidth, height: chartHeight }}>
+                            <div style={{ position: 'absolute', top: LABEL_HEADROOM + TOP_PADDING, left: 0, width: totalWidth, height: chartHeight }}>
                                 {stackData.map((bar, barIndex) => (
                                     <StackBar
                                         key={barIndex}
@@ -140,7 +153,7 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
                                 <svg
                                     style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
                                     width={totalWidth}
-                                    height={TOP_PADDING + chartHeight}
+                                    height={LABEL_HEADROOM + TOP_PADDING + chartHeight}
                                 >
                                     <polyline
                                         points={incomePoints}
@@ -150,13 +163,22 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
                                     />
                                 </svg>
                             )}
-                            {/* Per-bar totals - positioned above each bar using its TRUE total
-                                (not the heightScale-transformed segment heights), so the label
-                                stays anchored to the bar's real top regardless of zoom level. */}
-                            <div style={{ position: 'absolute', top: 0, left: 0, width: totalWidth, height: TOP_PADDING + chartHeight, pointerEvents: 'none'  }}>
+
+                            {/* Positioned using the SAME segment-height math StackBar uses
+                                to render (padding + zoom transform included), then shifted
+                                down by LABEL_HEADROOM to match everything else - so the
+                                label sits at the bar's true visual top, with real scroll
+                                room above it. */}
+                            <div style={{ position: 'absolute', top: 0, left: 0, width: totalWidth, height: LABEL_HEADROOM + TOP_PADDING + chartHeight, pointerEvents: 'none' }}>
                                 {stackData.map((bar, i) => {
-                                    const total = barTotals[i];
-                                    const barTopY = TOP_PADDING + chartHeight - (total / maxValue) * chartHeight;
+                                    const visibleSum = bar.stacks.reduce((sum, segment) => {
+                                        const scaledValue = heightScale > 1
+                                            ? transformValue(segment.value, maxValue, heightScale)
+                                            : segment.value;
+                                        return sum + (scaledValue / maxValue) * chartHeight;
+                                    }, 0);
+                                    const barTopY = LABEL_HEADROOM + TOP_PADDING + chartHeight - visibleSum;
+
                                     return (
                                         <span
                                             key={i}
@@ -168,12 +190,13 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
                                                 width: BAR_WIDTH,
                                             }}
                                         >
-                                            £{Math.round(total).toLocaleString()}
+                                            £{Math.round(bar.total ?? 0).toLocaleString()}
                                         </span>
                                     );
                                 })}
                             </div>
-                            <div style={{ position: 'absolute', top: TOP_PADDING + chartHeight + 2, left: 0, width: totalWidth, height: LABEL_ROW_HEIGHT }}>
+
+                            <div style={{ position: 'absolute', top: LABEL_HEADROOM + TOP_PADDING + chartHeight + 2, left: 0, width: totalWidth, height: LABEL_ROW_HEIGHT }}>
                                 {stackData.map((bar, i) => (
                                     <span
                                         key={i}
