@@ -43,6 +43,7 @@ export default function ChartsScreen() {
         toggleItem,
         selectAll,
         closeDrilldown,
+        categoryColors,
     } = useChartData();
 
     const showYearChart = useDetailedChartReveal();
@@ -67,6 +68,7 @@ export default function ChartsScreen() {
                     setSelectedCategories={setSelectedCategories}
                     toggleItem={toggleItem}
                     selectAll={selectAll}
+                    categoryColors={categoryColors}
                 />
 
                 <StackOrderEditor

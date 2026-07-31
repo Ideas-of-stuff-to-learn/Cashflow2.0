@@ -9,6 +9,7 @@ export default function FilterPane({
     contentsSelectedCategories,
     toggleContentsCategory,
     clearContentsCategories,
+    categoryColors,
 
     effectiveOrder,
     isCustomOrder,
@@ -87,6 +88,7 @@ export default function FilterPane({
                             checked={contentsSelectedCategories.size === 0 || contentsSelectedCategories.has(cat)}
                             onChange={() => toggleContentsCategory(cat)}
                         />
+                        <span className="filter-pane-colour-dot" style={{ backgroundColor: categoryColors?.[cat] || '#BBBBBB' }} />
                         <span>{cat}</span>
                     </label>
                 ))}

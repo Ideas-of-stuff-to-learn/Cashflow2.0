@@ -1,6 +1,6 @@
 import '../../styles/chartStyles.css';
 
-export default function CategorySlicer({ availableCategories, selectedCategories, setSelectedCategories, toggleItem, selectAll }) {
+export default function CategorySlicer({ availableCategories, selectedCategories, setSelectedCategories, toggleItem, selectAll, categoryColors }) {
     return (
         <>
             <p className="slicer-label">Categories</p>
@@ -17,6 +17,7 @@ export default function CategorySlicer({ availableCategories, selectedCategories
                         className={`chip ${selectedCategories.has(cat) ? 'chip-active' : ''}`}
                         onClick={() => toggleItem(selectedCategories, setSelectedCategories, cat)}
                     >
+                        <span className="chip-colour-dot" style={{ backgroundColor: categoryColors?.[cat] || '#BBBBBB' }} />
                         <span className={`chip-text ${selectedCategories.has(cat) ? 'chip-text-active' : ''}`}>{cat}</span>
                     </button>
                 ))}

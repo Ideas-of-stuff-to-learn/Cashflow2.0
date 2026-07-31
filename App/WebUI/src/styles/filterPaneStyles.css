@@ -159,3 +159,11 @@
     font-weight: 600;
     cursor: pointer;
 }
+
+.filter-pane-colour-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 2px;
+}

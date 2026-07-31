@@ -171,5 +171,6 @@ export function useChartData() {
         toggleItem,
         selectAll,
         closeDrilldown,
+        categoryColors,
     };
 }

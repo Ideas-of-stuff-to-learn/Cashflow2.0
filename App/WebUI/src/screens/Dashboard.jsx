@@ -39,7 +39,7 @@ export default function DashboardScreen() {
         hasData, effectiveOrder, updateOrder, resetOrder, persist, togglePersist, isCustomOrder,
         yearChartData, yearIncomeLineData, selectedYear, selectedYearSegment, selectedYearTotal,
         monthChartData, monthIncomeLineData, selectedSegment, closeDrilldown,
-        availableCategories, setSelectedCategories: setChartSelectedCategories,
+        availableCategories, setSelectedCategories: setChartSelectedCategories,categoryColors,
     } = useChartData();
     const showYearChart = useDetailedChartReveal();
 
@@ -107,6 +107,7 @@ export default function DashboardScreen() {
                 resetOrder={resetOrder}
                 persist={persist}
                 togglePersist={togglePersist}
+                categoryColors={categoryColors}
             />
         </div>
     );
