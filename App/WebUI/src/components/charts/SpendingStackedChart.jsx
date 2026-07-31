@@ -91,76 +91,84 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
         .join(' ');
 
     return (
-        <div className="stack-chart-scroll">
-            <div style={{ display: 'flex' }}>
-                {/* Fixed y-axis label column */}
-                <div style={{ width: Y_AXIS_LABEL_WIDTH, height: TOP_PADDING + chartHeight, position: 'relative', flexShrink: 0 }}>
-                    {yAxisLabels.map((label, i) => (
-                        <span
-                            key={i}
-                            className="y-axis-label"
-                            style={{ position: 'absolute', top: label.y - 7, width: Y_AXIS_LABEL_WIDTH - 6 }}
-                        >
-                            {`£${Math.round(label.value)}`}
-                        </span>
-                    ))}
+        <>
+            {incomeData && incomeData.length > 1 && (
+                <div className="income-legend">
+                    <span className="income-legend-line" />
+                    <span className="income-legend-text">Income</span>
                 </div>
-
-                <div className="stack-chart-hscroll">
-                    <div style={{ width: totalWidth, height: TOP_PADDING + chartHeight + LABEL_ROW_HEIGHT, position: 'relative' }}>
+            )}
+            <div className="stack-chart-scroll">
+                <div style={{ display: 'flex' }}>
+                    {/* Fixed y-axis label column */}
+                    <div style={{ width: Y_AXIS_LABEL_WIDTH, height: TOP_PADDING + chartHeight, position: 'relative', flexShrink: 0 }}>
                         {yAxisLabels.map((label, i) => (
-                            <div
+                            <span
                                 key={i}
-                                className="grid-line"
-                                style={{ top: label.y, width: totalWidth }}
-                            />
-                        ))}
-                        <div className="x-axis-line" style={{ top: TOP_PADDING + chartHeight, width: totalWidth }} />
-
-                        <div style={{ position: 'absolute', top: TOP_PADDING, left: 0, width: totalWidth, height: chartHeight }}>
-                            {stackData.map((bar, barIndex) => (
-                                <StackBar
-                                    key={barIndex}
-                                    bar={bar}
-                                    barIndex={barIndex}
-                                    maxValue={maxValue}
-                                    chartHeight={chartHeight}
-                                    columnWidth={columnWidth}
-                                    heightScale={heightScale}
-                                />
-                            ))}
-                        </div>
-
-                        {incomeData && incomeData.length > 1 && (
-                            <svg
-                                style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
-                                width={totalWidth}
-                                height={TOP_PADDING + chartHeight}
+                                className="y-axis-label"
+                                style={{ position: 'absolute', top: label.y - 7, width: Y_AXIS_LABEL_WIDTH - 6 }}
                             >
-                                <polyline
-                                    points={incomePoints}
-                                    fill="none"
-                                    stroke="#27AE60"
-                                    strokeWidth={2}
-                                />
-                            </svg>
-                        )}
+                                {`£${Math.round(label.value)}`}
+                            </span>
+                        ))}
+                    </div>
 
-                        <div style={{ position: 'absolute', top: TOP_PADDING + chartHeight + 2, left: 0, width: totalWidth, height: LABEL_ROW_HEIGHT }}>
-                            {stackData.map((bar, i) => (
-                                <span
+                    <div className="stack-chart-hscroll">
+                        <div style={{ width: totalWidth, height: TOP_PADDING + chartHeight + LABEL_ROW_HEIGHT, position: 'relative' }}>
+                            {yAxisLabels.map((label, i) => (
+                                <div
                                     key={i}
-                                    className="bar-label"
-                                    style={{ position: 'absolute', left: LEFT_PADDING + i * columnWidth, width: BAR_WIDTH }}
-                                >
-                                    {bar.label}
-                                </span>
+                                    className="grid-line"
+                                    style={{ top: label.y, width: totalWidth }}
+                                />
                             ))}
+                            <div className="x-axis-line" style={{ top: TOP_PADDING + chartHeight, width: totalWidth }} />
+
+                            <div style={{ position: 'absolute', top: TOP_PADDING, left: 0, width: totalWidth, height: chartHeight }}>
+                                {stackData.map((bar, barIndex) => (
+                                    <StackBar
+                                        key={barIndex}
+                                        bar={bar}
+                                        barIndex={barIndex}
+                                        maxValue={maxValue}
+                                        chartHeight={chartHeight}
+                                        columnWidth={columnWidth}
+                                        heightScale={heightScale}
+                                    />
+                                ))}
+                            </div>
+
+                            {incomeData && incomeData.length > 1 && (
+                                <svg
+                                    style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
+                                    width={totalWidth}
+                                    height={TOP_PADDING + chartHeight}
+                                >
+                                    <polyline
+                                        points={incomePoints}
+                                        fill="none"
+                                        stroke="#27AE60"
+                                        strokeWidth={2}
+                                    />
+                                </svg>
+                            )}
+
+                            <div style={{ position: 'absolute', top: TOP_PADDING + chartHeight + 2, left: 0, width: totalWidth, height: LABEL_ROW_HEIGHT }}>
+                                {stackData.map((bar, i) => (
+                                    <span
+                                        key={i}
+                                        className="bar-label"
+                                        style={{ position: 'absolute', left: LEFT_PADDING + i * columnWidth, width: BAR_WIDTH }}
+                                    >
+                                        {bar.label}
+                                    </span>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </>
     );
 }
 

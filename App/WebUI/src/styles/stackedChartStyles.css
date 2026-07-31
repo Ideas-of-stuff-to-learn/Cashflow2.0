@@ -9,3 +9,23 @@
 
 .grid-line { position: absolute; left: 0; height: 1px; background: #eee; }
 .x-axis-line { position: absolute; left: 0; height: 1px; background: #ccc; }
+
+.income-legend {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    padding-left: 4px;
+}
+
+.income-legend-line {
+    display: inline-block;
+    width: 16px;
+    height: 2px;
+    background: #27AE60;
+}
+
+.income-legend-text {
+    font-size: 12px;
+    color: #555;
+}
