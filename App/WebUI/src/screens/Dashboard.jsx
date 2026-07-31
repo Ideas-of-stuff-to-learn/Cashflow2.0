@@ -57,7 +57,7 @@ export default function DashboardScreen() {
                         <button className="btn" onClick={retryInitialLoad}>Retry</button>
                     </div>
                 )}
-                <button className="btn" onClick={pickFiles} disabled={loading || categorising}>Choose CSV Files</button>
+                <button className="btn" onClick={pickFiles} disabled={loading || categorising}>Choose CSV or Excel Files</button>
                 {selectedFiles.length > 0 && (
                     <div className="file-info">
                         {selectedFiles.map(f => <p key={f.name} className="file-info-text">{f.name}</p>)}
@@ -70,11 +70,11 @@ export default function DashboardScreen() {
                     onClick={handleCategorisePress}
                     disabled={loading || categorising || !allTransactionsLoaded || (selectedFiles.length === 0 && notYetCategorisedCount === 0)}
                 >
-                    {loading ? '...' : notYetCategorisedCount > 0 ? `Categorise (retry ${notYetCategorisedCount})` : 'Categorise'}
+                    {loading ? '...' : notYetCategorisedCount > 0 ? `Reprocess (retry ${notYetCategorisedCount})` : 'Process transactions'}
                 </button>
 
                 <button className="btn btn-secondary" onClick={() => navigate('/contents')}>
-                    Go to CSV Contents
+                    Go to Transactions
                 </button>
 
                 <button className="logout-btn" onClick={handleLogout}>Log Out</button>

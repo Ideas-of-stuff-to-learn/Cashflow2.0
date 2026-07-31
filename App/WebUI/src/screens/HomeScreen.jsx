@@ -40,7 +40,7 @@ export default function HomeScreen() {
                 )}
 
                 <button className="btn" onClick={pickFiles} disabled={loading || categorising}>
-                    Choose CSV Files
+                    Choose CSV or Excel Files
                 </button>
 
                 {selectedFiles.length > 0 && (
@@ -66,8 +66,8 @@ export default function HomeScreen() {
                     {loading
                         ? '...'
                         : notYetCategorisedCount > 0
-                            ? `Categorise${selectedFiles.length > 0 ? '' : ` (retry ${notYetCategorisedCount})`}`
-                            : 'Categorise'}
+                            ? `Reprocess transactions ${selectedFiles.length > 0 ? '' : ` (retry ${notYetCategorisedCount})`}`
+                            : 'Process transactions'}
                 </button>
 
                 <button className="btn btn-secondary" onClick={() => navigate('/charts')}>
@@ -75,7 +75,7 @@ export default function HomeScreen() {
                 </button>
 
                 <button className="btn btn-secondary" onClick={() => navigate('/contents')}>
-                    Go to CSV Contents
+                    Go to Transactions
                 </button>
 
                 <button className="logout-btn" onClick={handleLogout}>
