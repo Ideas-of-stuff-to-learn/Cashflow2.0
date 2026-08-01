@@ -2,21 +2,15 @@
 import SegmentPopupContent from './SegmentPopupContent';
 import '../../styles/segmentPopup.css';
 
-export default function SegmentPopupModal({ segment, onMouseLeave, onClickOutside }) {
+// Dismiss now happens entirely via SpendingStackedChart's own
+// chart-level rules (leave the chart / click empty chart space) - this
+// component is purely visual now, no dismiss logic of its own left.
+export default function SegmentPopupModal({ segment }) {
     if (!segment) return null;
 
     return (
-        // FIX - the backdrop's own onClick now actually calls
-        // onClickOutside when the click lands on the backdrop itself
-        // (not bubbled up from inside the popup box) - this was
-        // previously never wired to anything at all.
-        <div
-            className="segment-popup-modal-backdrop"
-            onClick={(e) => {
-                if (e.target === e.currentTarget && onClickOutside) onClickOutside();
-            }}
-        >
-            <div className="segment-popup-modal" onMouseLeave={onMouseLeave}>
+        <div className="segment-popup-modal-backdrop">
+            <div className="segment-popup-modal">
                 <SegmentPopupContent segment={segment} />
             </div>
         </div>

@@ -1,4 +1,4 @@
-import { memo, useRef } from 'react';
+import { memo } from 'react';
 import { transformValue } from '../../utils/charts/chartUtils';
 import SegmentPopupFloating from './SegmentPopupFloating';
 import SegmentPopupModal from './SegmentPopupModal';
@@ -14,7 +14,7 @@ const Y_AXIS_SECTIONS = 4;
 const TOP_PADDING = 10;
 const LABEL_HEADROOM = 24;
 
-const StackBar = memo(function StackBar({ bar, barIndex, maxValue, chartHeight, columnWidth, heightScale, onSegmentInteract, floatingPositionRef }) {
+const StackBar = memo(function StackBar({ bar, barIndex, maxValue, chartHeight, columnWidth, heightScale, onSegmentInteract }) {
     let cumulativeBottom = 0;
     const visibleSegments = bar.stacks.filter(s => s.value > 0);
     const topSegmentIndex = visibleSegments.length > 0
@@ -44,32 +44,29 @@ const StackBar = memo(function StackBar({ bar, barIndex, maxValue, chartHeight, 
                 const isTop = segIndex === topSegmentIndex;
                 const positionKey = `${barIndex}-${segIndex}`;
 
-                function handleRef(el) {
-                    if (el && floatingPositionRef) {
-                        floatingPositionRef.current[positionKey] = {
-                            left: LEFT_PADDING + barIndex * columnWidth + BAR_WIDTH / 2,
-                            top: bottom,
-                        };
-                    }
-                }
-
-                // FIX - no more barsInert gate at all. Every variant
-                // (including modal now) updates freely on hover/click
-                // of ANY bar, matching the other two variants' feel.
-                function fire() {
+                function fire(e) {
+                    e.stopPropagation();
                     segment.onPress();
+                    // Anchor horizontally to this BAR's center, vertically to this
+                    // SEGMENT's actual top edge - both computed from values we already
+                    // reliably know (barIndex, columnWidth, bottom, segHeight), rather
+                    // than trusting the raw mouse event's offsetX/offsetY, which
+                    // behaves inconsistently across onMouseEnter vs onClick and across
+                    // nested absolutely-positioned elements - that inconsistency was
+                    // the actual cause of the drift.
+                    const anchorX = LEFT_PADDING + barIndex * columnWidth + BAR_WIDTH / 2;
+                    const anchorY = (LABEL_HEADROOM + TOP_PADDING + chartHeight) - (bottom + segHeight);
+
                     onSegmentInteract({
                         year: segment.year,
                         month: segment.month,
                         category: segment.category,
                         value: segment.realValue,
-                    }, positionKey);
+                    }, positionKey, { x: anchorX, y: anchorY });
                 }
-
                 return (
                     <button
                         key={segIndex}
-                        ref={handleRef}
                         onClick={fire}
                         onMouseEnter={fire}
                         className="stack-segment"
@@ -93,16 +90,8 @@ const StackBar = memo(function StackBar({ bar, barIndex, maxValue, chartHeight, 
 function SpendingStackChart({
     stackData, incomeData, heightScale = 1,
     popupVariant, activeSegment,
-    onSegmentInteract, onChartMouseLeave, onChartBackgroundClick, onPopupMouseLeave, onPopupClickOutside,
+    onSegmentInteract, onChartMouseLeave, onChartBackgroundClick,
 }) {
-    // FIX - a REAL React ref now (persists the SAME object across
-    // every render), not a plain object literal recreated fresh each
-    // time. That was the actual bug making the floating variant's
-    // position lookup always come back empty - it was reading from a
-    // brand-new, still-empty object every render, never the one the
-    // bars' ref callbacks had actually written positions into.
-    const floatingPositionRef = useRef({});
-
     if (!stackData || stackData.length === 0) {
         return null;
     }
@@ -128,6 +117,8 @@ function SpendingStackChart({
         })
         .join(' ');
 
+    const contentHeight = LABEL_HEADROOM + TOP_PADDING + chartHeight + LABEL_ROW_HEIGHT;
+
     return (
         <>
             {incomeData && incomeData.length > 1 && (
@@ -140,7 +131,6 @@ function SpendingStackChart({
             <div
                 className="stack-chart-scroll"
                 onMouseLeave={onChartMouseLeave}
-                onClick={(e) => { if (e.target === e.currentTarget) onChartBackgroundClick(); }}
                 style={{ position: 'relative' }}
             >
                 <div style={{ display: 'flex' }}>
@@ -152,12 +142,18 @@ function SpendingStackChart({
                         ))}
                     </div>
 
-                    <div className="stack-chart-hscroll" onClick={(e) => { if (e.target === e.currentTarget) onChartBackgroundClick(); }}>
-                        <div style={{ width: totalWidth, height: LABEL_HEADROOM + TOP_PADDING + chartHeight + LABEL_ROW_HEIGHT, position: 'relative' }}>
+                    <div className="stack-chart-hscroll">
+                        <div style={{ width: totalWidth, height: contentHeight, position: 'relative' }}>
+                            <div
+                                className="chart-background-catcher"
+                                style={{ position: 'absolute', top: 0, left: 0, width: totalWidth, height: contentHeight }}
+                                onClick={onChartBackgroundClick}
+                            />
+
                             {yAxisLabels.map((label, i) => (
-                                <div key={i} className="grid-line" style={{ top: label.y, width: totalWidth }} />
+                                <div key={i} className="grid-line" style={{ top: label.y, width: totalWidth, pointerEvents: 'none' }} />
                             ))}
-                            <div className="x-axis-line" style={{ top: LABEL_HEADROOM + TOP_PADDING + chartHeight, width: totalWidth }} />
+                            <div className="x-axis-line" style={{ top: LABEL_HEADROOM + TOP_PADDING + chartHeight, width: totalWidth, pointerEvents: 'none' }} />
 
                             <div style={{ position: 'absolute', top: LABEL_HEADROOM + TOP_PADDING, left: 0, width: totalWidth, height: chartHeight }}>
                                 {stackData.map((bar, barIndex) => (
@@ -170,7 +166,6 @@ function SpendingStackChart({
                                         columnWidth={columnWidth}
                                         heightScale={heightScale}
                                         onSegmentInteract={onSegmentInteract}
-                                        floatingPositionRef={popupVariant === 'floating' ? floatingPositionRef : null}
                                     />
                                 ))}
                             </div>
@@ -197,13 +192,10 @@ function SpendingStackChart({
                             </div>
 
                             {popupVariant === 'floating' && activeSegment && (
-                                <SegmentPopupFloating
-                                    segment={activeSegment}
-                                    position={floatingPositionRef.current[activeSegment._positionKey] || null}
-                                />
+                                <SegmentPopupFloating segment={activeSegment} />
                             )}
 
-                            <div style={{ position: 'absolute', top: LABEL_HEADROOM + TOP_PADDING + chartHeight + 2, left: 0, width: totalWidth, height: LABEL_ROW_HEIGHT }}>
+                            <div style={{ position: 'absolute', top: LABEL_HEADROOM + TOP_PADDING + chartHeight + 2, left: 0, width: totalWidth, height: LABEL_ROW_HEIGHT, pointerEvents: 'none' }}>
                                 {stackData.map((bar, i) => (
                                     <span key={i} className="bar-label" style={{ position: 'absolute', left: LEFT_PADDING + i * columnWidth, width: BAR_WIDTH }}>
                                         {bar.label}
@@ -214,13 +206,7 @@ function SpendingStackChart({
                     </div>
                 </div>
 
-                {popupVariant === 'modal' && (
-                    <SegmentPopupModal
-                        segment={activeSegment}
-                        onMouseLeave={onPopupMouseLeave}
-                        onClickOutside={onPopupClickOutside}
-                    />
-                )}
+                {popupVariant === 'modal' && <SegmentPopupModal segment={activeSegment} />}
             </div>
         </>
     );

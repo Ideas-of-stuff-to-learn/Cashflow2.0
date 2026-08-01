@@ -43,6 +43,13 @@
     margin-top: -8px;
 }
 
+/* NEW - flipped state: renders BELOW the cursor point instead of
+   above, since translate/margin need to go the opposite direction. */
+.segment-popup-floating-below {
+    transform: translate(-50%, 0%);
+    margin-top: 8px;
+}
+
 .segment-popup-floating-arrow {
     position: absolute;
     bottom: -5px;
@@ -55,6 +62,22 @@
     border-top: 5px solid #fff;
 }
 
+/* NEW - upward-pointing arrow for the flipped state, sits at the TOP
+   of the bubble instead of the bottom. */
+.segment-popup-floating-arrow-up {
+    position: absolute;
+    top: -5px;
+    bottom: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: none;
+    border-bottom: 5px solid #fff;
+}
+
 .segment-popup-modal-backdrop {
     position: absolute;
     top: 0;
@@ -65,10 +88,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* FIX - was pointer-events: none, which meant the backdrop could
-       never receive the click-outside event at all. Now it does; the
-       popup box itself still works fine since it's a nested element
-       that receives its own clicks normally regardless. */
+    pointer-events: none; /* back to none - dismiss now happens via the chart's own background-catcher underneath, not this backdrop */
 }
 
 .segment-popup-modal {
