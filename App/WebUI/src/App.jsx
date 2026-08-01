@@ -4,7 +4,8 @@ Legend colour beside categories in UI. Not changeable just legend DONE
 Income line labelled DONE
 Shows totals on top of bars for monthly and yearly DONE
 Make a hover function on the bars to show the category name and value and % [what is being displayed underneath] replacing the totals shown underneath the chart
-Hover function on phone consider
+Hover function on phone consider DONE
+Fix the phone one a lil and work on the hover concept
 Backfill entire concept changing again: DONE
     Make monthly as a window for 12 months that can go back and forth across all data DONE
     Month chart is always there doesn't appear as a condition just the window adjusts DONE
