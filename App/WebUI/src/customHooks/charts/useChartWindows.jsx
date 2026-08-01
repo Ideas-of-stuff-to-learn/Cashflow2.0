@@ -1,68 +1,57 @@
-// customHooks/charts/useChartWindows.js
-import { useState, useMemo, useCallback } from 'react';
-import { getMonthWindow, getDefaultMonthWindowStart, addMonths } from '../../utils/charts/monthWindow';
-import { getYearWindow, getDefaultYearWindowStart, syncYearWindowToMonthWindow } from '../../utils/charts/yearWindow';
-
-// Owns both windows' positions and the one-way sync between them.
-// Nothing about rendering lives here - this is purely "where are the
-// two windows currently pointing, and what are the rules for moving
-// them" - components read the resulting 12-entry arrays and render
-// whichever one the toggle currently has selected.
+import { getMonthWindow, getDefaultMonthWindowStart, getMonthDataBounds, addMonths } from '../../utils/charts/monthWindow';
+import { getYearWindow, getDefaultYearWindowStart, getYearDataBounds, syncYearWindowToMonthWindow } from '../../utils/charts/yearWindow';
+import { useMemo, useState, useCallback } from 'react';
 export function useChartWindows(monthly, yearly) {
-    const [monthWindowStart, setMonthWindowStart] = useState(() =>
-        getDefaultMonthWindowStart(monthly)
-    );
-    const [yearWindowStart, setYearWindowStart] = useState(() =>
-        getDefaultYearWindowStart(yearly)
-    );
+    const monthBounds = useMemo(() => getMonthDataBounds(monthly), [monthly]);
+    const yearBounds = useMemo(() => getYearDataBounds(yearly), [yearly]);
 
-    const monthWindow = useMemo(
-        () => getMonthWindow(monthly, monthWindowStart.year, monthWindowStart.month),
-        [monthly, monthWindowStart]
-    );
+    const [monthWindowStart, setMonthWindowStart] = useState(() => getDefaultMonthWindowStart(monthly));
+    const [yearWindowStart, setYearWindowStart] = useState(() => getDefaultYearWindowStart(yearly));
 
-    const yearWindowEntries = useMemo(
-        () => getYearWindow(yearly, yearWindowStart),
-        [yearly, yearWindowStart]
-    );
+    const monthWindow = useMemo(() => getMonthWindow(monthly, monthWindowStart.year, monthWindowStart.month), [monthly, monthWindowStart]);
+    const yearWindowEntries = useMemo(() => getYearWindow(yearly, yearWindowStart), [yearly, yearWindowStart]);
 
-    // The ONLY function that moves the month window. Every caller -
-    // manual scroll, or a year-bar click - goes through this, and
-    // every call here also re-syncs the year window (one-way, per the
-    // rule: month movement may adjust the year window, year movement
-    // never touches the month window).
     const setMonthWindow = useCallback((newStart) => {
-        setMonthWindowStart(newStart);
-        const newMonthWindow = getMonthWindow(monthly, newStart.year, newStart.month);
-        setYearWindowStart(prev => syncYearWindowToMonthWindow(prev, newMonthWindow));
-    }, [monthly]);
+        // Clamp so the window's start never goes earlier than the
+        // earliest real month, and never later than 11 months before
+        // the latest real month (so the window's LAST slot never
+        // exceeds real data either).
+        let clamped = newStart;
+        if (monthBounds) {
+            const earliestStart = { year: monthBounds.earliest.year, month: monthBounds.earliest.month };
+            const latestStart = addMonths(monthBounds.latest.year, monthBounds.latest.month, -11);
+            const clampedKey = newStart.year * 100 + newStart.month;
+            const earliestKey = earliestStart.year * 100 + earliestStart.month;
+            const latestKey = latestStart.year * 100 + latestStart.month;
+            if (clampedKey < earliestKey) clamped = earliestStart;
+            else if (clampedKey > latestKey) clamped = latestStart;
+        }
 
-    // Scroll the month window by N months (negative = backward,
-    // positive = forward) - the actual function a horizontal-scroll
-    // gesture/button will call.
+        setMonthWindowStart(clamped);
+        const newMonthWindow = getMonthWindow(monthly, clamped.year, clamped.month);
+        setYearWindowStart(prev => syncYearWindowToMonthWindow(prev, newMonthWindow));
+    }, [monthly, monthBounds]);
+
     const scrollMonthWindow = useCallback((deltaMonths) => {
         setMonthWindow(addMonths(monthWindowStart.year, monthWindowStart.month, deltaMonths));
     }, [monthWindowStart, setMonthWindow]);
 
-    // Called when a year bar is clicked (in Year mode) - jumps the
-    // month window to that year's own 12 months (Jan-Dec of that
-    // year), per your spec: a year click sets which window Month mode
-    // would show, without auto-switching modes.
     const jumpMonthWindowToYear = useCallback((year) => {
         setMonthWindow({ year, month: 1 });
     }, [setMonthWindow]);
 
-    // Scrolling the YEAR window is completely independent - it never
-    // touches the month window at all, per the one-way rule.
     const scrollYearWindow = useCallback((deltaYears) => {
-        setYearWindowStart(prev => prev + deltaYears);
-    }, []);
+        setYearWindowStart(prev => {
+            let next = prev + deltaYears;
+            if (yearBounds) {
+                const earliestStart = yearBounds.earliestYear;
+                const latestStart = yearBounds.latestYear - 11;
+                if (next < earliestStart) next = earliestStart;
+                if (next > latestStart) next = latestStart;
+            }
+            return next;
+        });
+    }, [yearBounds]);
 
-    return {
-        monthWindow,
-        yearWindowEntries,
-        scrollMonthWindow,
-        scrollYearWindow,
-        jumpMonthWindowToYear,
-    };
+    return { monthWindow, yearWindowEntries, scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear };
 }

@@ -16,6 +16,7 @@ export default function ChartsScreen() {
         categorising,
         initialLoading,
         processingStage,
+        categoryColors,
     } = useApp();
 
     const {
@@ -49,6 +50,7 @@ export default function ChartsScreen() {
                     setSelectedCategories={setSelectedCategories}
                     toggleItem={toggleItem}
                     selectAll={selectAll}
+                    categoryColors={categoryColors}
                 />
 
                 <StackOrderEditor

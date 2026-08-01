@@ -38,12 +38,12 @@ export function useChartData() {
         return years.size > 1;
     }, [monthWindow]);
 
-    // ONE builder function, reused for whichever window is actually
-    // visible - ChartWindowSection calls this itself with the active
-    // window's entries, rather than both being precomputed here every
-    // render regardless of which one the toggle currently shows.
-    const buildStackData = useCallback((entries) => {
-        return buildStackDataFromEntries(entries, {
+    // buildStackData now accepts (entries, extraOnPress) - the second
+    // argument is passed straight through to buildStackDataFromEntries,
+    // letting ChartWindowSection decide per-call whether a click should
+    // ALSO jump the month window (year mode) or not (month mode).
+    const buildStackData = useCallback((entries, extraOnPress) => {
+        return buildStackDataFromEntries(entries, extraOnPress, {
             categoryNames,
             categoryColors,
             selectedCategories,

@@ -79,3 +79,9 @@ export function syncYearWindowToMonthWindow(currentYearWindowStart, monthWindowE
     // last slot (i.e. start = maxYearNeeded - 11).
     return maxYearNeeded - 11;
 }
+
+export function getYearDataBounds(yearly) {
+    if (!yearly || yearly.length === 0) return null;
+    const years = yearly.map(r => r.year);
+    return { earliestYear: Math.min(...years), latestYear: Math.max(...years) };
+}

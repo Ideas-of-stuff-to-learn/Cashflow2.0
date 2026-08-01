@@ -8,6 +8,7 @@ import { useFileProcessor } from '../customHooks/homescreen/useFileProcessor';
 import { useChartData } from '../customHooks/charts/useChartData';
 import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartReveal';
 import { NOT_YET_CATEGORISED } from '../checkingName';
+import { MONTH_LABELS_FULL} from '../utils/charts/monthWindow';
 
 import HomepageInfo from '../components/homepage/homepageInfo';
 import ProgressBar from '../components/homepage/ProgressBar';
@@ -20,7 +21,7 @@ export default function DashboardScreen() {
     const navigate = useNavigate();
     const {
         categorising, transactions, initialLoadError, retryInitialLoad, allTransactionsLoaded,
-        contentsSelectedCategories, toggleContentsCategory, clearContentsCategories,
+        contentsSelectedCategories, toggleContentsCategory, clearContentsCategories,categoryColors,
     } = useApp();
     const { dateRangeInfo, uploadCount, refetchUploadCount } = useInitialLoadLogic();
     const { handleLogout } = useLogout();
@@ -38,7 +39,7 @@ export default function DashboardScreen() {
         availableCategories, setSelectedCategories: setChartSelectedCategories,
         monthWindow, yearWindowEntries,
         scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear,
-        buildStackDataFromEntries, incomeForEntries,
+        buildStackDataFromEntries, incomeForEntries,selectedSegment,
     } = useChartData();
     const chartReady  = useDetailedChartReveal();
 
@@ -92,8 +93,17 @@ export default function DashboardScreen() {
                         buildStackDataFromEntries={buildStackDataFromEntries}
                         incomeForEntries={incomeForEntries}
                     />
+                    {selectedSegment && (
+                        <p className="tapped-value-text">
+                            {selectedSegment.month
+                                ? `${MONTH_LABELS_FULL[selectedSegment.month - 1]} ${selectedSegment.year}`
+                                : `${selectedSegment.year}`}
+                            {' — '}{selectedSegment.category}: £{selectedSegment.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </p>
+                    )}
                 </div>
             </div>
+            
 
             <FilterPane
                 availableCategories={availableCategories}
@@ -102,6 +112,7 @@ export default function DashboardScreen() {
                 clearContentsCategories={clearContentsCategories}
                 effectiveOrder={effectiveOrder}
                 isCustomOrder={isCustomOrder}
+                categoryColors={categoryColors}
                 updateOrder={updateOrder}
                 resetOrder={resetOrder}
                 persist={persist}

@@ -22,8 +22,8 @@
 
 .dashboard-charts-box {
     width: 100%;
+    min-width: 0;
 }
-
 
 /* FilterPane docks visually left or right via flex order - it's the
    LAST element in markup (always renders after dashboard-main), but

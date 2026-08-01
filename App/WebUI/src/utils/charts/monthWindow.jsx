@@ -1,10 +1,13 @@
 // utils/charts/monthWindow.js
 
-const MONTH_LABELS = [
+export const MONTH_LABELS = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
-
+export const MONTH_LABELS_FULL = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+];
 // Advances (year, month) forward or backward by `delta` calendar
 // months, wrapping year boundaries correctly. delta can be negative
 // (go backward) or positive (go forward).
@@ -78,4 +81,18 @@ export function getDefaultMonthWindowStart(monthly) {
     }, { key: -Infinity, year: 0, month: 0 });
 
     return addMonths(latest.year, latest.month, -11);
+}
+
+// Returns the earliest and latest (year, month) actually present in
+// the data - used to clamp scrolling so you can't scroll past real
+// history in either direction.
+export function getMonthDataBounds(monthly) {
+    if (!monthly || monthly.length === 0) return null;
+    let earliest = null, latest = null;
+    for (const row of monthly) {
+        const key = row.year * 100 + row.month;
+        if (!earliest || key < earliest.key) earliest = { key, year: row.year, month: row.month };
+        if (!latest || key > latest.key) latest = { key, year: row.year, month: row.month };
+    }
+    return { earliest, latest };
 }

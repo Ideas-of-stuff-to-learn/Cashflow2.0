@@ -3,21 +3,22 @@ import { transformValue } from './chartUtils';
 
 const MIN_RENDER_HEIGHT_FRACTION = 0.03; // 3% of maxValue, same floor the old build functions used
 
-// Converts EITHER a year-window's or a month-window's entries (both
-// share the same {year, month?, categoryTotals} shape from
-// monthWindow.js/yearWindow.js) into the {label, stacks, total} shape
-// SpendingStackChart actually renders. One function instead of two
-// separate ones (the old buildYearStackData/buildMonthStackDataFromEntries)
-// because the windows now produce identically-shaped input - there's
-// no real difference left to justify two copies of this logic.
-export function buildStackDataFromEntries(entries, {
+// Converts EITHER a year-window's or a month-window's entries into the
+// {label, stacks, total} shape SpendingStackChart actually renders.
+//
+// extraOnPress: an OPTIONAL second callback, fired alongside the
+// normal onSegmentPress whenever a segment is clicked. Used specifically
+// for year-mode clicks - when clicking a year bar, we want BOTH the
+// usual "show the tapped value below the chart" behaviour (that's
+// onSegmentPress, from useChartData) AND "jump the month window to
+// this year" (that's extraOnPress, wired in by ChartWindowSection).
+// Pass null/undefined when there's nothing extra to do (e.g. in month
+// mode, where clicking a segment should only ever do the normal thing).
+export function buildStackDataFromEntries(entries, extraOnPress, {
     categoryNames, categoryColors, selectedCategories, stackOrder, onSegmentPress, spansMultipleYears = false,
-}) {
+} = {}) {
     const orderedCategories = (stackOrder ? stackOrder.filter(c => c !== 'Income') : categoryNames.filter(c => c !== 'Income'));
 
-    // maxValue needs to be known before computing minRenderHeight -
-    // same two-pass approach the old functions used: first pass sums
-    // real totals, second pass applies the tap-target floor.
     const rawTotals = entries.map(entry =>
         orderedCategories.reduce((sum, cat) => sum + (entry.categoryTotals[cat] || 0), 0)
     );
@@ -38,12 +39,10 @@ export function buildStackDataFromEntries(entries, {
                 value: visible ? withMinHeight(realValue) : 0,
                 color: categoryColors[category] || '#BBBBBB',
                 category,
-                onPress: () => onSegmentPress({
-                    year: entry.year,
-                    month: entry.month, // undefined for year-window entries, harmless
-                    category,
-                    value: realValue,
-                }),
+                onPress: () => {
+                    onSegmentPress({ year: entry.year, month: entry.month, category, value: realValue });
+                    if (extraOnPress) extraOnPress(entry.year);
+                },
             };
         });
 
@@ -55,10 +54,6 @@ export function buildStackDataFromEntries(entries, {
     });
 }
 
-// Same shape conversion for the income line - both windows' entries
-// carry Income inside categoryTotals same as any other category, this
-// just extracts it into the flat {value} array SpendingStackChart's
-// incomeData prop expects.
 export function buildIncomeDataFromEntries(entries) {
     return entries.map(entry => ({ value: entry.categoryTotals['Income'] || 0 }));
 }

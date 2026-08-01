@@ -6,12 +6,6 @@ import ChartWindowToggle from './chartWindowsToggle';
 import { useDataReadiness } from '../../customHooks/charts/useDataReadiness';
 import { useApp } from '../../AppContext';
 
-// Replaces YearlyChartSection + DetailedChartSection. One chart, one
-// toggle (top-right) switching between the year window and the month
-// window - both windows' raw entries come in as props (from
-// useChartData/useChartWindows), this component just decides which
-// one to actually build/render based on `mode`, calling the shared
-// buildStackDataFromEntries/incomeForEntries functions on demand.
 export default function ChartWindowSection({
     ready, hasData,
     monthWindow, yearWindowEntries,
@@ -35,7 +29,10 @@ export default function ChartWindowSection({
     }
 
     const activeEntries = mode === 'year' ? yearWindowEntries : monthWindow;
-    const stackData = buildStackDataFromEntries(activeEntries);
+    // Only in year mode does a click ALSO jump the month window - in
+    // month mode, clicking a segment should just show its value below
+    // the chart, nothing else.
+    const stackData = buildStackDataFromEntries(activeEntries, mode === 'year' ? jumpMonthWindowToYear : null);
     const incomeData = incomeForEntries(activeEntries);
 
     function handleScroll(direction) {
