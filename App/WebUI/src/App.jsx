@@ -2,7 +2,7 @@
 While no data is available new account or data loading say a box saying preparing and a loading thing and randomly osicallting bars for fun DONE
 Legend colour beside categories in UI. Not changeable just legend DONE
 Income line labelled DONE
-Shows totals on top of bars for monthly and yearly
+Shows totals on top of bars for monthly and yearly DONE
 Make a hover function on the bars to show the category name and value and % [what is being displayed underneath] replacing the totals shown underneath the chart
 Hover function on phone consider
 Backfill entire concept changing again:

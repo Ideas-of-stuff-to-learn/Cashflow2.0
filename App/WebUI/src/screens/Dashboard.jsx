@@ -11,12 +11,10 @@ import { NOT_YET_CATEGORISED } from '../checkingName';
 
 import HomepageInfo from '../components/homepage/homepageInfo';
 import ProgressBar from '../components/homepage/ProgressBar';
-import YearlyChartSection from '../components/charts/Yearlychartsection';
-import DetailedChartSection from '../components/charts/DetailedChartSection';
+import ChartWindowSection from '../components/charts/ChartWindowSection';
 import FilterPane from '../components/dashboard/FilterPane';
 
 import '../styles/dashboardStyles.css';
-import '../styles/shared.css';
 
 export default function DashboardScreen() {
     const navigate = useNavigate();
@@ -37,11 +35,12 @@ export default function DashboardScreen() {
 
     const {
         hasData, effectiveOrder, updateOrder, resetOrder, persist, togglePersist, isCustomOrder,
-        yearChartData, yearIncomeLineData, selectedYear, selectedYearSegment, selectedYearTotal,
-        monthChartData, monthIncomeLineData, selectedSegment, closeDrilldown,
-        availableCategories, setSelectedCategories: setChartSelectedCategories,categoryColors,
+        availableCategories, setSelectedCategories: setChartSelectedCategories,
+        monthWindow, yearWindowEntries,
+        scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear,
+        buildStackDataFromEntries, incomeForEntries,
     } = useChartData();
-    const showYearChart = useDetailedChartReveal();
+    const chartReady  = useDetailedChartReveal();
 
     useEffect(() => {
         setChartSelectedCategories(new Set(contentsSelectedCategories));
@@ -57,7 +56,7 @@ export default function DashboardScreen() {
                         <button className="btn" onClick={retryInitialLoad}>Retry</button>
                     </div>
                 )}
-                <button className="btn" onClick={pickFiles} disabled={loading || categorising}>Choose CSV or Excel Files</button>
+                <button className="btn" onClick={pickFiles} disabled={loading || categorising}>Choose CSV Files</button>
                 {selectedFiles.length > 0 && (
                     <div className="file-info">
                         {selectedFiles.map(f => <p key={f.name} className="file-info-text">{f.name}</p>)}
@@ -70,7 +69,7 @@ export default function DashboardScreen() {
                     onClick={handleCategorisePress}
                     disabled={loading || categorising || !allTransactionsLoaded || (selectedFiles.length === 0 && notYetCategorisedCount === 0)}
                 >
-                    {loading ? '...' : notYetCategorisedCount > 0 ? `Reprocess (retry ${notYetCategorisedCount})` : 'Process transactions'}
+                    {loading ? '...' : notYetCategorisedCount > 0 ? `Categorise (retry ${notYetCategorisedCount})` : 'Categorise'}
                 </button>
 
                 <button className="btn btn-secondary" onClick={() => navigate('/contents')}>
@@ -82,16 +81,16 @@ export default function DashboardScreen() {
 
             <div className="dashboard-main">
                 <div className="dashboard-charts-box">
-                    <YearlyChartSection
-                        ready={showYearChart} hasData={hasData}
-                        yearChartData={yearChartData} yearIncomeLineData={yearIncomeLineData}
-                        selectedYear={selectedYear} selectedYearSegment={selectedYearSegment}
-                        selectedYearTotal={selectedYearTotal}
-                    />
-                    <DetailedChartSection
-                        selectedYear={selectedYear} monthChartData={monthChartData}
-                        monthIncomeLineData={monthIncomeLineData} selectedSegment={selectedSegment}
-                        closeDrilldown={closeDrilldown}
+                    <ChartWindowSection
+                        ready={chartReady}
+                        hasData={hasData}
+                        monthWindow={monthWindow}
+                        yearWindowEntries={yearWindowEntries}
+                        scrollMonthWindow={scrollMonthWindow}
+                        scrollYearWindow={scrollYearWindow}
+                        jumpMonthWindowToYear={jumpMonthWindowToYear}
+                        buildStackDataFromEntries={buildStackDataFromEntries}
+                        incomeForEntries={incomeForEntries}
                     />
                 </div>
             </div>
@@ -107,7 +106,6 @@ export default function DashboardScreen() {
                 resetOrder={resetOrder}
                 persist={persist}
                 togglePersist={togglePersist}
-                categoryColors={categoryColors}
             />
         </div>
     );

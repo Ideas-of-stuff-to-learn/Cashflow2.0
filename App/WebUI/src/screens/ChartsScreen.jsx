@@ -1,13 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
-import SpendingOverview from '../components/charts/SpendingOverview';
-import YearlyChartSection from '../components/charts/Yearlychartsection';
-import CategorySlicer from '../components/charts/categorySlicer';
-import DetailedChartSection from '../components/charts/DetailedChartSection';
-import StatusBanners from '../components/charts/StatusBanners';
-import StackOrderEditor from '../components/charts/StackOrderEditor';
 import { useChartData } from '../customHooks/charts/useChartData';
 import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartReveal';
+
+import ChartWindowSection from '../components/charts/ChartWindowSection';
+import SpendingOverview from '../components/charts/SpendingOverview';
+import CategorySlicer from '../components/charts/categorySlicer';
+import StatusBanners from '../components/charts/StatusBanners';
+import StackOrderEditor from '../components/charts/StackOrderEditor';
 import '../styles/chartStyles.css';
 
 export default function ChartsScreen() {
@@ -19,47 +19,28 @@ export default function ChartsScreen() {
     } = useApp();
 
     const {
-        showingDummyData,
-        hasData,
-        effectiveOrder,
-        updateOrder,
-        resetOrder,
-        persist,
-        togglePersist,
-        isCustomOrder,
-        yearChartData,
-        yearIncomeLineData,
-        allTimeChartData2,
-        selectedBar,
-        selectedYear,
-        selectedYearSegment,
-        selectedYearTotal,
-        monthChartData,
-        monthIncomeLineData,
-        selectedSegment,
-        availableCategories,
-        selectedCategories,
-        setSelectedCategories,
-        toggleItem,
-        selectAll,
-        closeDrilldown,
-        categoryColors,
+        hasData, allTimeChartData2, selectedSegment,
+        effectiveOrder, isCustomOrder, updateOrder, resetOrder, persist, togglePersist,
+        availableCategories, selectedCategories, setSelectedCategories, toggleItem, selectAll,
+        monthWindow, yearWindowEntries,
+        scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear,
+        buildStackDataFromEntries, incomeForEntries,
     } = useChartData();
 
-    const showYearChart = useDetailedChartReveal();
+    const chartReady = useDetailedChartReveal();
 
     return (
         <div className="charts-container">
             <div className="charts-scroll-content">
                 <h1 className="charts-title">Spending by Category</h1>
-                <StatusBanners initialLoading={initialLoading} processingStage={processingStage} showingDummyData={showingDummyData} />
+                <StatusBanners initialLoading={initialLoading} processingStage={processingStage} />
 
                 <SpendingOverview
                     hasData={hasData}
                     filteredChartData2={allTimeChartData2}
                     categorising={categorising}
                     initialLoading={initialLoading}
-                    selectedBar={selectedBar}
+                    selectedBar={null}
                 />
 
                 <CategorySlicer
@@ -68,7 +49,6 @@ export default function ChartsScreen() {
                     setSelectedCategories={setSelectedCategories}
                     toggleItem={toggleItem}
                     selectAll={selectAll}
-                    categoryColors={categoryColors}
                 />
 
                 <StackOrderEditor
@@ -80,24 +60,26 @@ export default function ChartsScreen() {
                     togglePersist={togglePersist}
                 />
 
-                <YearlyChartSection
-                    ready={showYearChart}
+                <ChartWindowSection
+                    ready={chartReady}
                     hasData={hasData}
-                    showingDummyData={showingDummyData}
-                    yearChartData={yearChartData}
-                    yearIncomeLineData={yearIncomeLineData}
-                    selectedYear={selectedYear}
-                    selectedYearSegment={selectedYearSegment}
-                    selectedYearTotal={selectedYearTotal}
+                    monthWindow={monthWindow}
+                    yearWindowEntries={yearWindowEntries}
+                    scrollMonthWindow={scrollMonthWindow}
+                    scrollYearWindow={scrollYearWindow}
+                    jumpMonthWindowToYear={jumpMonthWindowToYear}
+                    buildStackDataFromEntries={buildStackDataFromEntries}
+                    incomeForEntries={incomeForEntries}
                 />
 
-                <DetailedChartSection
-                    selectedYear={selectedYear}
-                    monthChartData={monthChartData}
-                    monthIncomeLineData={monthIncomeLineData}
-                    selectedSegment={selectedSegment}
-                    closeDrilldown={closeDrilldown}
-                />
+                {selectedSegment && (
+                    <p className="tapped-value-text">
+                        {selectedSegment.month
+                            ? `${selectedSegment.year}/${selectedSegment.month} — `
+                            : `${selectedSegment.year} — `}
+                        {selectedSegment.category}: £{selectedSegment.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </p>
+                )}
 
                 <button className="charts-button" onClick={() => navigate(-1)}>
                     Back to Home

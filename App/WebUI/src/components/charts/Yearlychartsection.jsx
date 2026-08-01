@@ -46,11 +46,6 @@ export default function YearlyChartSection({
                     {selectedYearSegment.year} — {selectedYearSegment.category}: £{displayWithSeperators(selectedYearSegment.value)}
                 </p>
             )}
-            {selectedYear != null && (
-                <p className="tapped-value-text">
-                    {selectedYear} total: £{displayWithSeperators(selectedYearTotal)}
-                </p>
-            )}
         </>
     );
 }

@@ -53,3 +53,45 @@
     border-radius: 50%;
     margin-right: 4px;
 }
+
+
+.chart-window-toggle {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.toggle-btn {
+    padding: 6px 14px;
+    border: 1px solid #2E5C8A;
+    background: #fff;
+    color: #2E5C8A;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 6px;
+}
+
+.toggle-btn-active {
+    background: #2E5C8A;
+    color: #fff;
+}
+
+.window-scroll-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.window-scroll-btn {
+    background: #2E5C8A;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
