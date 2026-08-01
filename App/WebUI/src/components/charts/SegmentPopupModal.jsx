@@ -2,16 +2,20 @@
 import SegmentPopupContent from './SegmentPopupContent';
 import '../../styles/segmentPopup.css';
 
-// Variant 1 - overlays on top of the chart at a high z-index. Its own
-// onMouseLeave/onClick-outside are wired by the PARENT (whatever
-// renders this), via handlePopupMouseLeave/handleClickOutsidePopup
-// from useModalSegmentPopup - this component just needs to expose the
-// right DOM hooks for those to attach to.
-export default function SegmentPopupModal({ segment, onMouseLeave }) {
+export default function SegmentPopupModal({ segment, onMouseLeave, onClickOutside }) {
     if (!segment) return null;
 
     return (
-        <div className="segment-popup-modal-backdrop">
+        // FIX - the backdrop's own onClick now actually calls
+        // onClickOutside when the click lands on the backdrop itself
+        // (not bubbled up from inside the popup box) - this was
+        // previously never wired to anything at all.
+        <div
+            className="segment-popup-modal-backdrop"
+            onClick={(e) => {
+                if (e.target === e.currentTarget && onClickOutside) onClickOutside();
+            }}
+        >
             <div className="segment-popup-modal" onMouseLeave={onMouseLeave}>
                 <SegmentPopupContent segment={segment} />
             </div>

@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useRef } from 'react';
 import { transformValue } from '../../utils/charts/chartUtils';
 import SegmentPopupFloating from './SegmentPopupFloating';
 import SegmentPopupModal from './SegmentPopupModal';
@@ -14,7 +14,7 @@ const Y_AXIS_SECTIONS = 4;
 const TOP_PADDING = 10;
 const LABEL_HEADROOM = 24;
 
-const StackBar = memo(function StackBar({ bar, barIndex, maxValue, chartHeight, columnWidth, heightScale, onSegmentInteract, barsInert, floatingPositionRef }) {
+const StackBar = memo(function StackBar({ bar, barIndex, maxValue, chartHeight, columnWidth, heightScale, onSegmentInteract, floatingPositionRef }) {
     let cumulativeBottom = 0;
     const visibleSegments = bar.stacks.filter(s => s.value > 0);
     const topSegmentIndex = visibleSegments.length > 0
@@ -53,13 +53,11 @@ const StackBar = memo(function StackBar({ bar, barIndex, maxValue, chartHeight, 
                     }
                 }
 
+                // FIX - no more barsInert gate at all. Every variant
+                // (including modal now) updates freely on hover/click
+                // of ANY bar, matching the other two variants' feel.
                 function fire() {
-                    if (barsInert) return;
                     segment.onPress();
-                    // Uses the REAL fields buildStackData.js now attaches
-                    // directly onto each segment (year/month/realValue) -
-                    // not the raw segment object, which only has the
-                    // padded render height, no year/month at all.
                     onSegmentInteract({
                         year: segment.year,
                         month: segment.month,
@@ -94,14 +92,20 @@ const StackBar = memo(function StackBar({ bar, barIndex, maxValue, chartHeight, 
 
 function SpendingStackChart({
     stackData, incomeData, heightScale = 1,
-    popupVariant, activeSegment, barsInert,
-    onSegmentInteract, onChartMouseLeave, onChartBackgroundClick, onPopupMouseLeave,
+    popupVariant, activeSegment,
+    onSegmentInteract, onChartMouseLeave, onChartBackgroundClick, onPopupMouseLeave, onPopupClickOutside,
 }) {
+    // FIX - a REAL React ref now (persists the SAME object across
+    // every render), not a plain object literal recreated fresh each
+    // time. That was the actual bug making the floating variant's
+    // position lookup always come back empty - it was reading from a
+    // brand-new, still-empty object every render, never the one the
+    // bars' ref callbacks had actually written positions into.
+    const floatingPositionRef = useRef({});
+
     if (!stackData || stackData.length === 0) {
         return null;
     }
-
-    const floatingPositionRef = { current: {} };
 
     const chartHeight = BASE_CHART_HEIGHT * heightScale;
     const columnWidth = BAR_WIDTH + BAR_SPACING;
@@ -166,7 +170,6 @@ function SpendingStackChart({
                                         columnWidth={columnWidth}
                                         heightScale={heightScale}
                                         onSegmentInteract={onSegmentInteract}
-                                        barsInert={barsInert}
                                         floatingPositionRef={popupVariant === 'floating' ? floatingPositionRef : null}
                                     />
                                 ))}
@@ -212,7 +215,11 @@ function SpendingStackChart({
                 </div>
 
                 {popupVariant === 'modal' && (
-                    <SegmentPopupModal segment={activeSegment} onMouseLeave={onPopupMouseLeave} />
+                    <SegmentPopupModal
+                        segment={activeSegment}
+                        onMouseLeave={onPopupMouseLeave}
+                        onClickOutside={onPopupClickOutside}
+                    />
                 )}
             </div>
         </>

@@ -9,12 +9,7 @@ import { useSegmentPopup } from '../../customHooks/charts/useSegmentPopup';
 import { useModalSegmentPopup } from '../../customHooks/charts/useModalSegmentPopup';
 import { useApp } from '../../AppContext';
 
-// Popup variant now owned HERE, not inside SpendingStackedChart - the
-// popup itself needs to render OUTSIDE the chart's own flex row
-// (.window-scroll-row), so the state driving it has to live at this
-// level too. SpendingStackedChart receives everything it needs as
-// props instead of owning any popup state internally.
-const POPUP_VARIANT = 'modal'; // 'fixed' | 'floating' | 'modal'
+const POPUP_VARIANT = 'floating'; // 'fixed' | 'floating' | 'modal'
 
 export default function ChartWindowSection({
     ready, hasData,
@@ -32,7 +27,6 @@ export default function ChartWindowSection({
     const modal = useModalSegmentPopup();
     const isModal = POPUP_VARIANT === 'modal';
     const activeSegment = isModal ? modal.activeSegment : fixedFloating.activeSegment;
-    const barsInert = isModal ? modal.otherBarsInert : false;
 
     function handleSegmentInteract(segmentData, key) {
         const withKey = { ...segmentData, _positionKey: key };
@@ -94,18 +88,15 @@ export default function ChartWindowSection({
                     heightScale={heightScale}
                     popupVariant={POPUP_VARIANT}
                     activeSegment={activeSegment}
-                    barsInert={barsInert}
                     onSegmentInteract={handleSegmentInteract}
                     onChartMouseLeave={handleChartMouseLeave}
                     onChartBackgroundClick={handleChartBackgroundClick}
                     onPopupMouseLeave={isModal ? modal.handlePopupMouseLeave : undefined}
+                    onPopupClickOutside={isModal ? modal.handleClickOutsidePopup : undefined}
                 />
                 <button className="window-scroll-btn" onClick={() => handleScroll(1)}>▶</button>
             </div>
 
-            {/* Fixed variant renders HERE, below the flex row - not
-                inside it, which was the bug causing the chart to be
-                squeezed sideways. */}
             {POPUP_VARIANT === 'fixed' && <SegmentPopupFixed segment={activeSegment} />}
         </>
     );

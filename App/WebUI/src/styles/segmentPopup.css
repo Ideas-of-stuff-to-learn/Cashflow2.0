@@ -65,7 +65,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    pointer-events: none;
+    /* FIX - was pointer-events: none, which meant the backdrop could
+       never receive the click-outside event at all. Now it does; the
+       popup box itself still works fine since it's a nested element
+       that receives its own clicks normally regardless. */
 }
 
 .segment-popup-modal {
