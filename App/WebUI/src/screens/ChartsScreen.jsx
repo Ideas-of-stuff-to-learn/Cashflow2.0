@@ -74,15 +74,6 @@ export default function ChartsScreen() {
                     incomeForEntries={incomeForEntries}
                 />
 
-                {selectedSegment && (
-                    <p className="tapped-value-text">
-                        {selectedSegment.month
-                            ? `${selectedSegment.year}/${selectedSegment.month} — `
-                            : `${selectedSegment.year} — `}
-                        {selectedSegment.category}: £{selectedSegment.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </p>
-                )}
-
                 <button className="charts-button" onClick={() => navigate(-1)}>
                     Back to Home
                 </button>

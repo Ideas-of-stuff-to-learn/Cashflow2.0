@@ -3,8 +3,18 @@ import '../../styles/chartStyles.css';
 import SpendingStackChart from './SpendingStackedChart';
 import LoadingBarsPlaceholder from '../loading/LoadingBarsPlaceholder';
 import ChartWindowToggle from './chartWindowsToggle';
+import SegmentPopupFixed from './SegmentPopupFixed';
 import { useDataReadiness } from '../../customHooks/charts/useDataReadiness';
+import { useSegmentPopup } from '../../customHooks/charts/useSegmentPopup';
+import { useModalSegmentPopup } from '../../customHooks/charts/useModalSegmentPopup';
 import { useApp } from '../../AppContext';
+
+// Popup variant now owned HERE, not inside SpendingStackedChart - the
+// popup itself needs to render OUTSIDE the chart's own flex row
+// (.window-scroll-row), so the state driving it has to live at this
+// level too. SpendingStackedChart receives everything it needs as
+// props instead of owning any popup state internally.
+const POPUP_VARIANT = 'modal'; // 'fixed' | 'floating' | 'modal'
 
 export default function ChartWindowSection({
     ready, hasData,
@@ -18,6 +28,29 @@ export default function ChartWindowSection({
     const { initialLoading, categorising, processingStage } = useApp();
     const { isLoading } = useDataReadiness(hasData, { initialLoading, categorising, processingStage });
 
+    const fixedFloating = useSegmentPopup();
+    const modal = useModalSegmentPopup();
+    const isModal = POPUP_VARIANT === 'modal';
+    const activeSegment = isModal ? modal.activeSegment : fixedFloating.activeSegment;
+    const barsInert = isModal ? modal.otherBarsInert : false;
+
+    function handleSegmentInteract(segmentData, key) {
+        const withKey = { ...segmentData, _positionKey: key };
+        if (isModal) {
+            modal.showSegment(withKey);
+        } else {
+            fixedFloating.showSegment(withKey);
+        }
+    }
+
+    function handleChartMouseLeave() {
+        if (!isModal) fixedFloating.handleChartMouseLeave();
+    }
+
+    function handleChartBackgroundClick() {
+        if (!isModal) fixedFloating.handleChartBackgroundClick();
+    }
+
     if (!ready) return null;
 
     if (!hasData) {
@@ -29,9 +62,6 @@ export default function ChartWindowSection({
     }
 
     const activeEntries = mode === 'year' ? yearWindowEntries : monthWindow;
-    // Only in year mode does a click ALSO jump the month window - in
-    // month mode, clicking a segment should just show its value below
-    // the chart, nothing else.
     const stackData = buildStackDataFromEntries(activeEntries, mode === 'year' ? jumpMonthWindowToYear : null);
     const incomeData = incomeForEntries(activeEntries);
 
@@ -58,9 +88,25 @@ export default function ChartWindowSection({
 
             <div className="window-scroll-row">
                 <button className="window-scroll-btn" onClick={() => handleScroll(-1)}>◀</button>
-                <SpendingStackChart stackData={stackData} incomeData={incomeData} heightScale={heightScale} />
+                <SpendingStackChart
+                    stackData={stackData}
+                    incomeData={incomeData}
+                    heightScale={heightScale}
+                    popupVariant={POPUP_VARIANT}
+                    activeSegment={activeSegment}
+                    barsInert={barsInert}
+                    onSegmentInteract={handleSegmentInteract}
+                    onChartMouseLeave={handleChartMouseLeave}
+                    onChartBackgroundClick={handleChartBackgroundClick}
+                    onPopupMouseLeave={isModal ? modal.handlePopupMouseLeave : undefined}
+                />
                 <button className="window-scroll-btn" onClick={() => handleScroll(1)}>▶</button>
             </div>
+
+            {/* Fixed variant renders HERE, below the flex row - not
+                inside it, which was the bug causing the chart to be
+                squeezed sideways. */}
+            {POPUP_VARIANT === 'fixed' && <SegmentPopupFixed segment={activeSegment} />}
         </>
     );
 }

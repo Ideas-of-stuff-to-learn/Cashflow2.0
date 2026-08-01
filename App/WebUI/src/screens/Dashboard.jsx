@@ -93,14 +93,6 @@ export default function DashboardScreen() {
                         buildStackDataFromEntries={buildStackDataFromEntries}
                         incomeForEntries={incomeForEntries}
                     />
-                    {selectedSegment && (
-                        <p className="tapped-value-text">
-                            {selectedSegment.month
-                                ? `${MONTH_LABELS_FULL[selectedSegment.month - 1]} ${selectedSegment.year}`
-                                : `${selectedSegment.year}`}
-                            {' — '}{selectedSegment.category}: £{selectedSegment.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                        </p>
-                    )}
                 </div>
             </div>
             

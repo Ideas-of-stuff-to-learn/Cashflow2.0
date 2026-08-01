@@ -1,19 +1,8 @@
 import { memo } from 'react';
 import { transformValue } from '../../utils/charts/chartUtils';
-import { useSegmentPopup } from '../../customHooks/charts/useSegmentPopup';
-import { useModalSegmentPopup } from '../../customHooks/charts/useModalSegmentPopup';
-import SegmentPopupFixed from './SegmentPopupFixed';
 import SegmentPopupFloating from './SegmentPopupFloating';
 import SegmentPopupModal from './SegmentPopupModal';
 import '../../styles/stackedChartStyles.css';
-
-// ---------------------------------------------------------------
-// SINGLE SWAP POINT - change this one value to switch which popup
-// variant is active everywhere. Nothing else in this file needs to
-// change when swapping.
-// Options: 'fixed' | 'floating' | 'modal'
-const POPUP_VARIANT = 'fixed';
-// ---------------------------------------------------------------
 
 const BAR_WIDTH = 32;
 const BAR_SPACING = 20;
@@ -53,13 +42,6 @@ const StackBar = memo(function StackBar({ bar, barIndex, maxValue, chartHeight, 
                 if (segHeight <= 0) return null;
 
                 const isTop = segIndex === topSegmentIndex;
-                // A unique, stable key identifying THIS exact segment -
-                // used two ways: (1) as the key in floatingPositionRef,
-                // storing where this segment actually sits on screen,
-                // and (2) carried along on the segment data sent to the
-                // popup hooks, so the floating variant can later look up
-                // EXACTLY this segment's position rather than an
-                // arbitrary one.
                 const positionKey = `${barIndex}-${segIndex}`;
 
                 function handleRef(el) {
@@ -72,9 +54,18 @@ const StackBar = memo(function StackBar({ bar, barIndex, maxValue, chartHeight, 
                 }
 
                 function fire() {
-                    if (barsInert) return; // Variant 1: other bars inert while its popup is open
-                    segment.onPress(); // existing action (year jump / below-chart text setter) still fires
-                    onSegmentInteract(segment, positionKey);
+                    if (barsInert) return;
+                    segment.onPress();
+                    // Uses the REAL fields buildStackData.js now attaches
+                    // directly onto each segment (year/month/realValue) -
+                    // not the raw segment object, which only has the
+                    // padded render height, no year/month at all.
+                    onSegmentInteract({
+                        year: segment.year,
+                        month: segment.month,
+                        category: segment.category,
+                        value: segment.realValue,
+                    }, positionKey);
                 }
 
                 return (
@@ -101,43 +92,16 @@ const StackBar = memo(function StackBar({ bar, barIndex, maxValue, chartHeight, 
     );
 });
 
-function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
+function SpendingStackChart({
+    stackData, incomeData, heightScale = 1,
+    popupVariant, activeSegment, barsInert,
+    onSegmentInteract, onChartMouseLeave, onChartBackgroundClick, onPopupMouseLeave,
+}) {
     if (!stackData || stackData.length === 0) {
         return null;
     }
 
-    const fixedFloating = useSegmentPopup();
-    const modal = useModalSegmentPopup();
-
-    const isModal = POPUP_VARIANT === 'modal';
-    const activeSegment = isModal ? modal.activeSegment : fixedFloating.activeSegment;
-    const barsInert = isModal ? modal.otherBarsInert : false;
-
     const floatingPositionRef = { current: {} };
-
-    // FIX: bundles the segment's own positionKey INTO the object sent
-    // to the popup hooks (as _positionKey), rather than the previous
-    // version which only passed `key` as a separate, unused argument.
-    // This is what lets the floating variant later look up EXACTLY
-    // this segment's real screen position - the old code had no way
-    // to know which key belonged to the currently-active segment, and
-    // was grabbing an arbitrary one instead.
-    function handleSegmentInteract(segmentData, key) {
-        const withKey = { ...segmentData, _positionKey: key };
-        if (isModal) {
-            modal.showSegment(withKey);
-        } else {
-            fixedFloating.showSegment(withKey);
-        }
-    }
-
-    function handleChartMouseLeave() {
-        if (!isModal) fixedFloating.handleChartMouseLeave();
-    }
-
-    function handleChartBackgroundClick() {
-        if (!isModal) fixedFloating.handleChartBackgroundClick();
-    }
 
     const chartHeight = BASE_CHART_HEIGHT * heightScale;
     const columnWidth = BAR_WIDTH + BAR_SPACING;
@@ -169,14 +133,10 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
                 </div>
             )}
 
-            {POPUP_VARIANT === 'fixed' && <SegmentPopupFixed segment={activeSegment} />}
-
             <div
                 className="stack-chart-scroll"
-                onMouseLeave={handleChartMouseLeave}
-                onClick={(e) => {
-                    if (e.target === e.currentTarget) handleChartBackgroundClick();
-                }}
+                onMouseLeave={onChartMouseLeave}
+                onClick={(e) => { if (e.target === e.currentTarget) onChartBackgroundClick(); }}
                 style={{ position: 'relative' }}
             >
                 <div style={{ display: 'flex' }}>
@@ -188,7 +148,7 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
                         ))}
                     </div>
 
-                    <div className="stack-chart-hscroll" onClick={(e) => { if (e.target === e.currentTarget) handleChartBackgroundClick(); }}>
+                    <div className="stack-chart-hscroll" onClick={(e) => { if (e.target === e.currentTarget) onChartBackgroundClick(); }}>
                         <div style={{ width: totalWidth, height: LABEL_HEADROOM + TOP_PADDING + chartHeight + LABEL_ROW_HEIGHT, position: 'relative' }}>
                             {yAxisLabels.map((label, i) => (
                                 <div key={i} className="grid-line" style={{ top: label.y, width: totalWidth }} />
@@ -205,9 +165,9 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
                                         chartHeight={chartHeight}
                                         columnWidth={columnWidth}
                                         heightScale={heightScale}
-                                        onSegmentInteract={handleSegmentInteract}
+                                        onSegmentInteract={onSegmentInteract}
                                         barsInert={barsInert}
-                                        floatingPositionRef={POPUP_VARIANT === 'floating' ? floatingPositionRef : null}
+                                        floatingPositionRef={popupVariant === 'floating' ? floatingPositionRef : null}
                                     />
                                 ))}
                             </div>
@@ -233,11 +193,7 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
                                 })}
                             </div>
 
-                            {/* FIX: looks up the position using activeSegment._positionKey
-                                specifically - the exact key of whichever segment is
-                                actually showing - instead of the old placeholder that
-                                grabbed an arbitrary key from the ref object. */}
-                            {POPUP_VARIANT === 'floating' && activeSegment && (
+                            {popupVariant === 'floating' && activeSegment && (
                                 <SegmentPopupFloating
                                     segment={activeSegment}
                                     position={floatingPositionRef.current[activeSegment._positionKey] || null}
@@ -255,8 +211,8 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
                     </div>
                 </div>
 
-                {POPUP_VARIANT === 'modal' && (
-                    <SegmentPopupModal segment={activeSegment} onMouseLeave={modal.handlePopupMouseLeave} />
+                {popupVariant === 'modal' && (
+                    <SegmentPopupModal segment={activeSegment} onMouseLeave={onPopupMouseLeave} />
                 )}
             </div>
         </>

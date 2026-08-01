@@ -14,10 +14,17 @@ const MIN_RENDER_HEIGHT_FRACTION = 0.03; // 3% of maxValue, same floor the old b
 // this year" (that's extraOnPress, wired in by ChartWindowSection).
 // Pass null/undefined when there's nothing extra to do (e.g. in month
 // mode, where clicking a segment should only ever do the normal thing).
+//
+// Defaults on categoryNames/categoryColors/selectedCategories exist so
+// this is safe to call even during the brief window where app data
+// (categories, stack order) hasn't fully loaded yet - without these,
+// an early render could crash trying to .filter() undefined.
 export function buildStackDataFromEntries(entries, extraOnPress, {
-    categoryNames, categoryColors, selectedCategories, stackOrder, onSegmentPress, spansMultipleYears = false,
+    categoryNames = [], categoryColors = {}, selectedCategories = new Set(), stackOrder, onSegmentPress, spansMultipleYears = false,
 } = {}) {
-    const orderedCategories = (stackOrder ? stackOrder.filter(c => c !== 'Income') : categoryNames.filter(c => c !== 'Income'));
+    const orderedCategories = (stackOrder && stackOrder.length > 0)
+        ? stackOrder.filter(c => c !== 'Income')
+        : categoryNames.filter(c => c !== 'Income');
 
     const rawTotals = entries.map(entry =>
         orderedCategories.reduce((sum, cat) => sum + (entry.categoryTotals[cat] || 0), 0)
@@ -39,6 +46,14 @@ export function buildStackDataFromEntries(entries, extraOnPress, {
                 value: visible ? withMinHeight(realValue) : 0,
                 color: categoryColors[category] || '#BBBBBB',
                 category,
+                // NEW - the real (unpadded) data attached directly onto
+                // the segment object itself, so StackBar's fire() can
+                // read it directly for the popup, instead of it only
+                // existing inside onPress's closure where nothing
+                // outside could reach it.
+                year: entry.year,
+                month: entry.month,
+                realValue,
                 onPress: () => {
                     onSegmentPress({ year: entry.year, month: entry.month, category, value: realValue });
                     if (extraOnPress) extraOnPress(entry.year);
@@ -53,7 +68,6 @@ export function buildStackDataFromEntries(entries, extraOnPress, {
         return { label, stacks, total: trueTotal };
     });
 }
-
 export function buildIncomeDataFromEntries(entries) {
     return entries.map(entry => ({ value: entry.categoryTotals['Income'] || 0 }));
 }
