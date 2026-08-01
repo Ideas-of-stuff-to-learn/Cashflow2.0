@@ -5,9 +5,9 @@ Income line labelled DONE
 Shows totals on top of bars for monthly and yearly DONE
 Make a hover function on the bars to show the category name and value and % [what is being displayed underneath] replacing the totals shown underneath the chart
 Hover function on phone consider
-Backfill entire concept changing again:
-    Make monthly as a window for 12 months that can go back and forth across all data
-    Month chart is always there doesn't appear as a condition just the window adjusts
+Backfill entire concept changing again: DONE
+    Make monthly as a window for 12 months that can go back and forth across all data DONE
+    Month chart is always there doesn't appear as a condition just the window adjusts DONE
 */
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppProvider } from './AppContext';
