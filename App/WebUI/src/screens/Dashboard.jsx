@@ -39,8 +39,11 @@ export default function DashboardScreen() {
         availableCategories, setSelectedCategories: setChartSelectedCategories,
         monthWindow, yearWindowEntries,
         scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear,
-        buildStackDataFromEntries, incomeForEntries,selectedSegment,
+        canScrollMonthBack, canScrollMonthForward,
+        canScrollYearBack, canScrollYearForward,
+        buildStackDataFromEntries, incomeForEntries, selectedSegment,
     } = useChartData();
+
     const chartReady  = useDetailedChartReveal();
 
     useEffect(() => {
@@ -90,6 +93,10 @@ export default function DashboardScreen() {
                         scrollMonthWindow={scrollMonthWindow}
                         scrollYearWindow={scrollYearWindow}
                         jumpMonthWindowToYear={jumpMonthWindowToYear}
+                        canScrollMonthBack={canScrollMonthBack}
+                        canScrollMonthForward={canScrollMonthForward}
+                        canScrollYearBack={canScrollYearBack}
+                        canScrollYearForward={canScrollYearForward}
                         buildStackDataFromEntries={buildStackDataFromEntries}
                         incomeForEntries={incomeForEntries}
                     />

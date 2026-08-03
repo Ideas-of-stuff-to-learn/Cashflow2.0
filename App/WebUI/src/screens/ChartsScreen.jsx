@@ -25,6 +25,8 @@ export default function ChartsScreen() {
         availableCategories, selectedCategories, setSelectedCategories, toggleItem, selectAll,
         monthWindow, yearWindowEntries,
         scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear,
+        canScrollMonthBack, canScrollMonthForward,
+        canScrollYearBack, canScrollYearForward,
         buildStackDataFromEntries, incomeForEntries,
     } = useChartData();
 
@@ -70,6 +72,10 @@ export default function ChartsScreen() {
                     scrollMonthWindow={scrollMonthWindow}
                     scrollYearWindow={scrollYearWindow}
                     jumpMonthWindowToYear={jumpMonthWindowToYear}
+                    canScrollMonthBack={canScrollMonthBack}
+                    canScrollMonthForward={canScrollMonthForward}
+                    canScrollYearBack={canScrollYearBack}
+                    canScrollYearForward={canScrollYearForward}
                     buildStackDataFromEntries={buildStackDataFromEntries}
                     incomeForEntries={incomeForEntries}
                 />

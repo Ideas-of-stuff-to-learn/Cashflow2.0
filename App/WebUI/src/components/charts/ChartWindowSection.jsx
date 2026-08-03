@@ -89,12 +89,20 @@ export default function ChartWindowSection({
                 canGoForward are recomputed fresh every render from the
                 actual current window position. */}
             <div className="window-nav-row">
-                {canGoBack && (
-                    <button className="window-nav-btn" onClick={() => handleScroll(-1)}>◀</button>
-                )}
-                {canGoForward && (
-                    <button className="window-nav-btn" onClick={() => handleScroll(1)}>▶</button>
-                )}
+                <button
+                    className="window-nav-btn"
+                    style={{ visibility: canGoBack ? 'visible' : 'hidden' }}
+                    onClick={() => handleScroll(-1)}
+                >
+                    ◀
+                </button>
+                <button
+                    className="window-nav-btn"
+                    style={{ visibility: canGoForward ? 'visible' : 'hidden' }}
+                    onClick={() => handleScroll(1)}
+                >
+                    ▶
+                </button>
             </div>
 
             {POPUP_VARIANT === 'fixed' && <SegmentPopupFixed segment={activeSegment} />}

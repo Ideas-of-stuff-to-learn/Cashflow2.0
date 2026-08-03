@@ -49,10 +49,13 @@ function SpendingStackChart({
     // after every stackData change, not just on first mount.
     useEffect(() => {
         if (hscrollRef.current) {
-            //rightmost
+            // rightmost
             hscrollRef.current.scrollLeft = hscrollRef.current.scrollWidth;
             // leftmost
-            //hscrollRef.current.scrollLeft = 0;
+            // hscrollRef.current.scrollLeft = 0;
+            // middle
+            // const el = hscrollRef.current;
+            // el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2;
         }
     }, [stackData]);
 
