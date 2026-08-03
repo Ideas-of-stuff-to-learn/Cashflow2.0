@@ -49,6 +49,17 @@ export function useChartWindows(monthly, yearly) {
         setMonthWindow({ year, month: 1 });
     }, [setMonthWindow]);
 
+    // NEW - absolute jump, for the slider. `index` is 0-based, counted
+    // from the earliest real month (index 0 = earliest month IS the
+    // window's start). setMonthWindow already clamps, so an out-of-
+    // range index (shouldn't happen if the slider's own min/max are
+    // set correctly, but safe regardless) just clamps to the nearest
+    // valid window.
+    const setMonthWindowByIndex = useCallback((index) => {
+        if (!monthBounds) return;
+        setMonthWindow(addMonths(monthBounds.earliest.year, monthBounds.earliest.month, index));
+    }, [monthBounds, setMonthWindow]);
+
     const scrollYearWindow = useCallback((deltaYears) => {
         setYearWindowStart(prev => {
             let next = prev + deltaYears;
@@ -60,6 +71,17 @@ export function useChartWindows(monthly, yearly) {
             }
             return next;
         });
+    }, [yearBounds]);
+
+    // NEW - same idea as setMonthWindowByIndex, for years. index 0 =
+    // earliest year is the window's start.
+    const setYearWindowByIndex = useCallback((index) => {
+        if (!yearBounds) return;
+        let next = yearBounds.earliestYear + index;
+        const latestStart = yearBounds.latestYear - 11;
+        if (next < yearBounds.earliestYear) next = yearBounds.earliestYear;
+        if (next > latestStart) next = latestStart;
+        setYearWindowStart(next);
     }, [yearBounds]);
 
     // NEW - whether each direction currently has anywhere left to go.
@@ -76,10 +98,26 @@ export function useChartWindows(monthly, yearly) {
     const canScrollYearBack = yearBounds ? yearWindowStart > yearBounds.earliestYear : false;
     const canScrollYearForward = yearBounds ? yearWindowStart < (yearBounds.latestYear - 11) : false;
 
+    // NEW - the slider's own min/max range and current position, all
+    // as plain 0-based indices so RangeWindowSlider never needs to
+    // know about years/months/dates at all, just numbers.
+    const monthSliderMaxIndex = monthBounds
+        ? (monthBounds.latest.year * 12 + monthBounds.latest.month) - (monthBounds.earliest.year * 12 + monthBounds.earliest.month)
+        : 0;
+    const monthSliderCurrentIndex = monthBounds
+        ? (monthWindowStart.year * 12 + monthWindowStart.month) - (monthBounds.earliest.year * 12 + monthBounds.earliest.month)
+        : 0;
+
+    const yearSliderMaxIndex = yearBounds ? yearBounds.latestYear - yearBounds.earliestYear : 0;
+    const yearSliderCurrentIndex = yearBounds ? yearWindowStart - yearBounds.earliestYear : 0;
+
     return {
         monthWindow, yearWindowEntries,
         scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear,
         canScrollMonthBack, canScrollMonthForward,
         canScrollYearBack, canScrollYearForward,
+        setMonthWindowByIndex, setYearWindowByIndex,
+        monthSliderMaxIndex, monthSliderCurrentIndex,
+        yearSliderMaxIndex, yearSliderCurrentIndex,
     };
 }

@@ -1,0 +1,17 @@
+.range-window-slider {
+    margin: 8px 0;
+}
+
+.range-window-slider-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #666;
+    margin-bottom: 2px;
+}
+
+.range-window-slider-input {
+    width: 100%;
+    accent-color: #2E5C8A;
+    cursor: pointer;
+}

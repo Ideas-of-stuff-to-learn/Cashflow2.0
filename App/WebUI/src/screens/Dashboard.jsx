@@ -8,7 +8,6 @@ import { useFileProcessor } from '../customHooks/homescreen/useFileProcessor';
 import { useChartData } from '../customHooks/charts/useChartData';
 import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartReveal';
 import { NOT_YET_CATEGORISED } from '../checkingName';
-import { MONTH_LABELS_FULL} from '../utils/charts/monthWindow';
 
 import HomepageInfo from '../components/homepage/homepageInfo';
 import ProgressBar from '../components/homepage/ProgressBar';
@@ -21,7 +20,7 @@ export default function DashboardScreen() {
     const navigate = useNavigate();
     const {
         categorising, transactions, initialLoadError, retryInitialLoad, allTransactionsLoaded,
-        contentsSelectedCategories, toggleContentsCategory, clearContentsCategories,categoryColors,
+        contentsSelectedCategories, toggleContentsCategory, clearContentsCategories, categoryColors,
     } = useApp();
     const { dateRangeInfo, uploadCount, refetchUploadCount } = useInitialLoadLogic();
     const { handleLogout } = useLogout();
@@ -41,10 +40,12 @@ export default function DashboardScreen() {
         scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear,
         canScrollMonthBack, canScrollMonthForward,
         canScrollYearBack, canScrollYearForward,
+        setMonthWindowByIndex, setYearWindowByIndex,
+        monthSliderMaxIndex, monthSliderCurrentIndex,
+        yearSliderMaxIndex, yearSliderCurrentIndex,
         buildStackDataFromEntries, incomeForEntries, selectedSegment,
     } = useChartData();
-
-    const chartReady  = useDetailedChartReveal();
+    const chartReady = useDetailedChartReveal();
 
     useEffect(() => {
         setChartSelectedCategories(new Set(contentsSelectedCategories));
@@ -97,12 +98,17 @@ export default function DashboardScreen() {
                         canScrollMonthForward={canScrollMonthForward}
                         canScrollYearBack={canScrollYearBack}
                         canScrollYearForward={canScrollYearForward}
+                        setMonthWindowByIndex={setMonthWindowByIndex}
+                        setYearWindowByIndex={setYearWindowByIndex}
+                        monthSliderMaxIndex={monthSliderMaxIndex}
+                        monthSliderCurrentIndex={monthSliderCurrentIndex}
+                        yearSliderMaxIndex={yearSliderMaxIndex}
+                        yearSliderCurrentIndex={yearSliderCurrentIndex}
                         buildStackDataFromEntries={buildStackDataFromEntries}
                         incomeForEntries={incomeForEntries}
                     />
                 </div>
             </div>
-            
 
             <FilterPane
                 availableCategories={availableCategories}

@@ -5,9 +5,11 @@ import LoadingBarsPlaceholder from '../loading/LoadingBarsPlaceholder';
 import ChartWindowToggle from './chartWindowsToggle';
 import SegmentPopupFixed from './SegmentPopupFixed';
 import IncomeLegend from './IncomeLegend';
+import RangeWindowSlider from './RangeWindowSlider'
 import { useDataReadiness } from '../../customHooks/charts/useDataReadiness';
 import { useSegmentPopup } from '../../customHooks/charts/useSegmentPopup';
 import { useApp } from '../../AppContext';
+
 
 const POPUP_VARIANT = 'fixed'; // 'fixed' | 'floating' | 'modal'
 
@@ -17,6 +19,9 @@ export default function ChartWindowSection({
     scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear,
     canScrollMonthBack, canScrollMonthForward,
     canScrollYearBack, canScrollYearForward,
+    setMonthWindowByIndex, setYearWindowByIndex,
+    monthSliderMaxIndex, monthSliderCurrentIndex,
+    yearSliderMaxIndex, yearSliderCurrentIndex,
     buildStackDataFromEntries,
     incomeForEntries,
 }) {
@@ -58,6 +63,13 @@ export default function ChartWindowSection({
             scrollMonthWindow(direction);
         }
     }
+
+    const sliderStartLabel = mode === 'year'
+        ? yearWindowEntries[0]?.label
+        : `${monthWindow[0]?.label} ${monthWindow[0]?.year}`;
+    const sliderEndLabel = mode === 'year'
+        ? yearWindowEntries[yearWindowEntries.length - 1]?.label
+        : `${monthWindow[monthWindow.length - 1]?.label} ${monthWindow[monthWindow.length - 1]?.year}`;
 
     return (
         <>
@@ -104,6 +116,13 @@ export default function ChartWindowSection({
                     ▶
                 </button>
             </div>
+            <RangeWindowSlider
+                maxIndex={mode === 'year' ? yearSliderMaxIndex : monthSliderMaxIndex}
+                currentIndex={mode === 'year' ? yearSliderCurrentIndex : monthSliderCurrentIndex}
+                onChangeIndex={mode === 'year' ? setYearWindowByIndex : setMonthWindowByIndex}
+                startLabel={sliderStartLabel}
+                endLabel={sliderEndLabel}
+            />
 
             {POPUP_VARIANT === 'fixed' && <SegmentPopupFixed segment={activeSegment} />}
         </>
