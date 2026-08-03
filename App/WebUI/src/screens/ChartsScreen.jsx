@@ -43,6 +43,7 @@ export default function ChartsScreen() {
                 <h1 className="charts-title">Spending by Category</h1>
                 <StatusBanners initialLoading={initialLoading} processingStage={processingStage} />
 
+                {/* 
                 <SpendingOverview
                     hasData={hasData}
                     filteredChartData2={allTimeChartData2}
@@ -50,7 +51,7 @@ export default function ChartsScreen() {
                     initialLoading={initialLoading}
                     selectedBar={null}
                 />
-
+                */}
                 <CategorySlicer
                     availableCategories={availableCategories}
                     selectedCategories={selectedCategories}
