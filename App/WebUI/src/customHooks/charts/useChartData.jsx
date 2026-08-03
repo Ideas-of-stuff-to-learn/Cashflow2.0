@@ -1,4 +1,3 @@
-// customHooks/charts/useChartData.js
 import { useState, useMemo, useCallback } from 'react';
 import { useStackOrder } from './useStackOrder';
 import { useChartWindows } from './useChartWindows';
@@ -37,6 +36,7 @@ export function useChartData() {
         setMonthWindowByIndex, setYearWindowByIndex,
         monthSliderMaxIndex, monthSliderCurrentIndex,
         yearSliderMaxIndex, yearSliderCurrentIndex,
+        monthSliderTrackMax, yearSliderTrackMax,
     } = useChartWindows(summary.monthly, summary.yearly);
 
     const monthWindowSpansMultipleYears = useMemo(() => {
@@ -44,10 +44,6 @@ export function useChartData() {
         return years.size > 1;
     }, [monthWindow]);
 
-    // buildStackData now accepts (entries, extraOnPress) - the second
-    // argument is passed straight through to buildStackDataFromEntries,
-    // letting ChartWindowSection decide per-call whether a click should
-    // ALSO jump the month window (year mode) or not (month mode).
     const buildStackData = useCallback((entries, extraOnPress) => {
         return buildStackDataFromEntries(entries, extraOnPress, {
             categoryNames,
@@ -76,15 +72,16 @@ export function useChartData() {
         allTimeChartData2,
         selectedSegment,
 
+        monthBounds, yearBounds,
         monthWindow, yearWindowEntries,
         scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear,
         canScrollMonthBack, canScrollMonthForward,
         canScrollYearBack, canScrollYearForward,
-        buildStackDataFromEntries: buildStackData,
-        incomeForEntries: buildIncomeDataFromEntries,
         setMonthWindowByIndex, setYearWindowByIndex,
         monthSliderMaxIndex, monthSliderCurrentIndex,
         yearSliderMaxIndex, yearSliderCurrentIndex,
-        monthBounds, yearBounds,
+        monthSliderTrackMax, yearSliderTrackMax,
+        buildStackDataFromEntries: buildStackData,
+        incomeForEntries: buildIncomeDataFromEntries,
     };
 }

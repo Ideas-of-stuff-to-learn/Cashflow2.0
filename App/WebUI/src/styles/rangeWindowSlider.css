@@ -10,8 +10,87 @@
     margin-bottom: 2px;
 }
 
+.range-window-slider-track {
+    position: relative;
+    height: 24px;
+}
+
+/* The ONE real, visible track line - sits behind everything else. */
+.range-window-slider-line {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 4px;
+    transform: translateY(-50%);
+    background: #ddd;
+    border-radius: 2px;
+    z-index: 1;
+}
+
+/* The colored "selected range" bar, sitting on top of the plain line
+   but below the draggable thumbs. */
+.range-window-slider-fill {
+    position: absolute;
+    top: 50%;
+    height: 4px;
+    transform: translateY(-50%);
+    background: #2E5C8A;
+    border-radius: 2px;
+    z-index: 2;
+}
+
 .range-window-slider-input {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
-    accent-color: #2E5C8A;
+    height: 24px;
+    margin: 0;
+    background: transparent;
+    pointer-events: none;
+    -webkit-appearance: none;
+    appearance: none;
+    z-index: 3;
+}
+
+/* Both inputs' OWN native track is made fully invisible - the visible
+   line/fill above are the only track graphics actually shown. Without
+   this, each input's own solid track would paint over the other
+   input's thumb, which was the original bug. */
+.range-window-slider-input::-webkit-slider-runnable-track {
+    background: transparent;
+    height: 24px;
+}
+
+.range-window-slider-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    pointer-events: auto;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #2E5C8A;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    cursor: pointer;
+    margin-top: 4px;
+    position: relative;
+    z-index: 4;
+}
+
+.range-window-slider-input::-moz-range-track {
+    background: transparent;
+    height: 24px;
+}
+
+.range-window-slider-input::-moz-range-thumb {
+    pointer-events: auto;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #2E5C8A;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
     cursor: pointer;
 }

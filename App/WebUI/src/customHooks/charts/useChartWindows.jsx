@@ -12,10 +12,6 @@ export function useChartWindows(monthly, yearly) {
     const monthWindow = useMemo(() => getMonthWindow(monthly, monthWindowStart.year, monthWindowStart.month), [monthly, monthWindowStart]);
     const yearWindowEntries = useMemo(() => getYearWindow(yearly, yearWindowStart), [yearly, yearWindowStart]);
 
-    // The SAME earliest/latest start bounds setMonthWindow uses to
-    // clamp, computed here too (memoized) so both the clamp logic AND
-    // the canScroll booleans below stay in sync with ONE source of
-    // truth, rather than duplicating the bound calculation twice.
     const monthWindowBoundsStart = useMemo(() => {
         if (!monthBounds) return null;
         return {
@@ -49,12 +45,6 @@ export function useChartWindows(monthly, yearly) {
         setMonthWindow({ year, month: 1 });
     }, [setMonthWindow]);
 
-    // NEW - absolute jump, for the slider. `index` is 0-based, counted
-    // from the earliest real month (index 0 = earliest month IS the
-    // window's start). setMonthWindow already clamps, so an out-of-
-    // range index (shouldn't happen if the slider's own min/max are
-    // set correctly, but safe regardless) just clamps to the nearest
-    // valid window.
     const setMonthWindowByIndex = useCallback((index) => {
         if (!monthBounds) return;
         setMonthWindow(addMonths(monthBounds.earliest.year, monthBounds.earliest.month, index));
@@ -73,8 +63,6 @@ export function useChartWindows(monthly, yearly) {
         });
     }, [yearBounds]);
 
-    // NEW - same idea as setMonthWindowByIndex, for years. index 0 =
-    // earliest year is the window's start.
     const setYearWindowByIndex = useCallback((index) => {
         if (!yearBounds) return;
         let next = yearBounds.earliestYear + index;
@@ -84,9 +72,6 @@ export function useChartWindows(monthly, yearly) {
         setYearWindowStart(next);
     }, [yearBounds]);
 
-    // NEW - whether each direction currently has anywhere left to go.
-    // Compared against the SAME bounds used for clamping above, so
-    // these are always consistent with what scrolling actually does.
     const canScrollMonthBack = monthWindowBoundsStart
         ? (monthWindowStart.year * 100 + monthWindowStart.month) > (monthWindowBoundsStart.earliestStart.year * 100 + monthWindowBoundsStart.earliestStart.month)
         : false;
@@ -98,18 +83,27 @@ export function useChartWindows(monthly, yearly) {
     const canScrollYearBack = yearBounds ? yearWindowStart > yearBounds.earliestYear : false;
     const canScrollYearForward = yearBounds ? yearWindowStart < (yearBounds.latestYear - 11) : false;
 
-    // NEW - the slider's own min/max range and current position, all
-    // as plain 0-based indices so RangeWindowSlider never needs to
-    // know about years/months/dates at all, just numbers.
-    const monthSliderMaxIndex = monthBounds
-        ? (monthBounds.latest.year * 12 + monthBounds.latest.month) - (monthBounds.earliest.year * 12 + monthBounds.earliest.month)
+    // Max valid WINDOW-START index (used for clamping - the window
+    // can't start later than 11 back from the true latest data point).
+    const monthSliderMaxIndex = monthWindowBoundsStart
+        ? (monthWindowBoundsStart.latestStart.year * 12 + monthWindowBoundsStart.latestStart.month) - (monthBounds.earliest.year * 12 + monthBounds.earliest.month)
         : 0;
     const monthSliderCurrentIndex = monthBounds
         ? (monthWindowStart.year * 12 + monthWindowStart.month) - (monthBounds.earliest.year * 12 + monthBounds.earliest.month)
         : 0;
 
-    const yearSliderMaxIndex = yearBounds ? yearBounds.latestYear - yearBounds.earliestYear : 0;
+    const yearSliderMaxIndex = yearBounds ? (yearBounds.latestYear - 11) - yearBounds.earliestYear : 0;
     const yearSliderCurrentIndex = yearBounds ? yearWindowStart - yearBounds.earliestYear : 0;
+
+    // NEW - the FULL raw timeline span (not minus 11) - this is what
+    // the two-handle slider's TRACK itself needs, since the RIGHT
+    // handle must be able to visually reach the true latest data
+    // point, even though the window's START can't go that far (that's
+    // what monthSliderMaxIndex/yearSliderMaxIndex above still enforce).
+    const monthSliderTrackMax = monthBounds
+        ? (monthBounds.latest.year * 12 + monthBounds.latest.month) - (monthBounds.earliest.year * 12 + monthBounds.earliest.month)
+        : 0;
+    const yearSliderTrackMax = yearBounds ? yearBounds.latestYear - yearBounds.earliestYear : 0;
 
     return {
         monthWindow, yearWindowEntries,
@@ -119,6 +113,7 @@ export function useChartWindows(monthly, yearly) {
         setMonthWindowByIndex, setYearWindowByIndex,
         monthSliderMaxIndex, monthSliderCurrentIndex,
         yearSliderMaxIndex, yearSliderCurrentIndex,
-        monthBounds, yearBounds, // NEW - the raw earliest/latest bounds, for full-history slider labels
+        monthSliderTrackMax, yearSliderTrackMax,
+        monthBounds, yearBounds,
     };
 }

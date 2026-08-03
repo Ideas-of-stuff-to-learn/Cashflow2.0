@@ -5,24 +5,23 @@ import LoadingBarsPlaceholder from '../loading/LoadingBarsPlaceholder';
 import ChartWindowToggle from './chartWindowsToggle';
 import SegmentPopupFixed from './SegmentPopupFixed';
 import IncomeLegend from './IncomeLegend';
-import RangeWindowSlider from './RangeWindowSlider'
+import RangeWindowSlider from './RangeWindowSlider';
 import { useDataReadiness } from '../../customHooks/charts/useDataReadiness';
 import { useSegmentPopup } from '../../customHooks/charts/useSegmentPopup';
 import { useApp } from '../../AppContext';
-
 
 const POPUP_VARIANT = 'fixed'; // 'fixed' | 'floating' | 'modal'
 
 export default function ChartWindowSection({
     ready, hasData,
-    monthBounds, yearBounds,
     monthWindow, yearWindowEntries,
     scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear,
     canScrollMonthBack, canScrollMonthForward,
     canScrollYearBack, canScrollYearForward,
     setMonthWindowByIndex, setYearWindowByIndex,
-    monthSliderMaxIndex, monthSliderCurrentIndex,
-    yearSliderMaxIndex, yearSliderCurrentIndex,
+    monthSliderCurrentIndex, yearSliderCurrentIndex,
+    monthSliderTrackMax, yearSliderTrackMax,
+    monthBounds, yearBounds,
     buildStackDataFromEntries,
     incomeForEntries,
 }) {
@@ -51,9 +50,6 @@ export default function ChartWindowSection({
     const stackData = buildStackDataFromEntries(activeEntries, mode === 'year' ? jumpMonthWindowToYear : null);
     const incomeData = incomeForEntries(activeEntries);
 
-    // Which pair of booleans applies depends on which mode is active -
-    // scrolling year vs month are independent windows with their own
-    // separate bounds.
     const canGoBack = mode === 'year' ? canScrollYearBack : canScrollMonthBack;
     const canGoForward = mode === 'year' ? canScrollYearForward : canScrollMonthForward;
 
@@ -65,19 +61,16 @@ export default function ChartWindowSection({
         }
     }
 
-    // FIXED - these now show the ABSOLUTE earliest/latest across ALL
-    // the user's data, not the current window's edges. The slider
-    // should always represent "here is your whole history," with the
-    // current 12-item window just being WHERE on that timeline you
-    // currently are - not redefine what the timeline's endpoints are
-    // every time you drag.
+    // Full-history bounds (fixed, never change with the current
+    // window) - the slider's labels always show the ENTIRE range the
+    // person has data for, not just the current 12-item window.
     const sliderStartLabel = mode === 'year'
         ? String(yearBounds?.earliestYear ?? '')
         : monthBounds ? `${monthBounds.earliest.month}/${monthBounds.earliest.year}` : '';
     const sliderEndLabel = mode === 'year'
         ? String(yearBounds?.latestYear ?? '')
         : monthBounds ? `${monthBounds.latest.month}/${monthBounds.latest.year}` : '';
-        
+
     return (
         <>
             <div className="chart-header-row">
@@ -102,11 +95,6 @@ export default function ChartWindowSection({
                 />
             </div>
 
-            {/* Each arrow only renders at all when that direction is
-                actually possible - reappears the moment scrolling the
-                OTHER direction makes it possible again, since canGoBack/
-                canGoForward are recomputed fresh every render from the
-                actual current window position. */}
             <div className="window-nav-row">
                 <button
                     className="window-nav-btn"
@@ -123,8 +111,9 @@ export default function ChartWindowSection({
                     ▶
                 </button>
             </div>
+
             <RangeWindowSlider
-                maxIndex={mode === 'year' ? yearSliderMaxIndex : monthSliderMaxIndex}
+                trackMax={mode === 'year' ? yearSliderTrackMax : monthSliderTrackMax}
                 currentIndex={mode === 'year' ? yearSliderCurrentIndex : monthSliderCurrentIndex}
                 onChangeIndex={mode === 'year' ? setYearWindowByIndex : setMonthWindowByIndex}
                 startLabel={sliderStartLabel}

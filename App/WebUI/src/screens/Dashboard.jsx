@@ -36,6 +36,7 @@ export default function DashboardScreen() {
     const {
         hasData, effectiveOrder, updateOrder, resetOrder, persist, togglePersist, isCustomOrder,
         availableCategories, setSelectedCategories: setChartSelectedCategories,
+        monthBounds, yearBounds,
         monthWindow, yearWindowEntries,
         scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear,
         canScrollMonthBack, canScrollMonthForward,
@@ -43,8 +44,8 @@ export default function DashboardScreen() {
         setMonthWindowByIndex, setYearWindowByIndex,
         monthSliderMaxIndex, monthSliderCurrentIndex,
         yearSliderMaxIndex, yearSliderCurrentIndex,
+        monthSliderTrackMax, yearSliderTrackMax,
         buildStackDataFromEntries, incomeForEntries, selectedSegment,
-        monthBounds, yearBounds,
     } = useChartData();
     const chartReady = useDetailedChartReveal();
 
@@ -105,6 +106,8 @@ export default function DashboardScreen() {
                         monthSliderCurrentIndex={monthSliderCurrentIndex}
                         yearSliderMaxIndex={yearSliderMaxIndex}
                         yearSliderCurrentIndex={yearSliderCurrentIndex}
+                        monthSliderTrackMax={monthSliderTrackMax}
+                        yearSliderTrackMax={yearSliderTrackMax}
                         buildStackDataFromEntries={buildStackDataFromEntries}
                         incomeForEntries={incomeForEntries}
                         monthBounds={monthBounds}
