@@ -4,6 +4,7 @@ import SpendingStackChart from './SpendingStackedChart';
 import LoadingBarsPlaceholder from '../loading/LoadingBarsPlaceholder';
 import ChartWindowToggle from './chartWindowsToggle';
 import SegmentPopupFixed from './SegmentPopupFixed';
+import IncomeLegend from './IncomeLegend';
 import { useDataReadiness } from '../../customHooks/charts/useDataReadiness';
 import { useSegmentPopup } from '../../customHooks/charts/useSegmentPopup';
 import { useApp } from '../../AppContext';
@@ -22,10 +23,6 @@ export default function ChartWindowSection({
     const { initialLoading, categorising, processingStage } = useApp();
     const { isLoading } = useDataReadiness(hasData, { initialLoading, categorising, processingStage });
 
-    // ONE hook now, for every variant including modal - all three
-    // share the exact same show/dismiss rules; only their VISUAL
-    // presentation differs (handled entirely inside SpendingStackedChart
-    // by which popup component gets rendered).
     const { activeSegment, showSegment, handleChartMouseLeave, handleChartBackgroundClick } = useSegmentPopup();
 
     function handleSegmentInteract(segmentData, key, cursorPos) {
@@ -56,19 +53,16 @@ export default function ChartWindowSection({
 
     return (
         <>
-            <ChartWindowToggle mode={mode} setMode={setMode} />
+            <div className="chart-header-row">
+                <IncomeLegend incomeData={incomeData} />
+                <ChartWindowToggle mode={mode} setMode={setMode} />
+            </div>
+
             <p className="section-label">
                 {mode === 'year' ? 'Spending by year' : 'Spending by month'} — tap a segment for details
             </p>
-            {/* 
-            <div className="zoom-row">
-                <span className="section-label">Zoom: {heightScale.toFixed(1)}x</span>
-                <input type="range" className="zoom-slider" min={1} max={5} step={0.5}
-                    value={heightScale} onChange={e => setHeightScale(parseFloat(e.target.value))} />
-            </div>
-            */}
+
             <div className="window-scroll-row">
-                <button className="window-scroll-btn" onClick={() => handleScroll(-1)}>◀</button>
                 <SpendingStackChart
                     stackData={stackData}
                     incomeData={incomeData}
@@ -79,7 +73,15 @@ export default function ChartWindowSection({
                     onChartMouseLeave={handleChartMouseLeave}
                     onChartBackgroundClick={handleChartBackgroundClick}
                 />
-                <button className="window-scroll-btn" onClick={() => handleScroll(1)}>▶</button>
+            </div>
+
+            {/* Arrows sit BELOW the chart now (freeing the chart's own
+                width), but still left/right-aligned to roughly match
+                the chart's own edges - keeping the original spatial
+                "left arrow = scroll left" clarity, just relocated. */}
+            <div className="window-nav-row">
+                <button className="window-nav-btn" onClick={() => handleScroll(-1)}>◀</button>
+                <button className="window-nav-btn" onClick={() => handleScroll(1)}>▶</button>
             </div>
 
             {POPUP_VARIANT === 'fixed' && <SegmentPopupFixed segment={activeSegment} />}

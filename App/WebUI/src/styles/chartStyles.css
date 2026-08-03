@@ -57,9 +57,14 @@
 
 .chart-window-toggle {
     display: flex;
-    justify-content: flex-end;
     gap: 4px;
     margin-bottom: 8px;
+}
+.chart-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
 }
 
 .toggle-btn {
@@ -83,9 +88,35 @@
     align-items: center;
     gap: 8px;
     min-width: 0;
+    width: 100%;
+
 }
 
-.window-scroll-btn {
+/* NEW - arrows below the chart, spread to its left/right edges rather
+   than fused into one center pill, so the spatial "left = scroll
+   left" logic from the old side-arrow layout is mostly preserved. */
+.window-nav-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+}
+
+.window-nav-btn {
+    background: #2E5C8A;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    width: 36px;
+    height: 32px;
+    font-size: 14px;
+    cursor: pointer;
+    margin-bottom: 15px;
+}
+
+/* OLD - kept here, unused, as a reference/fallback in case you want
+   to revert to the side-by-side arrow layout later. Renamed so it
+   doesn't accidentally collide with anything. */
+.window-scroll-btn--unused-old-version {
     background: #2E5C8A;
     color: #fff;
     border: none;

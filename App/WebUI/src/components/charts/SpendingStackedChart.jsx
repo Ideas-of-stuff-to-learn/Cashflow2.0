@@ -61,13 +61,6 @@ function SpendingStackChart({
 
     return (
         <>
-            {incomeData && incomeData.length > 1 && (
-                <div className="income-legend">
-                    <span className="income-legend-line" />
-                    <span className="income-legend-text">Income</span>
-                </div>
-            )}
-
             <div
                 className="stack-chart-scroll"
                 onMouseLeave={onChartMouseLeave}
