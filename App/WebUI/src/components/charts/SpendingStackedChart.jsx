@@ -117,6 +117,7 @@ function SpendingStackChart({
                                         onSegmentInteract={onSegmentInteract}
                                         labelHeadroom={LABEL_HEADROOM}
                                         topPadding={TOP_PADDING}
+                                        popupVariant={popupVariant}
                                     />
                                 ))}
                             </div>

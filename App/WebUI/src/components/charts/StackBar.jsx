@@ -1,4 +1,3 @@
-// components/charts/StackBar.jsx
 import { memo } from 'react';
 import { transformValue } from '../../utils/charts/chartUtils';
 import { computeSegmentAnchor } from '../../utils/charts/stackChartGeometry';
@@ -6,14 +5,9 @@ import { computeSegmentAnchor } from '../../utils/charts/stackChartGeometry';
 const BAR_WIDTH = 32;
 const LEFT_PADDING = 10;
 
-// Renders one bar's stacked segments. Extracted out of
-// SpendingStackedChart.jsx into its own file - this component's job
-// is ONLY rendering + firing the click/hover handler; the actual
-// anchor-position math it needs lives in stackChartGeometry.js, not
-// inline here.
 const StackBar = memo(function StackBar({
     bar, barIndex, maxValue, chartHeight, columnWidth, heightScale,
-    onSegmentInteract, labelHeadroom, topPadding,
+    onSegmentInteract, labelHeadroom, topPadding, popupVariant,
 }) {
     let cumulativeBottom = 0;
     const visibleSegments = bar.stacks.filter(s => s.value > 0);
@@ -44,8 +38,7 @@ const StackBar = memo(function StackBar({
                 const isTop = segIndex === topSegmentIndex;
                 const positionKey = `${barIndex}-${segIndex}`;
 
-                function fire(e) {
-                    e.stopPropagation();
+                function fire() {
                     segment.onPress();
                     const anchor = computeSegmentAnchor({
                         barIndex, columnWidth, leftPadding: LEFT_PADDING, barWidth: BAR_WIDTH,
@@ -59,11 +52,25 @@ const StackBar = memo(function StackBar({
                     }, positionKey, anchor);
                 }
 
+                function handleClick(e) {
+                    e.stopPropagation();
+                    fire();
+                }
+
+                // Fixed variant ONLY responds to click - hover does
+                // nothing at all (no open, no update). Floating/modal
+                // keep the original "hover or click both work" feel.
+                function handleMouseEnter(e) {
+                    if (popupVariant === 'fixed') return;
+                    e.stopPropagation();
+                    fire();
+                }
+
                 return (
                     <button
                         key={segIndex}
-                        onClick={fire}
-                        onMouseEnter={fire}
+                        onClick={handleClick}
+                        onMouseEnter={handleMouseEnter}
                         className="stack-segment"
                         style={{
                             position: 'absolute',
