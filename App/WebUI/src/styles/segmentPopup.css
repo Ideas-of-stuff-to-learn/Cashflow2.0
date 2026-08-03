@@ -98,4 +98,6 @@
     padding: 16px 24px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.2);
     pointer-events: auto;
+    max-height: 70%;      /* NEW - caps how tall it can grow */
+    margin-bottom: 40px;  /* NEW - nudges it up from dead-center, leaving room below */
 }

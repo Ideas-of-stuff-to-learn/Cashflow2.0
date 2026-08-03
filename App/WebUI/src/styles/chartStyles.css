@@ -1,7 +1,7 @@
 .charts-container { min-height: 100vh; background: #fff; overflow-y: auto; }
 .charts-scroll-content { padding: 20px; padding-bottom: 40px; }
 .charts-title { font-size: 24px; font-weight: bold; margin-top: 24px; margin-bottom: 8px; }
-.charts-button { background: #2E5C8A; padding: 12px 24px; border-radius: 8px; margin-bottom: 24px; color: #fff; font-size: 16px; font-weight: 600; border: none; cursor: pointer; width: 100%; text-align: center; }
+.charts-button { background: #2E5C8A; padding: 12px 24px; border-radius: 8px; margin-bottom: 24px; color: #fff; font-size: 16px; font-weight: 600; border: none; cursor: pointer; width: 100%; text-align: center;margin-top: 24px; }
 
 .colour-chip { display: flex; align-items: center; border: 1.5px solid; border-radius: 16px; padding: 4px 10px; margin-right: 6px; margin-bottom: 6px; }
 .colour-dot { width: 10px; height: 10px; border-radius: 5px; margin-right: 6px; }

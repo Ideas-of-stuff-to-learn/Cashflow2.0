@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { useChartData } from '../customHooks/charts/useChartData';
 import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartReveal';
-
+import ChartFootnote from '../components/charts/ChartFootnote';
 import ChartWindowSection from '../components/charts/ChartWindowSection';
 import SpendingOverview from '../components/charts/SpendingOverview';
 import CategorySlicer from '../components/charts/categorySlicer';
@@ -95,6 +95,8 @@ export default function ChartsScreen() {
                     monthBounds={monthBounds}
                     yearBounds={yearBounds}
                 />
+
+                <ChartFootnote />
 
                 <button className="charts-button" onClick={() => navigate(-1)}>
                     Back to Home

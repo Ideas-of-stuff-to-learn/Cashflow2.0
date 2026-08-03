@@ -8,7 +8,7 @@ import { useFileProcessor } from '../customHooks/homescreen/useFileProcessor';
 import { useChartData } from '../customHooks/charts/useChartData';
 import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartReveal';
 import { NOT_YET_CATEGORISED } from '../checkingName';
-
+import ChartFootnote from '../components/charts/ChartFootnote';
 import HomepageInfo from '../components/homepage/homepageInfo';
 import ProgressBar from '../components/homepage/ProgressBar';
 import ChartWindowSection from '../components/charts/ChartWindowSection';
@@ -113,6 +113,7 @@ export default function DashboardScreen() {
                         monthBounds={monthBounds}
                         yearBounds={yearBounds}
                     />
+                    <ChartFootnote />
                 </div>
             </div>
 
