@@ -12,6 +12,7 @@ import {
     computeIncomePoints,
 } from '../../utils/charts/stackChartGeometry';
 import '../../styles/stackedChartStyles.css';
+import { useRef, useEffect } from 'react';
 
 const BAR_WIDTH = 32;
 const BAR_SPACING = 20;
@@ -37,6 +38,23 @@ function SpendingStackChart({
     if (!stackData || stackData.length === 0) {
         return null;
     }
+    
+    // NEW - a ref to the horizontally-scrollable container, so we can
+    // programmatically move its scroll position.
+    const hscrollRef = useRef(null);
+    // NEW - whenever the visible data changes (mode toggled, window
+    // scrolled), jump the horizontal scroll to its rightmost edge, so
+    // the most recent bars are what's initially visible - scrolling
+    // LEFT reveals older ones within this same 12-item window. Runs
+    // after every stackData change, not just on first mount.
+    useEffect(() => {
+        if (hscrollRef.current) {
+            //rightmost
+            hscrollRef.current.scrollLeft = hscrollRef.current.scrollWidth;
+            // leftmost
+            //hscrollRef.current.scrollLeft = 0;
+        }
+    }, [stackData]);
 
     const chartHeight = BASE_CHART_HEIGHT * heightScale;
     const columnWidth = BAR_WIDTH + BAR_SPACING;
@@ -73,7 +91,7 @@ function SpendingStackChart({
                         height={LABEL_HEADROOM + TOP_PADDING + chartHeight}
                     />
 
-                    <div className="stack-chart-hscroll">
+                    <div className="stack-chart-hscroll" ref={hscrollRef}>
                         <div style={{ width: totalWidth, height: contentHeight, position: 'relative' }}>
                             <ChartBackgroundCatcher
                                 totalWidth={totalWidth}
