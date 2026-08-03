@@ -1,5 +1,8 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { getChartSummary, getMe, getCategories, getUploadCount, getTransactionHistory } from './api';
+import { toggleAllCategories, toggleSpecificCategory } from './utils/charts/categoryFilterToggle';
+
+
 
 const AppContext = createContext();
 
@@ -28,15 +31,11 @@ export function AppProvider({ children }) {
     const [contentsSelectedCategories, setContentsSelectedCategories] = useState(new Set());
 
     const toggleContentsCategory = useCallback((cat) => {
-        setContentsSelectedCategories(prev => {
-            const next = new Set(prev);
-            next.has(cat) ? next.delete(cat) : next.add(cat);
-            return next;
-        });
+        setContentsSelectedCategories(prev => toggleSpecificCategory(prev, cat));
     }, []);
 
     const clearContentsCategories = useCallback(() => {
-        setContentsSelectedCategories(new Set());
+        setContentsSelectedCategories(prev => toggleAllCategories(prev));
     }, []);
 
     const retryInitialLoad = useCallback(() => {

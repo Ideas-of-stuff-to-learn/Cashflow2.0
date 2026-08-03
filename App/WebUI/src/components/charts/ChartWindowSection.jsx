@@ -60,13 +60,13 @@ export default function ChartWindowSection({
             <p className="section-label">
                 {mode === 'year' ? 'Spending by year' : 'Spending by month'} — tap a segment for details
             </p>
-
+            {/* 
             <div className="zoom-row">
                 <span className="section-label">Zoom: {heightScale.toFixed(1)}x</span>
                 <input type="range" className="zoom-slider" min={1} max={5} step={0.5}
                     value={heightScale} onChange={e => setHeightScale(parseFloat(e.target.value))} />
             </div>
-
+            */}
             <div className="window-scroll-row">
                 <button className="window-scroll-btn" onClick={() => handleScroll(-1)}>◀</button>
                 <SpendingStackChart

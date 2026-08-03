@@ -98,12 +98,13 @@ export function transformValue(value, maxVal, heightScale) {
   return (normalised * (1 - t) + stretched * t) * maxVal;
 }
 
+import { toggleAllCategories, toggleSpecificCategory } from './categoryFilterToggle';
+
+
 export function toggleItem(set, setFn, item) {
-    const next = new Set(set);
-    next.has(item) ? next.delete(item) : next.add(item);
-    setFn(next);
+    setFn(toggleSpecificCategory(set, item));
 }
 
 export function selectAll(setFn) {
-    setFn(new Set());
+    setFn(prev => toggleAllCategories(prev));
 }
