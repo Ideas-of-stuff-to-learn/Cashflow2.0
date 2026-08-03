@@ -29,6 +29,7 @@ export function useChartData() {
     const hasData = summary.yearly.length > 0;
 
     const {
+        monthBounds, yearBounds,
         monthWindow, yearWindowEntries,
         scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear,
         canScrollMonthBack, canScrollMonthForward,
@@ -84,5 +85,6 @@ export function useChartData() {
         setMonthWindowByIndex, setYearWindowByIndex,
         monthSliderMaxIndex, monthSliderCurrentIndex,
         yearSliderMaxIndex, yearSliderCurrentIndex,
+        monthBounds, yearBounds,
     };
 }

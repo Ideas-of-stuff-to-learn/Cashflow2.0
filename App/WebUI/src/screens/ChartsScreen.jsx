@@ -31,6 +31,7 @@ export default function ChartsScreen() {
         monthSliderMaxIndex, monthSliderCurrentIndex,
         yearSliderMaxIndex, yearSliderCurrentIndex,
         buildStackDataFromEntries, incomeForEntries,
+        monthBounds, yearBounds,
     } = useChartData();
 
     const chartReady = useDetailedChartReveal();
@@ -87,6 +88,8 @@ export default function ChartsScreen() {
                     yearSliderCurrentIndex={yearSliderCurrentIndex}
                     buildStackDataFromEntries={buildStackDataFromEntries}
                     incomeForEntries={incomeForEntries}
+                    monthBounds={monthBounds}
+                    yearBounds={yearBounds}
                 />
 
                 <button className="charts-button" onClick={() => navigate(-1)}>

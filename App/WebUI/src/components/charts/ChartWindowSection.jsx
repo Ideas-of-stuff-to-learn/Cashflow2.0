@@ -15,6 +15,7 @@ const POPUP_VARIANT = 'fixed'; // 'fixed' | 'floating' | 'modal'
 
 export default function ChartWindowSection({
     ready, hasData,
+    monthBounds, yearBounds,
     monthWindow, yearWindowEntries,
     scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear,
     canScrollMonthBack, canScrollMonthForward,
@@ -64,13 +65,19 @@ export default function ChartWindowSection({
         }
     }
 
+    // FIXED - these now show the ABSOLUTE earliest/latest across ALL
+    // the user's data, not the current window's edges. The slider
+    // should always represent "here is your whole history," with the
+    // current 12-item window just being WHERE on that timeline you
+    // currently are - not redefine what the timeline's endpoints are
+    // every time you drag.
     const sliderStartLabel = mode === 'year'
-        ? yearWindowEntries[0]?.label
-        : `${monthWindow[0]?.label} ${monthWindow[0]?.year}`;
+        ? String(yearBounds?.earliestYear ?? '')
+        : monthBounds ? `${monthBounds.earliest.month}/${monthBounds.earliest.year}` : '';
     const sliderEndLabel = mode === 'year'
-        ? yearWindowEntries[yearWindowEntries.length - 1]?.label
-        : `${monthWindow[monthWindow.length - 1]?.label} ${monthWindow[monthWindow.length - 1]?.year}`;
-
+        ? String(yearBounds?.latestYear ?? '')
+        : monthBounds ? `${monthBounds.latest.month}/${monthBounds.latest.year}` : '';
+        
     return (
         <>
             <div className="chart-header-row">

@@ -119,5 +119,6 @@ export function useChartWindows(monthly, yearly) {
         setMonthWindowByIndex, setYearWindowByIndex,
         monthSliderMaxIndex, monthSliderCurrentIndex,
         yearSliderMaxIndex, yearSliderCurrentIndex,
+        monthBounds, yearBounds, // NEW - the raw earliest/latest bounds, for full-history slider labels
     };
 }

@@ -44,6 +44,7 @@ export default function DashboardScreen() {
         monthSliderMaxIndex, monthSliderCurrentIndex,
         yearSliderMaxIndex, yearSliderCurrentIndex,
         buildStackDataFromEntries, incomeForEntries, selectedSegment,
+        monthBounds, yearBounds,
     } = useChartData();
     const chartReady = useDetailedChartReveal();
 
@@ -106,6 +107,8 @@ export default function DashboardScreen() {
                         yearSliderCurrentIndex={yearSliderCurrentIndex}
                         buildStackDataFromEntries={buildStackDataFromEntries}
                         incomeForEntries={incomeForEntries}
+                        monthBounds={monthBounds}
+                        yearBounds={yearBounds}
                     />
                 </div>
             </div>
