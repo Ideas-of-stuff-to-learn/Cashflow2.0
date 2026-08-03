@@ -7,7 +7,7 @@ const LEFT_PADDING = 10;
 
 const StackBar = memo(function StackBar({
     bar, barIndex, maxValue, chartHeight, columnWidth, heightScale,
-    onSegmentInteract, labelHeadroom, topPadding, popupVariant,
+    onSegmentInteract, labelHeadroom, topPadding,
 }) {
     let cumulativeBottom = 0;
     const visibleSegments = bar.stacks.filter(s => s.value > 0);
@@ -38,7 +38,8 @@ const StackBar = memo(function StackBar({
                 const isTop = segIndex === topSegmentIndex;
                 const positionKey = `${barIndex}-${segIndex}`;
 
-                function fire() {
+                function fire(e) {
+                    e.stopPropagation();
                     segment.onPress();
                     const anchor = computeSegmentAnchor({
                         barIndex, columnWidth, leftPadding: LEFT_PADDING, barWidth: BAR_WIDTH,
@@ -52,25 +53,11 @@ const StackBar = memo(function StackBar({
                     }, positionKey, anchor);
                 }
 
-                function handleClick(e) {
-                    e.stopPropagation();
-                    fire();
-                }
-
-                // Fixed variant ONLY responds to click - hover does
-                // nothing at all (no open, no update). Floating/modal
-                // keep the original "hover or click both work" feel.
-                function handleMouseEnter(e) {
-                    if (popupVariant === 'fixed') return;
-                    e.stopPropagation();
-                    fire();
-                }
-
                 return (
                     <button
                         key={segIndex}
-                        onClick={handleClick}
-                        onMouseEnter={handleMouseEnter}
+                        onClick={fire}
+                        onMouseEnter={fire}
                         className="stack-segment"
                         style={{
                             position: 'absolute',
@@ -81,6 +68,7 @@ const StackBar = memo(function StackBar({
                             backgroundColor: segment.color,
                             borderTopLeftRadius: isTop ? 4 : 0,
                             borderTopRightRadius: isTop ? 4 : 0,
+                            pointerEvents: 'auto',
                         }}
                     />
                 );

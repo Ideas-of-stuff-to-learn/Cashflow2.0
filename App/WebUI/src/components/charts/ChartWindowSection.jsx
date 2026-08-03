@@ -30,13 +30,8 @@ export default function ChartWindowSection({
     const { initialLoading, categorising, processingStage } = useApp();
     const { isLoading } = useDataReadiness(hasData, { initialLoading, categorising, processingStage });
 
-    const { activeSegment, showSegment, handleChartMouseLeave: dismissOnHoverOut, handleChartBackgroundClick } = useSegmentPopup();
+    const { activeSegment, showSegment, handleChartMouseLeave, handleChartBackgroundClick } = useSegmentPopup();
 
-    function handleChartMouseLeave() {
-        if (POPUP_VARIANT === 'fixed') return; // fixed only dismisses via click-outside, never hover-out
-        dismissOnHoverOut();
-    }    
-    
     function handleSegmentInteract(segmentData, key, cursorPos) {
         showSegment({ ...segmentData, _positionKey: key, _cursorPos: cursorPos });
     }
