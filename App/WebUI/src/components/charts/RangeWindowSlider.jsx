@@ -1,4 +1,5 @@
 import '../../styles/rangeWindowSlider.css';
+import { WINDOW_SIZE_OFFSET } from '../../utils/charts/chartWindowConfig';
 
 export default function RangeWindowSlider({
     trackMax, currentIndex, onChangeIndex, startLabel, endLabel,
@@ -6,7 +7,7 @@ export default function RangeWindowSlider({
     if (trackMax <= 0) return null;
 
     const leftValue = currentIndex;
-    const rightValue = Math.min(currentIndex + 11, trackMax);
+    const rightValue = Math.min(currentIndex + WINDOW_SIZE_OFFSET, trackMax);
 
     // Percentages along the track, used to position the visible
     // "fill" bar between the two handles - this is what gives the
@@ -48,7 +49,7 @@ export default function RangeWindowSlider({
                     min={0}
                     max={trackMax}
                     value={rightValue}
-                    onChange={e => onChangeIndex(parseInt(e.target.value, 10) - 11)}
+                    onChange={e => onChangeIndex(parseInt(e.target.value, 10) - WINDOW_SIZE_OFFSET)}
                 />
             </div>
         </div>

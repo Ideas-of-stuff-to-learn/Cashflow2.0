@@ -1,5 +1,6 @@
 // utils/charts/yearWindow.js
 import { groupMonthlyByKey } from './monthWindow';
+import { WINDOW_SIZE, WINDOW_SIZE_OFFSET } from './chartWindowConfig';
 
 // Same idea as getMonthWindow, one level up: given a starting year,
 // returns 12 consecutive calendar YEARS, gaps included as genuinely
@@ -16,7 +17,7 @@ export function getYearWindow(yearly, startYear) {
     }
 
     const years = [];
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < WINDOW_SIZE; i++) {
         const year = startYear + i;
         const entry = byYear.get(year);
         years.push({
@@ -33,10 +34,10 @@ export function getYearWindow(yearly, startYear) {
 // no data at all yet.
 export function getDefaultYearWindowStart(yearly) {
     if (!yearly || yearly.length === 0) {
-        return new Date().getFullYear() - 11;
+        return new Date().getFullYear() - WINDOW_SIZE_OFFSET;
     }
     const latestYear = yearly.reduce((max, row) => Math.max(max, row.year), -Infinity);
-    return latestYear - 11;
+    return latestYear - WINDOW_SIZE_OFFSET;
 }
 
 // The one-way follower: given the year window's CURRENT start, and the
@@ -61,7 +62,7 @@ export function syncYearWindowToMonthWindow(currentYearWindowStart, monthWindowE
     const minYearNeeded = Math.min(...yearsInView);
     const maxYearNeeded = Math.max(...yearsInView);
 
-    const currentWindowEnd = currentYearWindowStart + 11;
+    const currentWindowEnd = currentYearWindowStart + WINDOW_SIZE_OFFSET;
 
     if (minYearNeeded >= currentYearWindowStart && maxYearNeeded <= currentWindowEnd) {
         // Already fully covered - no change needed.
@@ -76,8 +77,8 @@ export function syncYearWindowToMonthWindow(currentYearWindowStart, monthWindowE
 
     // Month window scrolled forward past the year window's end -
     // shift forward just enough that maxYearNeeded becomes the new
-    // last slot (i.e. start = maxYearNeeded - 11).
-    return maxYearNeeded - 11;
+    // last slot (i.e. start = maxYearNeeded - WINDOW_SIZE_OFFSET).
+    return maxYearNeeded - WINDOW_SIZE_OFFSET;
 }
 
 export function getYearDataBounds(yearly) {

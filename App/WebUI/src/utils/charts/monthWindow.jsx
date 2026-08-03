@@ -1,4 +1,4 @@
-// utils/charts/monthWindow.js
+import { WINDOW_SIZE, WINDOW_SIZE_OFFSET } from './chartWindowConfig';
 
 export const MONTH_LABELS = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -51,7 +51,7 @@ export function getMonthWindow(monthly, startYear, startMonth) {
     const byKey = groupMonthlyByKey(monthly);
     const months = [];
 
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < WINDOW_SIZE; i++) {
         const { year, month } = addMonths(startYear, startMonth, i);
         const key = `${year}-${month}`;
         const entry = byKey.get(key);
@@ -73,14 +73,14 @@ export function getMonthWindow(monthly, startYear, startMonth) {
 export function getDefaultMonthWindowStart(monthly) {
     if (!monthly || monthly.length === 0) {
         const now = new Date();
-        return addMonths(now.getFullYear(), now.getMonth() + 1, -11);
+        return addMonths(now.getFullYear(), now.getMonth() + 1, -WINDOW_SIZE_OFFSET);
     }
     const latest = monthly.reduce((max, row) => {
         const key = row.year * 100 + row.month;
         return key > max.key ? { key, year: row.year, month: row.month } : max;
     }, { key: -Infinity, year: 0, month: 0 });
 
-    return addMonths(latest.year, latest.month, -11);
+    return addMonths(latest.year, latest.month, -WINDOW_SIZE_OFFSET);
 }
 
 // Returns the earliest and latest (year, month) actually present in

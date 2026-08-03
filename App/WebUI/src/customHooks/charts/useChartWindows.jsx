@@ -1,6 +1,7 @@
 import { getMonthWindow, getDefaultMonthWindowStart, getMonthDataBounds, addMonths } from '../../utils/charts/monthWindow';
 import { getYearWindow, getDefaultYearWindowStart, getYearDataBounds, syncYearWindowToMonthWindow } from '../../utils/charts/yearWindow';
 import { useMemo, useState, useCallback } from 'react';
+import { WINDOW_SIZE_OFFSET } from '../../utils/charts/chartWindowConfig';
 
 export function useChartWindows(monthly, yearly) {
     const monthBounds = useMemo(() => getMonthDataBounds(monthly), [monthly]);
@@ -66,7 +67,7 @@ export function useChartWindows(monthly, yearly) {
     const setYearWindowByIndex = useCallback((index) => {
         if (!yearBounds) return;
         let next = yearBounds.earliestYear + index;
-        const latestStart = yearBounds.latestYear - 11;
+        const latestStart = yearBounds.latestYear - WINDOW_SIZE_OFFSET;
         if (next < yearBounds.earliestYear) next = yearBounds.earliestYear;
         if (next > latestStart) next = latestStart;
         setYearWindowStart(next);
@@ -81,7 +82,7 @@ export function useChartWindows(monthly, yearly) {
         : false;
 
     const canScrollYearBack = yearBounds ? yearWindowStart > yearBounds.earliestYear : false;
-    const canScrollYearForward = yearBounds ? yearWindowStart < (yearBounds.latestYear - 11) : false;
+    const canScrollYearForward = yearBounds ? yearWindowStart < (yearBounds.latestYear - WINDOW_SIZE_OFFSET) : false;
 
     // Max valid WINDOW-START index (used for clamping - the window
     // can't start later than 11 back from the true latest data point).
