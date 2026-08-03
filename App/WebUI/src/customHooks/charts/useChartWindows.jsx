@@ -1,6 +1,7 @@
 import { getMonthWindow, getDefaultMonthWindowStart, getMonthDataBounds, addMonths } from '../../utils/charts/monthWindow';
 import { getYearWindow, getDefaultYearWindowStart, getYearDataBounds, syncYearWindowToMonthWindow } from '../../utils/charts/yearWindow';
 import { useMemo, useState, useCallback } from 'react';
+
 export function useChartWindows(monthly, yearly) {
     const monthBounds = useMemo(() => getMonthDataBounds(monthly), [monthly]);
     const yearBounds = useMemo(() => getYearDataBounds(yearly), [yearly]);
@@ -11,11 +12,19 @@ export function useChartWindows(monthly, yearly) {
     const monthWindow = useMemo(() => getMonthWindow(monthly, monthWindowStart.year, monthWindowStart.month), [monthly, monthWindowStart]);
     const yearWindowEntries = useMemo(() => getYearWindow(yearly, yearWindowStart), [yearly, yearWindowStart]);
 
+    // The SAME earliest/latest start bounds setMonthWindow uses to
+    // clamp, computed here too (memoized) so both the clamp logic AND
+    // the canScroll booleans below stay in sync with ONE source of
+    // truth, rather than duplicating the bound calculation twice.
+    const monthWindowBoundsStart = useMemo(() => {
+        if (!monthBounds) return null;
+        return {
+            earliestStart: { year: monthBounds.earliest.year, month: monthBounds.earliest.month },
+            latestStart: addMonths(monthBounds.latest.year, monthBounds.latest.month, -11),
+        };
+    }, [monthBounds]);
+
     const setMonthWindow = useCallback((newStart) => {
-        // Clamp so the window's start never goes earlier than the
-        // earliest real month, and never later than 11 months before
-        // the latest real month (so the window's LAST slot never
-        // exceeds real data either).
         let clamped = newStart;
         if (monthBounds) {
             const earliestStart = { year: monthBounds.earliest.year, month: monthBounds.earliest.month };
@@ -53,5 +62,24 @@ export function useChartWindows(monthly, yearly) {
         });
     }, [yearBounds]);
 
-    return { monthWindow, yearWindowEntries, scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear };
+    // NEW - whether each direction currently has anywhere left to go.
+    // Compared against the SAME bounds used for clamping above, so
+    // these are always consistent with what scrolling actually does.
+    const canScrollMonthBack = monthWindowBoundsStart
+        ? (monthWindowStart.year * 100 + monthWindowStart.month) > (monthWindowBoundsStart.earliestStart.year * 100 + monthWindowBoundsStart.earliestStart.month)
+        : false;
+
+    const canScrollMonthForward = monthWindowBoundsStart
+        ? (monthWindowStart.year * 100 + monthWindowStart.month) < (monthWindowBoundsStart.latestStart.year * 100 + monthWindowBoundsStart.latestStart.month)
+        : false;
+
+    const canScrollYearBack = yearBounds ? yearWindowStart > yearBounds.earliestYear : false;
+    const canScrollYearForward = yearBounds ? yearWindowStart < (yearBounds.latestYear - 11) : false;
+
+    return {
+        monthWindow, yearWindowEntries,
+        scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear,
+        canScrollMonthBack, canScrollMonthForward,
+        canScrollYearBack, canScrollYearForward,
+    };
 }

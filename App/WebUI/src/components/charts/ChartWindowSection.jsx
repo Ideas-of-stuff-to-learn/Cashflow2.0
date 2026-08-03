@@ -15,6 +15,8 @@ export default function ChartWindowSection({
     ready, hasData,
     monthWindow, yearWindowEntries,
     scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear,
+    canScrollMonthBack, canScrollMonthForward,
+    canScrollYearBack, canScrollYearForward,
     buildStackDataFromEntries,
     incomeForEntries,
 }) {
@@ -42,6 +44,12 @@ export default function ChartWindowSection({
     const activeEntries = mode === 'year' ? yearWindowEntries : monthWindow;
     const stackData = buildStackDataFromEntries(activeEntries, mode === 'year' ? jumpMonthWindowToYear : null);
     const incomeData = incomeForEntries(activeEntries);
+
+    // Which pair of booleans applies depends on which mode is active -
+    // scrolling year vs month are independent windows with their own
+    // separate bounds.
+    const canGoBack = mode === 'year' ? canScrollYearBack : canScrollMonthBack;
+    const canGoForward = mode === 'year' ? canScrollYearForward : canScrollMonthForward;
 
     function handleScroll(direction) {
         if (mode === 'year') {
@@ -75,13 +83,18 @@ export default function ChartWindowSection({
                 />
             </div>
 
-            {/* Arrows sit BELOW the chart now (freeing the chart's own
-                width), but still left/right-aligned to roughly match
-                the chart's own edges - keeping the original spatial
-                "left arrow = scroll left" clarity, just relocated. */}
+            {/* Each arrow only renders at all when that direction is
+                actually possible - reappears the moment scrolling the
+                OTHER direction makes it possible again, since canGoBack/
+                canGoForward are recomputed fresh every render from the
+                actual current window position. */}
             <div className="window-nav-row">
-                <button className="window-nav-btn" onClick={() => handleScroll(-1)}>◀</button>
-                <button className="window-nav-btn" onClick={() => handleScroll(1)}>▶</button>
+                {canGoBack && (
+                    <button className="window-nav-btn" onClick={() => handleScroll(-1)}>◀</button>
+                )}
+                {canGoForward && (
+                    <button className="window-nav-btn" onClick={() => handleScroll(1)}>▶</button>
+                )}
             </div>
 
             {POPUP_VARIANT === 'fixed' && <SegmentPopupFixed segment={activeSegment} />}

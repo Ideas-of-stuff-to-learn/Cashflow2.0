@@ -31,6 +31,8 @@ export function useChartData() {
     const {
         monthWindow, yearWindowEntries,
         scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear,
+        canScrollMonthBack, canScrollMonthForward,
+        canScrollYearBack, canScrollYearForward,
     } = useChartWindows(summary.monthly, summary.yearly);
 
     const monthWindowSpansMultipleYears = useMemo(() => {
@@ -72,6 +74,8 @@ export function useChartData() {
 
         monthWindow, yearWindowEntries,
         scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear,
+        canScrollMonthBack, canScrollMonthForward,
+        canScrollYearBack, canScrollYearForward,
         buildStackDataFromEntries: buildStackData,
         incomeForEntries: buildIncomeDataFromEntries,
     };
