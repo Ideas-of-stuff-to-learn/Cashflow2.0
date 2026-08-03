@@ -2,7 +2,7 @@ import { memo } from 'react';
 import StackBar from './StackBar';
 import ChartPopupLayer from './ChartPopupLayer';
 import YAxisLabelColumn from './YAxisLabelColumn';
-import ChartGridLines from './ChartGridLines';
+import ChartGridLines from './ChartGridlines';
 import IncomeLine from './IncomeLine';
 import BarTotalsLayer from './BarTotalsLayer';
 import BarLabelsRow from './BarLabelsRow';
