@@ -1,7 +1,16 @@
 import { memo } from 'react';
-import { transformValue } from '../../utils/charts/chartUtils';
-import SegmentPopupFloating from './SegmentPopupFloating';
-import SegmentPopupModal from './SegmentPopupModal';
+import StackBar from './StackBar';
+import ChartPopupLayer from './ChartPopupLayer';
+import YAxisLabelColumn from './YAxisLabelColumn';
+import ChartGridLines from './ChartGridLines';
+import IncomeLine from './IncomeLine';
+import BarTotalsLayer from './BarTotalsLayer';
+import BarLabelsRow from './BarLabelsRow';
+import ChartBackgroundCatcher from './ChartBackgroundCatcher';
+import {
+    computeYAxisLabels,
+    computeIncomePoints,
+} from '../../utils/charts/stackChartGeometry';
 import '../../styles/stackedChartStyles.css';
 
 const BAR_WIDTH = 32;
@@ -14,79 +23,12 @@ const Y_AXIS_SECTIONS = 4;
 const TOP_PADDING = 10;
 const LABEL_HEADROOM = 24;
 
-const StackBar = memo(function StackBar({ bar, barIndex, maxValue, chartHeight, columnWidth, heightScale, onSegmentInteract }) {
-    let cumulativeBottom = 0;
-    const visibleSegments = bar.stacks.filter(s => s.value > 0);
-    const topSegmentIndex = visibleSegments.length > 0
-        ? bar.stacks.indexOf(visibleSegments[visibleSegments.length - 1])
-        : -1;
-
-    return (
-        <div
-            style={{
-                position: 'absolute',
-                left: LEFT_PADDING + barIndex * columnWidth,
-                bottom: 0,
-                width: BAR_WIDTH,
-                height: chartHeight,
-            }}
-        >
-            {bar.stacks.map((segment, segIndex) => {
-                const scaledValue = heightScale > 1
-                    ? transformValue(segment.value, maxValue, heightScale)
-                    : segment.value;
-                const segHeight = (scaledValue / maxValue) * chartHeight;
-                const bottom = cumulativeBottom;
-                cumulativeBottom += segHeight;
-
-                if (segHeight <= 0) return null;
-
-                const isTop = segIndex === topSegmentIndex;
-                const positionKey = `${barIndex}-${segIndex}`;
-
-                function fire(e) {
-                    e.stopPropagation();
-                    segment.onPress();
-                    // Anchor horizontally to this BAR's center, vertically to this
-                    // SEGMENT's actual top edge - both computed from values we already
-                    // reliably know (barIndex, columnWidth, bottom, segHeight), rather
-                    // than trusting the raw mouse event's offsetX/offsetY, which
-                    // behaves inconsistently across onMouseEnter vs onClick and across
-                    // nested absolutely-positioned elements - that inconsistency was
-                    // the actual cause of the drift.
-                    const anchorX = LEFT_PADDING + barIndex * columnWidth + BAR_WIDTH / 2;
-                    const anchorY = (LABEL_HEADROOM + TOP_PADDING + chartHeight) - (bottom + segHeight);
-
-                    onSegmentInteract({
-                        year: segment.year,
-                        month: segment.month,
-                        category: segment.category,
-                        value: segment.realValue,
-                    }, positionKey, { x: anchorX, y: anchorY });
-                }
-                return (
-                    <button
-                        key={segIndex}
-                        onClick={fire}
-                        onMouseEnter={fire}
-                        className="stack-segment"
-                        style={{
-                            position: 'absolute',
-                            left: 0,
-                            bottom,
-                            width: '100%',
-                            height: segHeight,
-                            backgroundColor: segment.color,
-                            borderTopLeftRadius: isTop ? 4 : 0,
-                            borderTopRightRadius: isTop ? 4 : 0,
-                        }}
-                    />
-                );
-            })}
-        </div>
-    );
-});
-
+// This file is now PURELY composition - every visual piece (bars,
+// gridlines, income line, totals, bottom labels, click-catcher, popup
+// selection) is its own named component. This file's only remaining
+// job is: compute the shared numbers every piece needs (chartHeight,
+// totalWidth, maxValue, etc.), then hand each piece exactly what it
+// needs and place them in the right stacking order.
 function SpendingStackChart({
     stackData, incomeData, heightScale = 1,
     popupVariant, activeSegment,
@@ -104,20 +46,18 @@ function SpendingStackChart({
     const incomeValues = (incomeData || []).map(d => d.value || 0);
     const maxValue = Math.max(1, ...barTotals, ...incomeValues);
 
-    const yAxisLabels = Array.from({ length: Y_AXIS_SECTIONS + 1 }, (_, i) => {
-        const value = (maxValue / Y_AXIS_SECTIONS) * i;
-        return { value, y: LABEL_HEADROOM + TOP_PADDING + chartHeight - (value / maxValue) * chartHeight };
+    const yAxisLabels = computeYAxisLabels({
+        maxValue, sections: Y_AXIS_SECTIONS, labelHeadroom: LABEL_HEADROOM, topPadding: TOP_PADDING, chartHeight,
     });
 
-    const incomePoints = (incomeData || [])
-        .map((d, i) => {
-            const x = LEFT_PADDING + i * columnWidth + BAR_WIDTH / 2;
-            const y = LABEL_HEADROOM + TOP_PADDING + chartHeight - ((d.value || 0) / maxValue) * chartHeight;
-            return `${x},${y}`;
-        })
-        .join(' ');
+    const incomePoints = computeIncomePoints({
+        incomeData, leftPadding: LEFT_PADDING, columnWidth, barWidth: BAR_WIDTH,
+        maxValue, labelHeadroom: LABEL_HEADROOM, topPadding: TOP_PADDING, chartHeight,
+    });
 
     const contentHeight = LABEL_HEADROOM + TOP_PADDING + chartHeight + LABEL_ROW_HEIGHT;
+    const svgHeight = LABEL_HEADROOM + TOP_PADDING + chartHeight;
+    const xAxisY = LABEL_HEADROOM + TOP_PADDING + chartHeight;
 
     return (
         <>
@@ -134,26 +74,21 @@ function SpendingStackChart({
                 style={{ position: 'relative' }}
             >
                 <div style={{ display: 'flex' }}>
-                    <div style={{ width: Y_AXIS_LABEL_WIDTH, height: LABEL_HEADROOM + TOP_PADDING + chartHeight, position: 'relative', flexShrink: 0 }}>
-                        {yAxisLabels.map((label, i) => (
-                            <span key={i} className="y-axis-label" style={{ position: 'absolute', top: label.y - 7, width: Y_AXIS_LABEL_WIDTH - 6 }}>
-                                {`£${Math.round(label.value)}`}
-                            </span>
-                        ))}
-                    </div>
+                    <YAxisLabelColumn
+                        yAxisLabels={yAxisLabels}
+                        width={Y_AXIS_LABEL_WIDTH}
+                        height={LABEL_HEADROOM + TOP_PADDING + chartHeight}
+                    />
 
                     <div className="stack-chart-hscroll">
                         <div style={{ width: totalWidth, height: contentHeight, position: 'relative' }}>
-                            <div
-                                className="chart-background-catcher"
-                                style={{ position: 'absolute', top: 0, left: 0, width: totalWidth, height: contentHeight }}
+                            <ChartBackgroundCatcher
+                                totalWidth={totalWidth}
+                                contentHeight={contentHeight}
                                 onClick={onChartBackgroundClick}
                             />
 
-                            {yAxisLabels.map((label, i) => (
-                                <div key={i} className="grid-line" style={{ top: label.y, width: totalWidth, pointerEvents: 'none' }} />
-                            ))}
-                            <div className="x-axis-line" style={{ top: LABEL_HEADROOM + TOP_PADDING + chartHeight, width: totalWidth, pointerEvents: 'none' }} />
+                            <ChartGridLines yAxisLabels={yAxisLabels} totalWidth={totalWidth} xAxisY={xAxisY} />
 
                             <div style={{ position: 'absolute', top: LABEL_HEADROOM + TOP_PADDING, left: 0, width: totalWidth, height: chartHeight }}>
                                 {stackData.map((bar, barIndex) => (
@@ -166,47 +101,42 @@ function SpendingStackChart({
                                         columnWidth={columnWidth}
                                         heightScale={heightScale}
                                         onSegmentInteract={onSegmentInteract}
+                                        labelHeadroom={LABEL_HEADROOM}
+                                        topPadding={TOP_PADDING}
                                     />
                                 ))}
                             </div>
 
-                            {incomeData && incomeData.length > 1 && (
-                                <svg style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }} width={totalWidth} height={LABEL_HEADROOM + TOP_PADDING + chartHeight}>
-                                    <polyline points={incomePoints} fill="none" stroke="#27AE60" strokeWidth={2} />
-                                </svg>
-                            )}
+                            <IncomeLine incomeData={incomeData} incomePoints={incomePoints} totalWidth={totalWidth} svgHeight={svgHeight} />
 
-                            <div style={{ position: 'absolute', top: 0, left: 0, width: totalWidth, height: LABEL_HEADROOM + TOP_PADDING + chartHeight, pointerEvents: 'none' }}>
-                                {stackData.map((bar, i) => {
-                                    const visibleSum = bar.stacks.reduce((sum, segment) => {
-                                        const scaledValue = heightScale > 1 ? transformValue(segment.value, maxValue, heightScale) : segment.value;
-                                        return sum + (scaledValue / maxValue) * chartHeight;
-                                    }, 0);
-                                    const barTopY = LABEL_HEADROOM + TOP_PADDING + chartHeight - visibleSum;
-                                    return (
-                                        <span key={i} className="bar-total-label" style={{ position: 'absolute', left: LEFT_PADDING + i * columnWidth, top: barTopY - 18, width: BAR_WIDTH }}>
-                                            £{Math.round(bar.total ?? 0).toLocaleString()}
-                                        </span>
-                                    );
-                                })}
-                            </div>
+                            <BarTotalsLayer
+                                stackData={stackData}
+                                totalWidth={totalWidth}
+                                layerHeight={svgHeight}
+                                columnWidth={columnWidth}
+                                leftPadding={LEFT_PADDING}
+                                barWidth={BAR_WIDTH}
+                                maxValue={maxValue}
+                                chartHeight={chartHeight}
+                                heightScale={heightScale}
+                                labelHeadroom={LABEL_HEADROOM}
+                                topPadding={TOP_PADDING}
+                            />
 
-                            {popupVariant === 'floating' && activeSegment && (
-                                <SegmentPopupFloating segment={activeSegment} />
-                            )}
+                            <ChartPopupLayer popupVariant={popupVariant} activeSegment={activeSegment} />
 
-                            <div style={{ position: 'absolute', top: LABEL_HEADROOM + TOP_PADDING + chartHeight + 2, left: 0, width: totalWidth, height: LABEL_ROW_HEIGHT, pointerEvents: 'none' }}>
-                                {stackData.map((bar, i) => (
-                                    <span key={i} className="bar-label" style={{ position: 'absolute', left: LEFT_PADDING + i * columnWidth, width: BAR_WIDTH }}>
-                                        {bar.label}
-                                    </span>
-                                ))}
-                            </div>
+                            <BarLabelsRow
+                                stackData={stackData}
+                                totalWidth={totalWidth}
+                                rowTop={xAxisY + 2}
+                                rowHeight={LABEL_ROW_HEIGHT}
+                                columnWidth={columnWidth}
+                                leftPadding={LEFT_PADDING}
+                                barWidth={BAR_WIDTH}
+                            />
                         </div>
                     </div>
                 </div>
-
-                {popupVariant === 'modal' && <SegmentPopupModal segment={activeSegment} />}
             </div>
         </>
     );
