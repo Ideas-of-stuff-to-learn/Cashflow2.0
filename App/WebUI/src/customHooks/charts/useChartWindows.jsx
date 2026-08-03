@@ -17,7 +17,7 @@ export function useChartWindows(monthly, yearly) {
         if (!monthBounds) return null;
         return {
             earliestStart: { year: monthBounds.earliest.year, month: monthBounds.earliest.month },
-            latestStart: addMonths(monthBounds.latest.year, monthBounds.latest.month, -11),
+            latestStart: addMonths(monthBounds.latest.year, monthBounds.latest.month, -WINDOW_SIZE_OFFSET),
         };
     }, [monthBounds]);
 
@@ -25,7 +25,7 @@ export function useChartWindows(monthly, yearly) {
         let clamped = newStart;
         if (monthBounds) {
             const earliestStart = { year: monthBounds.earliest.year, month: monthBounds.earliest.month };
-            const latestStart = addMonths(monthBounds.latest.year, monthBounds.latest.month, -11);
+            const latestStart = addMonths(monthBounds.latest.year, monthBounds.latest.month, -WINDOW_SIZE_OFFSET);
             const clampedKey = newStart.year * 100 + newStart.month;
             const earliestKey = earliestStart.year * 100 + earliestStart.month;
             const latestKey = latestStart.year * 100 + latestStart.month;
@@ -56,7 +56,7 @@ export function useChartWindows(monthly, yearly) {
             let next = prev + deltaYears;
             if (yearBounds) {
                 const earliestStart = yearBounds.earliestYear;
-                const latestStart = yearBounds.latestYear - 11;
+                const latestStart = yearBounds.latestYear - WINDOW_SIZE_OFFSET;
                 if (next < earliestStart) next = earliestStart;
                 if (next > latestStart) next = latestStart;
             }
@@ -93,7 +93,7 @@ export function useChartWindows(monthly, yearly) {
         ? (monthWindowStart.year * 12 + monthWindowStart.month) - (monthBounds.earliest.year * 12 + monthBounds.earliest.month)
         : 0;
 
-    const yearSliderMaxIndex = yearBounds ? (yearBounds.latestYear - 11) - yearBounds.earliestYear : 0;
+    const yearSliderMaxIndex = yearBounds ? (yearBounds.latestYear - WINDOW_SIZE_OFFSET) - yearBounds.earliestYear : 0;
     const yearSliderCurrentIndex = yearBounds ? yearWindowStart - yearBounds.earliestYear : 0;
 
     // NEW - the FULL raw timeline span (not minus 11) - this is what

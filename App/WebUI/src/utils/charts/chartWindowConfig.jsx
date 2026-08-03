@@ -6,7 +6,7 @@
 // steps after its first) across monthWindow.js, yearWindow.js,
 // useChartWindows.jsx, and RangeWindowSlider.jsx. Change WINDOW_SIZE
 // here to adjust it everywhere at once.
-export const WINDOW_SIZE = 12;
+export const WINDOW_SIZE = 5;
 
 // Derived, not independently set - the offset from a window's first
 // slot to its last. Always WINDOW_SIZE - 1, wherever the old code had
