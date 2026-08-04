@@ -21,7 +21,7 @@ from database import get_connection, release_connection
 from cache import CategoryCache
 from categorise.pipeline import run_cache_tiers
 from categorise.llm_tier import run_llm_tier
-from categorise.exact_tier import run_exact_tier
+from categorise.exact_tier import combined_status, run_exact_tier
 from categorise.merchant_tier import run_merchant_tier
 from categorise.similarity_tier import run_similarity_tier
 
@@ -58,15 +58,6 @@ def categorize_cached():
         release_connection(conn)
 
 
-# The three endpoints below are the phase-split replacement for
-# /categorize/cached above (kept as-is for any caller still using it in
-# one shot). Each is its own HTTP round trip so the frontend can apply
-# a phase's results - and let the user SEE them - as soon as they land,
-# instead of waiting for exact + merchant + similarity to all finish
-# before anything updates. See useFileProcessor.js for the calling
-# sequence: exact -> (whatever's still PENDING_LLM) -> merchant ->
-# (whatever's still PENDING_LLM) -> similarity -> (whatever's still
-# PENDING_LLM) -> /categorize/llm.
 @app.route('/categorize/cached/exact', methods=['POST'])
 @jwt_required()
 @limiter.limit("100 per day")
@@ -83,14 +74,30 @@ def categorize_cached_exact():
 
     conn = get_connection()
     try:
+        backend_started_at = perf_counter()
+
+        exact_started_at = perf_counter()
         result = run_exact_tier(transactions, current_user, conn)
+        exact_ms = (perf_counter() - exact_started_at) * 1000
+
         update_transaction_categories(conn, current_user, result)
         conn.commit()
-        return jsonify({'transactions': result}), 200
+
+        total_backend_ms = (perf_counter() - backend_started_at) * 1000
+
+        return jsonify({
+            'transactions': result,
+            'timings': {
+                'exact_ms': exact_ms,
+                'total_backend_ms': total_backend_ms,
+            },
+        }), 200
+
     except Exception as e:
         conn.rollback()
         app.logger.error(f'Exact cache tier failed for user {current_user}: {e}')
         return jsonify({'error': 'Cache lookup failed - please try again'}), 500
+
     finally:
         release_connection(conn)
 
@@ -165,11 +172,6 @@ def categorize_llm():
     if not isinstance(transactions, list) or not transactions:
         return jsonify({'error': 'transactions must be a non-empty list'}), 400
 
-    # Optional client-controlled Gemini batch size (unique descriptions
-    # per LLM call inside run_llm_tier). Falls back to that function's
-    # own default (200) if not provided. Bounded to keep someone from
-    # sending something pathological (0, negative, or huge enough to
-    # risk truncated Gemini responses).
     batch_size_kwargs = {}
     if 'batch_size' in data:
         try:
@@ -180,12 +182,6 @@ def categorize_llm():
             return jsonify({'error': 'batch_size must be between 1 and 2000'}), 400
         batch_size_kwargs['batch_size'] = batch_size
 
-    # Optional client-controlled Gemini request timeout. Falls back to
-    # categorise/llm_tier's own DEFAULT_GEMINI_REQUEST_TIMEOUT_MS if not
-    # provided. Bounded well under the gunicorn worker timeout so a
-    # client can't accidentally (or deliberately) request a timeout
-    # long enough to recreate the exact SIGKILL scenario this exists to
-    # prevent.
     gemini_timeout_kwargs = {}
     if 'gemini_timeout_ms' in data:
         try:
@@ -278,27 +274,35 @@ def resolve_manual():
                     global_cache.remove_record(desc, date, amount_str, category=None)
                 personal_cache.add_record(desc, date, amount_str, category)
 
-            updated.append(r)
+            with conn.cursor() as cur:
+                cur.execute(
+                    """UPDATE transactions SET category = %s
+                       WHERE user_id = %s AND description = %s
+                         AND txn_date = %s AND amount = %s""",
+                    (category, current_user, desc, date, amount),
+                )
+
+            status_after = combined_status(desc, personal_cache, global_cache)
+            if status_after['status'] == 'resolved':
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """UPDATE transactions SET category = %s
+                           WHERE user_id = %s AND description = %s""",
+                        (category, current_user, desc),
+                    )
+
+            updated.append({'description': desc, 'date': date, 'amount': amount, 'category': category})
 
         if personal_cache.dirty:
             personal_cache.save()
         if global_cache.dirty:
             global_cache.save()
 
-        with conn.cursor() as cur:
-            for r in updated:
-                cur.execute(
-                    """UPDATE transactions
-                       SET category = %s
-                       WHERE user_id = %s AND description = %s AND txn_date = %s AND amount = %s""",
-                    (r['category'], current_user, r['description'], r['date'], r['amount']),
-                )
-
         conn.commit()
         return jsonify({'updated': updated, 'skipped': skipped}), 200
     except Exception as e:
         conn.rollback()
-        app.logger.error(f'Manual resolve failed for user {current_user}: {e}')
+        app.logger.error(f'Resolve failed for user {current_user}: {e}')
         return jsonify({'error': 'Resolve failed - please try again'}), 500
     finally:
         release_connection(conn)
