@@ -94,6 +94,7 @@ def parse_csv():
         else:
             try:
                 row_source = _rows_from_excel(raw_bytes, file.filename)
+                print(row_source)
             except Exception as e:
                 app.logger.warning(f"User {current_user} uploaded unreadable Excel file: {file.filename} ({e})")
                 continue
