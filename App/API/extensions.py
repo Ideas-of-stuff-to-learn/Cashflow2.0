@@ -26,18 +26,26 @@ from flask_limiter.util import get_remote_address
 from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
 from flask_cors import CORS
-from backendLocalConfig import CORS_origins
 from database import get_connection, release_connection
+from backendLocalConfig import CORS_ORIGINS, LOCAL_DEV
 
 load_dotenv()
 
 app = Flask(__name__)
 
+
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+
 CORS(
     app,
     supports_credentials=True,
-    origins=CORS_origins,
+    origins=CORS_ORIGINS,
 )
+
+
+IS_LOCAL_DEV = LOCAL_DEV
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
 
@@ -51,7 +59,7 @@ app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
 # refresh token itself expires or is revoked.
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
-IS_LOCAL_DEV = os.environ.get('FLASK_ENV') == 'development'
+#IS_LOCAL_DEV = os.environ.get('FLASK_ENV') == 'development'
 app.config['JWT_TOKEN_LOCATION'] = ['headers', 'cookies']  # both, so RN keeps working unchanged
 app.config['JWT_COOKIE_SECURE'] = not IS_LOCAL_DEV
 app.config['JWT_COOKIE_SAMESITE'] = 'Lax' if IS_LOCAL_DEV else 'None'
