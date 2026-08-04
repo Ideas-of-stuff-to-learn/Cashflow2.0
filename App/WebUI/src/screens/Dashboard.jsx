@@ -76,7 +76,7 @@ export default function DashboardScreen() {
                     onClick={handleCategorisePress}
                     disabled={loading || categorising || !allTransactionsLoaded || (selectedFiles.length === 0 && notYetCategorisedCount === 0)}
                 >
-                    {loading ? '...' : notYetCategorisedCount > 0 ? `Categorise (retry ${notYetCategorisedCount})` : 'Categorise'}
+                    {loading ? '...' : notYetCategorisedCount > 0 ? `Automatically categorise (retry ${notYetCategorisedCount})` : 'Automatically categorise'}
                 </button>
 
                 <button className="btn btn-secondary" onClick={() => navigate('/contents')}>

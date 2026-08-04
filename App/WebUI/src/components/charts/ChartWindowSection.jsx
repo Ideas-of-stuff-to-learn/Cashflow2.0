@@ -10,7 +10,7 @@ import { useDataReadiness } from '../../customHooks/charts/useDataReadiness';
 import { useSegmentPopup } from '../../customHooks/charts/useSegmentPopup';
 import { useApp } from '../../AppContext';
 
-const POPUP_VARIANT = 'fixed'; // 'fixed' | 'floating' | 'modal'
+const POPUP_VARIANT = 'floating'; // 'fixed' | 'floating' | 'modal'
 
 export default function ChartWindowSection({
     ready, hasData,
@@ -26,7 +26,7 @@ export default function ChartWindowSection({
     incomeForEntries,
 }) {
     const [heightScale, setHeightScale] = useState(1);
-    const [mode, setMode] = useState('year');
+    const [mode, setMode] = useState('month');
     const { initialLoading, categorising, processingStage } = useApp();
     const { isLoading } = useDataReadiness(hasData, { initialLoading, categorising, processingStage });
 

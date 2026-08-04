@@ -20,7 +20,7 @@ export default function ChartFootnote() {
     return (
         <div className="chart-footnote">
             {lines.map((line, i) => (
-                <p key={i}>{line.trim()}</p>
+                <p key={i}>{`•  ${line.trim()}`}</p>
             ))}
         </div>
     );

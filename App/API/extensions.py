@@ -17,6 +17,8 @@ this same `app`), then re-exports `app` for gunicorn.
 """
 import os
 from datetime import timedelta
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from flask import Flask
 from flask_limiter import Limiter
@@ -24,7 +26,7 @@ from flask_limiter.util import get_remote_address
 from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
 from flask_cors import CORS
-
+from backendLocalConfig import CORS_origins
 from database import get_connection, release_connection
 
 load_dotenv()
@@ -34,7 +36,7 @@ app = Flask(__name__)
 CORS(
     app,
     supports_credentials=True,
-    origins=["https://ideas-of-stuff-to-learn.github.io","http://192.168.0.101:5173"],
+    origins=CORS_origins,
 )
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
