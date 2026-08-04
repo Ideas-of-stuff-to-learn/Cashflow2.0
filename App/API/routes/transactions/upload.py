@@ -20,7 +20,7 @@ from psycopg2.extras import execute_values
 
 from extensions import app, limiter
 from database import get_connection, release_connection
-from routes.transactions.shared_helpers import sanitize_cell, MAX_CSV_FILE_SIZE_BYTES
+from .shared_helpers import sanitize_cell, MAX_CSV_FILE_SIZE_BYTES
 
 
 def _rows_from_excel(raw_bytes, filename):
