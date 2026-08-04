@@ -49,6 +49,8 @@ jobs:
       # using the base path we set in vite.config.js.
       - name: Build
         working-directory: App/WebUI
+        env:
+          VITE_LOCAL_DEV: ${{ vars.VITE_LOCAL_DEV }}
         run: npm run build
       # Packages App/WebUI/dist as a Pages-compatible artifact -
       # doesn't publish it yet, just prepares it for the deploy job
