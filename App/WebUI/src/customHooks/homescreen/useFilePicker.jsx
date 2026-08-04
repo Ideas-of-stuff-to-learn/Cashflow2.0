@@ -15,7 +15,7 @@ export function useFilePicker() {
         if (!inputRef.current) {
             const input = document.createElement('input');
             input.type = 'file';
-            input.accept = '.csv';
+            input.accept = '.csv,.xlsx,.xls';
             input.multiple = true;
             input.style.display = 'none';
             input.addEventListener('change', handleFilesChosen);
@@ -32,19 +32,20 @@ export function useFilePicker() {
     function handleFilesChosen(e) {
         const files = Array.from(e.target.files || []);
 
-        const csvFiles = files.filter(f =>
-            f.name.toLowerCase().endsWith('.csv')
-        );
+        const validFiles = files.filter(f => {
+            const name = f.name.toLowerCase();
+            return name.endsWith('.csv') || name.endsWith('.xlsx') || name.endsWith('.xls');
+        });
 
-        if (csvFiles.length === 0) {
+        if (validFiles.length === 0) {
             setStatus(null);
-            setError('Please choose at least one .csv file');
+            setError('Please choose at least one .csv, .xlsx, or .xls file');
             return;
         }
 
-        setSelectedFiles(csvFiles);
+        setSelectedFiles(validFiles);
         setError(null);
-        setStatus(`${csvFiles.length} file(s) selected`);
+        setStatus(`${validFiles.length} file(s) selected`);
     }
 
     return {
