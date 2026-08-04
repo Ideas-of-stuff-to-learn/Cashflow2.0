@@ -9,4 +9,4 @@ turn triggers all three submodules' route registration.
 """
 from . import upload
 from . import crud
-from . import categorization_routes
+from . import categorisation_routes
