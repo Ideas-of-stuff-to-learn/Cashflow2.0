@@ -20,7 +20,7 @@ export default function DashboardScreen() {
     const navigate = useNavigate();
     const {
         categorising, transactions, initialLoadError, retryInitialLoad, allTransactionsLoaded,
-        contentsSelectedCategories, toggleContentsCategory, clearContentsCategories, categoryColors,
+        contentsSelectedCategories, toggleContentsCategory, toggleAllContentsCategories, categoryColors,
     } = useApp();
     const { dateRangeInfo, uploadCount, refetchUploadCount } = useInitialLoadLogic();
     const { handleLogout } = useLogout();
@@ -113,7 +113,7 @@ export default function DashboardScreen() {
                 availableCategories={availableCategories}
                 contentsSelectedCategories={contentsSelectedCategories}
                 toggleContentsCategory={toggleContentsCategory}
-                clearContentsCategories={clearContentsCategories}
+                toggleAllContentsCategories={toggleAllContentsCategories}
                 effectiveOrder={effectiveOrder}
                 isCustomOrder={isCustomOrder}
                 categoryColors={categoryColors}

@@ -19,7 +19,7 @@ export default function ContentsScreen() {
         onRetryInitialLoad,
 
         searchText, setSearchText,
-        selectedCategories, toggleCategory, clearCategories,
+        selectedCategories, toggleCategory, toggleAllCategories,
         sortField, sortAsc, toggleSort,
         availableCategories, filtered,
 
@@ -59,7 +59,7 @@ export default function ContentsScreen() {
                 availableCategories={availableCategories}
                 selectedCategories={selectedCategories}
                 onToggleCategory={toggleCategory}
-                onClearCategories={clearCategories}
+                onToggleAllCategories={() => toggleAllCategories(availableCategories)}
             />
 
             <StatusBanners

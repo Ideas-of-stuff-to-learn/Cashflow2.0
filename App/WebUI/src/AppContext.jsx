@@ -1,8 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { getChartSummary, getMe, getCategories, getUploadCount, getTransactionHistory } from './api';
-import { toggleAllCategories, toggleSpecificCategory } from './utils/charts/categoryFilterToggle';
-
-
 
 const AppContext = createContext();
 
@@ -16,8 +13,6 @@ export function AppProvider({ children }) {
     const [initialLoadError, setInitialLoadError] = useState(null);
     const [processingStage, setProcessingStage] = useState('idle');
     const [uploadCount, setUploadCount] = useState(0);
-    // Same purpose as before - bump to force a refetch (e.g. the Retry
-    // button). Now lives at provider level since the fetch itself does.
     const [loadRetryCount, setLoadRetryCount] = useState(0);
 
     const [chartDataVersion, setChartDataVersion] = useState(0);
@@ -28,14 +23,62 @@ export function AppProvider({ children }) {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [chartSummary, setChartSummary] = useState({ yearly: [], monthly: [] });
     const [userRole, setUserRole] = useState(null);
+
+    // Standard checkbox-list semantics: selectedCategories genuinely
+    // CONTAINS every category currently visible - checking a box adds
+    // it, unchecking removes it. No special "empty means show
+    // everything" case anymore - an empty set now honestly means
+    // "nothing selected/shown." This replaces the old inclusion-list +
+    // sentinel-marker model, which couldn't cleanly express "deselect
+    // just this one category, leave everything else visible."
+    //
+    // Two GENUINELY SEPARATE filter states, per today's design
+    // decision: contentsSelectedCategories is shared by Dashboard's
+    // FilterPane, Dashboard's own chart (mirrored via a one-way effect
+    // in Dashboard.jsx), and ContentsScreen WHEN VIEWED AT DESKTOP
+    // WIDTH. mobileSelectedCategories is shared by the phone-mimic
+    // ChartsScreen and ContentsScreen WHEN VIEWED AT MOBILE WIDTH -
+    // which of the two ContentsScreen actually reads/writes is decided
+    // by ContentsScreen's own useIsMobile() check, not by which button
+    // was clicked to navigate there.
     const [contentsSelectedCategories, setContentsSelectedCategories] = useState(new Set());
+    const seenContentsCategoriesRef = useRef(new Set());
+
+    const [mobileSelectedCategories, setMobileSelectedCategories] = useState(new Set());
+    const seenMobileCategoriesRef = useRef(new Set());
 
     const toggleContentsCategory = useCallback((cat) => {
-        setContentsSelectedCategories(prev => toggleSpecificCategory(prev, cat));
+        setContentsSelectedCategories(prev => {
+            const next = new Set(prev);
+            next.has(cat) ? next.delete(cat) : next.add(cat);
+            return next;
+        });
     }, []);
 
-    const clearContentsCategories = useCallback(() => {
-        setContentsSelectedCategories(prev => toggleAllCategories(prev));
+    // "All" toggle - fills the set with every given category name, or
+    // empties it entirely, based on whether it's CURRENTLY full.
+    // allCategoryNames is passed in at call time (not read from
+    // context state directly) since this function doesn't know or
+    // care about the availableCategories/Income-exclusion distinction
+    // - that filtering happens in useChartData, one layer up.
+    const toggleAllContentsCategories = useCallback((allCategoryNames) => {
+        setContentsSelectedCategories(prev =>
+            prev.size >= allCategoryNames.length ? new Set() : new Set(allCategoryNames)
+        );
+    }, []);
+
+    const toggleMobileCategory = useCallback((cat) => {
+        setMobileSelectedCategories(prev => {
+            const next = new Set(prev);
+            next.has(cat) ? next.delete(cat) : next.add(cat);
+            return next;
+        });
+    }, []);
+
+    const toggleAllMobileCategories = useCallback((allCategoryNames) => {
+        setMobileSelectedCategories(prev =>
+            prev.size >= allCategoryNames.length ? new Set() : new Set(allCategoryNames)
+        );
     }, []);
 
     const retryInitialLoad = useCallback(() => {
@@ -84,12 +127,6 @@ export function AppProvider({ children }) {
         return () => { cancelled = true; };
     }, [chartDataVersion, isLoggedIn]);
 
-    // Moved here from useInitialLoadLogic.js - gated on isLoggedIn (not
-    // tied to HomeScreen's mount), same reasoning as chartSummary above:
-    // this now runs ONCE per login (or on retryInitialLoad/loadRetryCount
-    // bump), not once per Home screen mount. Navigating Home <-> Charts
-    // <-> Contents no longer refetches anything, since AppProvider - and
-    // this effect - stay mounted for the whole app lifetime.
     useEffect(() => {
         if (!isLoggedIn) return;
 
@@ -163,6 +200,39 @@ export function AppProvider({ children }) {
     const categoryNames = categories.map(c => c.name);
     const categoryColors = Object.fromEntries(categories.map(c => [c.name, c.color]));
 
+    // As new category names stream in (batch by batch, during
+    // categorisation), auto-select each genuinely NEW name in BOTH
+    // filter states - but only ones never seen before, so a category
+    // the user has manually unchecked stays unchecked even as later,
+    // unrelated batches introduce other new category names.
+    useEffect(() => {
+        const newlyArrived = categoryNames.filter(name =>
+            !seenContentsCategoriesRef.current.has(name)
+        );
+        if (newlyArrived.length > 0) {
+            setContentsSelectedCategories(prev => {
+                const next = new Set(prev);
+                newlyArrived.forEach(name => next.add(name));
+                return next;
+            });
+            newlyArrived.forEach(name => seenContentsCategoriesRef.current.add(name));
+        }
+    }, [categoryNames]);
+
+    useEffect(() => {
+        const newlyArrived = categoryNames.filter(name =>
+            !seenMobileCategoriesRef.current.has(name)
+        );
+        if (newlyArrived.length > 0) {
+            setMobileSelectedCategories(prev => {
+                const next = new Set(prev);
+                newlyArrived.forEach(name => next.add(name));
+                return next;
+            });
+            newlyArrived.forEach(name => seenMobileCategoriesRef.current.add(name));
+        }
+    }, [categoryNames]);
+
     const lastLoggedInUsernameRef = useRef(null);
 
     const completeLogin = useCallback((username) => {
@@ -212,7 +282,10 @@ export function AppProvider({ children }) {
             refetchUploadCount,
             contentsSelectedCategories,
             toggleContentsCategory,
-            clearContentsCategories,
+            toggleAllContentsCategories,
+            mobileSelectedCategories,
+            toggleMobileCategory,
+            toggleAllMobileCategories,
         }}>
             {children}
         </AppContext.Provider>

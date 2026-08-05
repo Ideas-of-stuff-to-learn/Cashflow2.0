@@ -16,7 +16,7 @@ export function useContentsData() {
 
     const {
         searchText, setSearchText,
-        selectedCategories, toggleCategory, clearCategories,
+        selectedCategories, toggleCategory, toggleAllCategories,
         sortField, sortAsc, toggleSort,
         availableCategories, filtered,
     } = useTransactionFilters(transactions);
@@ -38,11 +38,6 @@ export function useContentsData() {
         closeModal,
     } = useCategoryResolve({ transactions, setTransactions, setCategories, bumpChartDataVersion, selectedIds, exitSelectionMode });
 
-    // onToggle/onOpenPicker/onEnterSelectionMode are stable useCallbacks
-    // passed as props to every TransactionRow. Stability is what lets
-    // React.memo skip re-rendering a row that didn't change - if these
-    // were inline arrows they'd be new references every render and memo
-    // would re-render every row regardless.
     const onToggle = useCallback((id) => toggleSelected(id), [toggleSelected]);
     const onOpenPicker = useCallback((item) => openReviewItem(item), [openReviewItem]);
     const onEnterSelectionMode = useCallback((id) => enterSelectionMode(id), [enterSelectionMode]);
@@ -62,7 +57,7 @@ export function useContentsData() {
         onRetryInitialLoad: handleRetryInitialLoad,
 
         searchText, setSearchText,
-        selectedCategories, toggleCategory, clearCategories,
+        selectedCategories, toggleCategory, toggleAllCategories,
         sortField, sortAsc, toggleSort,
         availableCategories, filtered,
 

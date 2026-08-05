@@ -1,16 +1,15 @@
 import '../../styles/contentsStyles.css';
-import { ROW_HEIGHT } from '../../utils/contentsscreen/contentsUtils';
 
-export default function CategoryChipRow({ availableCategories, selectedCategories, onToggleCategory, onClearCategories }) {
+export default function CategoryChipRow({ availableCategories, selectedCategories, onToggleCategory, onToggleAllCategories, categoryColors }) {
+    const allSelected = availableCategories.every(cat => selectedCategories.has(cat));
+
     return (
         <div className="chip-row">
             <button
-                className={`chip ${selectedCategories.size === 0 ? 'chip-active' : ''}`}
-                onClick={onClearCategories}
+                className={`chip ${allSelected ? 'chip-active' : ''}`}
+                onClick={onToggleAllCategories}
             >
-                <span className={`chip-text ${selectedCategories.size === 0 ? 'chip-text-active' : ''}`}>
-                    All
-                </span>
+                <span className={`chip-text ${allSelected ? 'chip-text-active' : ''}`}>All</span>
             </button>
             {availableCategories.map(cat => (
                 <button
@@ -18,9 +17,8 @@ export default function CategoryChipRow({ availableCategories, selectedCategorie
                     className={`chip ${selectedCategories.has(cat) ? 'chip-active' : ''}`}
                     onClick={() => onToggleCategory(cat)}
                 >
-                    <span className={`chip-text ${selectedCategories.has(cat) ? 'chip-text-active' : ''}`}>
-                        {cat}
-                    </span>
+                    <span className="chip-colour-dot" style={{ backgroundColor: categoryColors?.[cat] || '#BBBBBB' }} />
+                    <span className={`chip-text ${selectedCategories.has(cat) ? 'chip-text-active' : ''}`}>{cat}</span>
                 </button>
             ))}
         </div>

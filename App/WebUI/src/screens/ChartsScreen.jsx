@@ -1,8 +1,9 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { useChartData } from '../customHooks/charts/useChartData';
 import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartReveal';
-import ChartFootnote from '../components/charts/ChartFootnote';
+
 import ChartWindowSection from '../components/charts/ChartWindowSection';
 import SpendingOverview from '../components/charts/SpendingOverview';
 import CategorySlicer from '../components/charts/categorySlicer';
@@ -17,12 +18,18 @@ export default function ChartsScreen() {
         initialLoading,
         processingStage,
         categoryColors,
+        // NEW - this screen's OWN independent filter state, per
+        // today's design: shared only with ContentsScreen-at-mobile-
+        // width, never with Dashboard/FilterPane's contentsSelectedCategories.
+        mobileSelectedCategories,
+        toggleMobileCategory,
+        toggleAllMobileCategories,
     } = useApp();
 
     const {
         hasData, allTimeChartData2, selectedSegment,
         effectiveOrder, isCustomOrder, updateOrder, resetOrder, persist, togglePersist,
-        availableCategories, selectedCategories, setSelectedCategories, toggleItem, selectAll,
+        availableCategories, setSelectedCategories: setChartSelectedCategories,
         monthBounds, yearBounds,
         monthWindow, yearWindowEntries,
         scrollMonthWindow, scrollYearWindow, jumpMonthWindowToYear,
@@ -37,13 +44,21 @@ export default function ChartsScreen() {
 
     const chartReady = useDetailedChartReveal();
 
+    // NEW - same one-way mirror pattern Dashboard.jsx already uses for
+    // contentsSelectedCategories: whenever the shared mobile filter
+    // state changes, copy it into this hook's own local chart-filter
+    // state, so the chart's rendering reflects it. Never flows the
+    // other direction - the chart itself doesn't write back to context.
+    useEffect(() => {
+        setChartSelectedCategories(new Set(mobileSelectedCategories));
+    }, [mobileSelectedCategories, setChartSelectedCategories]);
+
     return (
         <div className="charts-container">
             <div className="charts-scroll-content">
                 <h1 className="charts-title">Spending by Category</h1>
                 <StatusBanners initialLoading={initialLoading} processingStage={processingStage} />
 
-                {/* 
                 <SpendingOverview
                     hasData={hasData}
                     filteredChartData2={allTimeChartData2}
@@ -51,13 +66,16 @@ export default function ChartsScreen() {
                     initialLoading={initialLoading}
                     selectedBar={null}
                 />
-                */}
+
+                {/* CategorySlicer's own checkbox clicks now write
+                    DIRECTLY to the shared context state (mobileSelectedCategories),
+                    not to useChartData's local mirror - the mirror only
+                    ever flows context -> local, via the effect above. */}
                 <CategorySlicer
                     availableCategories={availableCategories}
-                    selectedCategories={selectedCategories}
-                    setSelectedCategories={setSelectedCategories}
-                    toggleItem={toggleItem}
-                    selectAll={selectAll}
+                    selectedCategories={mobileSelectedCategories}
+                    toggleCategory={toggleMobileCategory}
+                    toggleAllCategories={toggleAllMobileCategories}
                     categoryColors={categoryColors}
                 />
 
@@ -96,7 +114,14 @@ export default function ChartsScreen() {
                     yearBounds={yearBounds}
                 />
 
-                <ChartFootnote />
+                {selectedSegment && (
+                    <p className="tapped-value-text">
+                        {selectedSegment.month
+                            ? `${selectedSegment.year}/${selectedSegment.month} — `
+                            : `${selectedSegment.year} — `}
+                        {selectedSegment.category}: £{selectedSegment.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </p>
+                )}
 
                 <button className="charts-button" onClick={() => navigate(-1)}>
                     Back to Home

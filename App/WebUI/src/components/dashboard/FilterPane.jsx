@@ -8,7 +8,7 @@ export default function FilterPane({
     availableCategories,
     contentsSelectedCategories,
     toggleContentsCategory,
-    clearContentsCategories,
+    toggleAllContentsCategories,
     categoryColors,
 
     effectiveOrder,
@@ -49,6 +49,10 @@ export default function FilterPane({
         updateOrder(next);
     }
 
+    // Standard checkbox-list semantics: "All" is checked when the set
+    // genuinely contains every available category, not on emptiness.
+    const allSelected = availableCategories.every(cat => contentsSelectedCategories.has(cat));
+
     if (minimized) {
         return (
             <div className={`filter-pane filter-pane-minimized filter-pane-${position}`}>
@@ -76,8 +80,8 @@ export default function FilterPane({
                 <label className="filter-pane-checkbox-row">
                     <input
                         type="checkbox"
-                        checked={contentsSelectedCategories.size === 0}
-                        onChange={clearContentsCategories}
+                        checked={allSelected}
+                        onChange={() => toggleAllContentsCategories(availableCategories)}
                     />
                     <span>All</span>
                 </label>
@@ -85,7 +89,7 @@ export default function FilterPane({
                     <label key={cat} className="filter-pane-checkbox-row">
                         <input
                             type="checkbox"
-                            checked={contentsSelectedCategories.size === 0 || contentsSelectedCategories.has(cat)}
+                            checked={contentsSelectedCategories.has(cat)}
                             onChange={() => toggleContentsCategory(cat)}
                         />
                         <span className="filter-pane-colour-dot" style={{ backgroundColor: categoryColors?.[cat] || '#BBBBBB' }} />
