@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { useInitialLoadLogic } from '../customHooks/homescreen/useInitialLoadLogic';
 import { useLogout } from '../customHooks/homescreen/useLogout';
@@ -6,12 +5,11 @@ import { useFilePicker } from '../customHooks/homescreen/useFilePicker';
 import { useFileProcessor } from '../customHooks/homescreen/useFileProcessor';
 import { NOT_YET_CATEGORISED } from '../checkingName';
 import HomepageInfo from '../components/homepage/homepageInfo';
-import ProgressBar from '../components/homepage/ProgressBar';
+import ActionButtons from '../components/homepage/ActionButtons';
 import '../styles/homePage.css'
 import '../styles/shared.css'
 
 export default function HomeScreen() {
-    const navigate = useNavigate();
     const { categorising, transactions, initialLoadError, retryInitialLoad, allTransactionsLoaded } = useApp();
     const { dateRangeInfo, uploadCount, refetchUploadCount } = useInitialLoadLogic();
     const { handleLogout } = useLogout();
@@ -39,48 +37,20 @@ export default function HomeScreen() {
                     </div>
                 )}
 
-                <button className="btn" onClick={pickFiles} disabled={loading || categorising}>
-                    Choose CSV or Excel Files
-                </button>
-
-                {selectedFiles.length > 0 && (
-                    <div className="file-info">
-                        <p className="file-info-text">
-                            Current file{selectedFiles.length > 1 ? 's' : ''}:
-                        </p>
-                        {selectedFiles.map(f => (
-                            <p key={f.uri || f.name} className="file-info-text">
-                                {f.name} ({(f.size / 1024).toFixed(1)} KB)
-                            </p>
-                        ))}
-                    </div>
-                )}
-                <ProgressBar progress={progress} status={status} />
-                {error && <p className="error">{error}</p>}
-
-                <button
-                    className="btn btn-secondary"
-                    onClick={handleCategorisePress}
-                    disabled={loading || categorising || !allTransactionsLoaded || (selectedFiles.length === 0 && notYetCategorisedCount === 0)}
-                >
-                    {loading
-                        ? '...'
-                        : notYetCategorisedCount > 0
-                            ? `Reprocess transactions ${selectedFiles.length > 0 ? '' : ` (retry ${notYetCategorisedCount})`}`
-                            : 'Process transactions'}
-                </button>
-
-                <button className="btn btn-secondary" onClick={() => navigate('/charts')}>
-                    Go to Charts
-                </button>
-
-                <button className="btn btn-secondary" onClick={() => navigate('/contents')}>
-                    Go to Transactions
-                </button>
-
-                <button className="logout-btn" onClick={handleLogout}>
-                    Log Out
-                </button>
+                <ActionButtons
+                    pickFiles={pickFiles}
+                    selectedFiles={selectedFiles}
+                    loading={loading}
+                    categorising={categorising}
+                    status={status}
+                    error={error}
+                    progress={progress}
+                    handleCategorisePress={handleCategorisePress}
+                    notYetCategorisedCount={notYetCategorisedCount}
+                    allTransactionsLoaded={allTransactionsLoaded}
+                    handleLogout={handleLogout}
+                    showGoToCharts
+                />
             </div>
         </div>
     );

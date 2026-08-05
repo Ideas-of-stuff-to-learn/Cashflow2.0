@@ -13,7 +13,7 @@ import HomepageInfo from '../components/homepage/homepageInfo';
 import ProgressBar from '../components/homepage/ProgressBar';
 import ChartWindowSection from '../components/charts/ChartWindowSection';
 import FilterPane from '../components/dashboard/FilterPane';
-
+import ActionButtons from '../components/homepage/ActionButtons';
 import '../styles/dashboardStyles.css';
 
 export default function DashboardScreen() {
@@ -63,27 +63,19 @@ export default function DashboardScreen() {
                         <button className="btn" onClick={retryInitialLoad}>Retry</button>
                     </div>
                 )}
-                <button className="btn" onClick={pickFiles} disabled={loading || categorising}>Choose CSV or Excel Files</button>
-                {selectedFiles.length > 0 && (
-                    <div className="file-info">
-                        {selectedFiles.map(f => <p key={f.name} className="file-info-text">{f.name}</p>)}
-                    </div>
-                )}
-                <ProgressBar progress={progress} status={status} />
-                {error && <p className="error">{error}</p>}
-                <button
-                    className="btn btn-secondary"
-                    onClick={handleCategorisePress}
-                    disabled={loading || categorising || !allTransactionsLoaded || (selectedFiles.length === 0 && notYetCategorisedCount === 0)}
-                >
-                    {loading ? '...' : notYetCategorisedCount > 0 ? `Automatically categorise (retry ${notYetCategorisedCount})` : 'Automatically categorise'}
-                </button>
-
-                <button className="btn btn-secondary" onClick={() => navigate('/contents')}>
-                    Go to Transactions
-                </button>
-
-                <button className="logout-btn" onClick={handleLogout}>Log Out</button>
+                <ActionButtons
+                    pickFiles={pickFiles}
+                    selectedFiles={selectedFiles}
+                    loading={loading}
+                    categorising={categorising}
+                    status={status}
+                    error={error}
+                    progress={progress}
+                    handleCategorisePress={handleCategorisePress}
+                    notYetCategorisedCount={notYetCategorisedCount}
+                    allTransactionsLoaded={allTransactionsLoaded}
+                    handleLogout={handleLogout}
+                />
             </div>
 
             <div className="dashboard-main">
