@@ -33,7 +33,6 @@ export default function ActionButtons({
                     ))}
                 </div>
             )}
-
             <ProgressBar progress={progress} status={status} />
             {error && <p className="error">{error}</p>}
 

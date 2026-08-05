@@ -17,5 +17,5 @@
 // back to the backend's own default.
 
 export const UPLOAD_WINDOW_MODE = 'logout'; // 'logout' | 'time_gated'
-export const UPLOAD_WINDOW_DURATION_VALUE = 7;
+export const UPLOAD_WINDOW_DURATION_VALUE = 30;
 export const UPLOAD_WINDOW_DURATION_UNIT = 'days';
