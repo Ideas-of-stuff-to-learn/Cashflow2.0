@@ -10,7 +10,6 @@ import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartRe
 import { NOT_YET_CATEGORISED } from '../checkingName';
 import ChartFootnote from '../components/charts/ChartFootnote';
 import HomepageInfo from '../components/homepage/homepageInfo';
-import ProgressBar from '../components/homepage/ProgressBar';
 import ChartWindowSection from '../components/charts/ChartWindowSection';
 import FilterPane from '../components/dashboard/FilterPane';
 import ActionButtons from '../components/homepage/ActionButtons';
@@ -21,8 +20,9 @@ export default function DashboardScreen() {
     const {
         categorising, transactions, initialLoadError, retryInitialLoad, allTransactionsLoaded,
         contentsSelectedCategories, toggleContentsCategory, toggleAllContentsCategories, categoryColors,
+        uploadBreakdown, refetchUploadBreakdown,
     } = useApp();
-    const { dateRangeInfo, uploadCount, refetchUploadCount } = useInitialLoadLogic();
+    const { dateRangeInfo, refetchUploadCount } = useInitialLoadLogic();
     const { handleLogout } = useLogout();
     const { pickFiles, selectedFiles, status, setStatus, error, setError } = useFilePicker();
     const { processFiles, loading, progress } = useFileProcessor(setStatus, setError, selectedFiles);
@@ -31,6 +31,7 @@ export default function DashboardScreen() {
     async function handleCategorisePress() {
         await processFiles();
         refetchUploadCount();
+        refetchUploadBreakdown();
     }
 
     const {
@@ -56,7 +57,7 @@ export default function DashboardScreen() {
     return (
         <div className="dashboard-flex">
             <div className="dashboard-home-box">
-                <HomepageInfo dateRangeInfo={dateRangeInfo} uploadCount={uploadCount} />
+                <HomepageInfo dateRangeInfo={dateRangeInfo} uploadBreakdown={uploadBreakdown} />
                 {initialLoadError && (
                     <div className="banner">
                         <p className="banner-text">{initialLoadError}</p>

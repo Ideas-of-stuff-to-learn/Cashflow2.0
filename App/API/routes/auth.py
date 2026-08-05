@@ -125,6 +125,18 @@ def login():
         })
         set_access_cookies(resp, access_token)
         set_refresh_cookies(resp, refresh_token)
+        # Marks a fresh "session boundary" - a real login (via password),
+        # never touched by the silent /auth/refresh path below. Used by
+        # /uploads/breakdown to split "this session" vs "past" uploads.
+        # FIX: this UPDATE was previously missing a commit() - psycopg2
+        # connections don't auto-commit, so it was very likely being
+        # silently discarded when the connection returned to the pool.
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET session_started_at = now() WHERE id = %s",
+                (user_id,),
+            )
+        conn.commit()
         return resp, 200
     finally:
         release_connection(conn)
@@ -241,6 +253,7 @@ def logout_route():
     blindly, so a garbage/malformed value in that field just gets
     silently ignored rather than erroring the whole logout.
     """
+    current_user = int(get_jwt_identity())
     claims = get_jwt()
     jti = claims["jti"]
     exp_ts = claims["exp"]
@@ -271,6 +284,16 @@ def logout_route():
                 # this is not treated as a hard failure of the whole
                 # request.
                 pass
+            
+        # Marks a fresh "session boundary" the same way login() does -
+        # any file uploaded before THIS moment now correctly reads as
+        # "past" the next time /uploads/breakdown is called, even
+        # though the person hasn't logged back in yet.
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET session_started_at = now() WHERE id = %s",
+                (current_user,),
+            )
 
         conn.commit()
         resp = jsonify({'status': 'ok'})

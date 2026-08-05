@@ -10,8 +10,11 @@ import '../styles/homePage.css'
 import '../styles/shared.css'
 
 export default function HomeScreen() {
-    const { categorising, transactions, initialLoadError, retryInitialLoad, allTransactionsLoaded } = useApp();
-    const { dateRangeInfo, uploadCount, refetchUploadCount } = useInitialLoadLogic();
+    const {
+        categorising, transactions, initialLoadError, retryInitialLoad, allTransactionsLoaded,
+        uploadBreakdown, refetchUploadBreakdown,
+    } = useApp();
+    const { dateRangeInfo, refetchUploadCount } = useInitialLoadLogic();
     const { handleLogout } = useLogout();
     const { pickFiles, selectedFiles, status, setStatus, error, setError } = useFilePicker();
     const { processFiles, loading, progress } = useFileProcessor(setStatus, setError, selectedFiles);
@@ -21,12 +24,13 @@ export default function HomeScreen() {
     async function handleCategorisePress() {
         await processFiles();
         refetchUploadCount();
+        refetchUploadBreakdown();
     }
 
     return (
         <div className="scroll-view">
             <div className="scroll-content">
-                <HomepageInfo dateRangeInfo={dateRangeInfo} uploadCount={uploadCount} />
+                <HomepageInfo dateRangeInfo={dateRangeInfo} uploadBreakdown={uploadBreakdown} />
 
                 {initialLoadError && (
                     <div className="banner">

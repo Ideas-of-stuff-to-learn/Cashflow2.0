@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { getChartSummary, getMe, getCategories, getUploadCount, getTransactionHistory } from './api';
+import { getChartSummary, getMe, getCategories, getUploadCount, getUploadBreakdown, getTransactionHistory } from './api';
 
 const AppContext = createContext();
 
@@ -13,6 +13,7 @@ export function AppProvider({ children }) {
     const [initialLoadError, setInitialLoadError] = useState(null);
     const [processingStage, setProcessingStage] = useState('idle');
     const [uploadCount, setUploadCount] = useState(0);
+    const [uploadBreakdown, setUploadBreakdown] = useState({ session_files: [], past_files: [], session_count: 0, past_count: 0 });
     const [loadRetryCount, setLoadRetryCount] = useState(0);
 
     const [chartDataVersion, setChartDataVersion] = useState(0);
@@ -91,6 +92,12 @@ export function AppProvider({ children }) {
             .catch(e => console.warn('Failed to load upload count:', e.message));
     }, []);
 
+    const refetchUploadBreakdown = useCallback(() => {
+    getUploadBreakdown()
+        .then(setUploadBreakdown)
+        .catch(e => console.warn('Failed to load upload breakdown:', e.message));
+    }, []);
+
     useEffect(() => {
         if (!isLoggedIn) return;
 
@@ -143,13 +150,15 @@ export function AppProvider({ children }) {
 
         async function loadInitialData() {
             try {
-                const [cats, count] = await Promise.all([
+                const [cats, count, breakdown] = await Promise.all([
                     getCategories(signal),
                     getUploadCount(signal),
+                    getUploadBreakdown(),
                 ]);
                 if (cancelled) return;
                 setCategories(cats);
                 setUploadCount(count);
+                setUploadBreakdown(breakdown);
 
                 let offset = 0;
                 let total = null;
@@ -273,6 +282,8 @@ export function AppProvider({ children }) {
             setProcessingStage,
             chartDataVersion,
             bumpChartDataVersion,
+            uploadBreakdown,
+            refetchUploadBreakdown,
             chartSummary,
             userRole,
             isLoggedIn,

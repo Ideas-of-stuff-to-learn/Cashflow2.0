@@ -1,12 +1,26 @@
+import UploadFilesPopup from './UploadFilesPopup';
 import '../../styles/homePage.css';
 
-export default function HomepageInfo({ dateRangeInfo, uploadCount }) {
+export default function HomepageInfo({ dateRangeInfo, uploadBreakdown }) {
     return (
         <>
             <h1 className="title">Spending Pattern Visualisation Tool</h1>
-            <p className="range-text">
-                Number of past files uploaded : {uploadCount}
-            </p>
+
+            <div className="range-text">
+                <UploadFilesPopup
+                    label="Files uploaded this session"
+                    files={uploadBreakdown.session_files}
+                    count={uploadBreakdown.session_count}
+                />
+            </div>
+            <div className="range-text">
+                <UploadFilesPopup
+                    label="Past files uploaded"
+                    files={uploadBreakdown.past_files}
+                    count={uploadBreakdown.past_count}
+                />
+            </div>
+
             {dateRangeInfo && (
                 <p className="range-text">
                     You've uploaded transactions from {dateRangeInfo.rangeText} so far

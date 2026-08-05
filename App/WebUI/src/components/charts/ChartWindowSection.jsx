@@ -111,7 +111,7 @@ export default function ChartWindowSection({
                     ▶
                 </button>
             </div>
-
+            {/* 
             <RangeWindowSlider
                 trackMax={mode === 'year' ? yearSliderTrackMax : monthSliderTrackMax}
                 currentIndex={mode === 'year' ? yearSliderCurrentIndex : monthSliderCurrentIndex}
@@ -119,7 +119,7 @@ export default function ChartWindowSection({
                 startLabel={sliderStartLabel}
                 endLabel={sliderEndLabel}
             />
-
+            */}
             {POPUP_VARIANT === 'fixed' && <SegmentPopupFixed segment={activeSegment} />}
         </>
     );

@@ -204,6 +204,7 @@ CREATE TABLE IF NOT EXISTS user_permission_overrides (
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS role_id INTEGER REFERENCES roles(id);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS session_started_at TIMESTAMPTZ;
 
 INSERT INTO roles (name, level) VALUES
     ('owner', 100),

@@ -1,4 +1,5 @@
 import {url} from '../../frontendLocalConfig'
+import { UPLOAD_WINDOW_MODE, UPLOAD_WINDOW_DURATION_VALUE, UPLOAD_WINDOW_DURATION_UNIT } from './config/uploadWindowConfig';
 
 
 const BASE_URL = url;
@@ -19,11 +20,23 @@ const COLD_START_TIMEOUT_MS = 70000;
 let csrfAccessToken = null;
 let csrfRefreshToken = null;
 
+export async function getUploadBreakdown() {
+    const params = new URLSearchParams({
+        mode: UPLOAD_WINDOW_MODE,
+        duration_value: UPLOAD_WINDOW_DURATION_VALUE,
+        duration_unit: UPLOAD_WINDOW_DURATION_UNIT,
+    });
+    const response = await authorizedFetch(`${BASE_URL}/uploads/breakdown?${params.toString()}`, { method: 'GET' });
+    return await parseJsonResponse(response, 'Failed to fetch upload breakdown');
+}
+
 function now() {
     return (typeof performance !== 'undefined' && performance.now)
         ? performance.now()
         : Date.now();
 }
+
+
 
 // Wraps fetch with a client-side timeout (AbortController) and reports
 // how long the request actually took via onTiming, regardless of

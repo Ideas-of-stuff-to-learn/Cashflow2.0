@@ -36,7 +36,7 @@ import routes.admin
 import routes.transactions
 import routes.charts
 import routes.health
-
+import routes.uploads
 
 if __name__ == '__main__':
     debug = os.environ.get('FLASK_ENV') == 'development'

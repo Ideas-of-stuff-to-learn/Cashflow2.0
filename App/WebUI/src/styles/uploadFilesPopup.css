@@ -1,0 +1,59 @@
+.upload-files-trigger-wrap {
+    position: relative;
+    display: inline-block;
+}
+
+.upload-files-trigger {
+    cursor: pointer;
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+}
+
+.upload-files-popup-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+}
+
+.upload-files-popup-box {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 6px;
+    width: 240px;
+    max-height: 180px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    padding: 8px;
+    z-index: 21;
+}
+
+.upload-files-popup-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.upload-files-popup-item {
+    font-size: 12px;
+    color: #333;
+    padding: 4px 6px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.upload-files-popup-item:last-child {
+    border-bottom: none;
+}
+
+.upload-files-popup-empty {
+    font-size: 12px;
+    color: #888;
+    text-align: center;
+    padding: 8px;
+}
