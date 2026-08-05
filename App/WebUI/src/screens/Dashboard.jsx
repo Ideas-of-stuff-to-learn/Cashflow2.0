@@ -63,7 +63,7 @@ export default function DashboardScreen() {
                         <button className="btn" onClick={retryInitialLoad}>Retry</button>
                     </div>
                 )}
-                <button className="btn" onClick={pickFiles} disabled={loading || categorising}>Choose CSV Files</button>
+                <button className="btn" onClick={pickFiles} disabled={loading || categorising}>Choose CSV or Excel Files</button>
                 {selectedFiles.length > 0 && (
                     <div className="file-info">
                         {selectedFiles.map(f => <p key={f.name} className="file-info-text">{f.name}</p>)}
