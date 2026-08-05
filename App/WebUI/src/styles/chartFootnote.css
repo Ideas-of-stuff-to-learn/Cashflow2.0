@@ -4,7 +4,12 @@
     background: #F8F9FA;
     border: 1px solid #eee;
     border-radius: 8px;
-    font-size: 13px;
+    font-size: 15px;
     line-height: 1.1;
     color: #555;
+}
+
+/* targeting the speicfic p elements that are mapped over inside the container */
+.chart-footnote p {
+    margin: 0;
 }

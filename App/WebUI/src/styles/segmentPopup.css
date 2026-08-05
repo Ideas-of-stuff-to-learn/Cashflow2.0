@@ -1,7 +1,9 @@
 .segment-popup-content {
     text-align: center;
 }
-
+.segment-popup-content p {
+    margin: 0px;
+}
 .segment-popup-period {
     font-size: 11px;
     color: #888;
