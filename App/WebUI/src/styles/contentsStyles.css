@@ -62,7 +62,7 @@
 
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 1000; }
 .modal-card { background: #fff; border-radius: 12px; padding: 16px; max-height: 70%; overflow: hidden; display: flex; flex-direction: column;   justify-content: center; /* Horizontal center */
-  align-items: center; }
+  align-items: center;}
 .modal-title-row { display: flex; justify-content: space-between; align-items: flex-start; }
 .modal-title { font-size: 30px; font-weight: 700; margin-bottom: 4px; padding-right: 8px; }
 .modal-remaining-count { font-size: 12px; font-weight: 700; color: #D94F4F; background: rgba(217,79,79,0.1); padding: 3px 8px; border-radius: 10px; }
