@@ -306,3 +306,38 @@ def resolve_manual():
         return jsonify({'error': 'Resolve failed - please try again'}), 500
     finally:
         release_connection(conn)
+        
+        
+@app.route('/categorize/resolve-remaining-to-other', methods=['POST'])
+@jwt_required()
+@limiter.limit("50 per day")
+def resolve_remaining_to_other():
+    """The sendBeacon safety net for the manual-review blocking flow -
+    if someone leaves mid-flow (closes the tab, force-quits) before
+    finishing every transaction, this bulk-resolves whatever's STILL
+    NEEDS_MANUAL_REVIEW for them into the 'Other' category, so nothing
+    is ever left in a broken, half-finished state. Takes no body at
+    all - sendBeacon can't easily send custom headers/auth, but the
+    httpOnly JWT cookie is sent automatically with any same-origin
+    request including sendBeacon, so @jwt_required() still works here
+    unchanged.
+    """
+    current_user = int(get_jwt_identity())
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """UPDATE transactions SET category = 'Other'
+                   WHERE user_id = %s AND category = %s
+                   RETURNING id""",
+                (current_user, NEEDS_MANUAL_REVIEW),
+            )
+            resolved_count = cur.rowcount
+        conn.commit()
+        return jsonify({'status': 'ok', 'resolved': resolved_count}), 200
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Resolve-remaining-to-other failed for user {current_user}: {e}')
+        return jsonify({'error': 'Failed to resolve remaining transactions'}), 500
+    finally:
+        release_connection(conn)

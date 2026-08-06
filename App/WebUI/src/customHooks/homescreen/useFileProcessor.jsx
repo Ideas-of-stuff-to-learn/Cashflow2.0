@@ -8,8 +8,6 @@ import { runLlmTier } from './llmTierRunner';
 
 export function useFileProcessor(setStatus, setError, selectedFiles) {
     const [loading, setLoading] = useState(false);
-    // total: 0 is the "nothing in progress" sentinel ProgressBar checks
-    // for to decide whether to render at all.
     const [progress, setProgress] = useState({ current: 0, total: 0, phase: '' });
 
     const {
@@ -17,7 +15,8 @@ export function useFileProcessor(setStatus, setError, selectedFiles) {
         setTransactions,
         setCategorising,
         setProcessingStage,
-        bumpChartDataVersion
+        bumpChartDataVersion,
+        startManualReviewFlowIfNeeded,
     } = useApp();
 
     async function categorizeTransactions(itemsNeedingCategorization, runLabel = 'Categorise') {
@@ -33,6 +32,20 @@ export function useFileProcessor(setStatus, setError, selectedFiles) {
 
         await runLlmTier(phase1, {
             setStatus, setError, setTransactions, bumpChartDataVersion, setProcessingStage, setProgress, runLabel,
+        });
+
+        // The categorisation run has now GENUINELY finished (cache
+        // tiers + LLM tier both done) - this is the one correct point
+        // to check whether the blocking manual-review flow needs to
+        // trigger, using the items exactly as this run left them
+        // (itemsNeedingCategorization's ids, looked up fresh from the
+        // now-current transactions state so we get their FINAL
+        // resolved categories, not the pre-run snapshot).
+        const processedIds = new Set(itemsNeedingCategorization.map(t => t.id));
+        setTransactions(currentTransactions => {
+            const processedNow = currentTransactions.filter(t => processedIds.has(t.id));
+            startManualReviewFlowIfNeeded(processedNow);
+            return currentTransactions; // no actual change - just reading current state
         });
     }
 
@@ -73,9 +86,6 @@ export function useFileProcessor(setStatus, setError, selectedFiles) {
             setStatus(null);
             setCategorising(false);
             setProcessingStage(prev => prev === 'done' ? 'done' : 'idle');
-            // Belt-and-braces reset - covers the error/early-return
-            // paths too, not just the clean-success path already
-            // handled inside llmTierRunner.js.
             setProgress({ current: 0, total: 0, phase: '' });
         }
     }

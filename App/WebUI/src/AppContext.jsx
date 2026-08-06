@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { getChartSummary, getMe, getCategories, getUploadCount, getUploadBreakdown, getTransactionHistory } from './api';
+import { NEEDS_MANUAL_REVIEW } from './checkingName';
 
 const AppContext = createContext();
 
@@ -20,6 +21,7 @@ export function AppProvider({ children }) {
     const bumpChartDataVersion = useCallback(() => {
         setChartDataVersion(t => t + 1);
     }, []);
+    const [manualReviewFlow, setManualReviewFlow] = useState(null);
 
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [chartSummary, setChartSummary] = useState({ yearly: [], monthly: [] });
@@ -56,6 +58,45 @@ export function AppProvider({ children }) {
         });
     }, []);
 
+
+    // null = no blocking flow active. When active, holds:
+    // {
+    //   totalTransactions: number,      // how many were in this upload/run
+    //   autoResolvedCount: number,      // how many were auto-categorised
+    //   needsReviewCount: number,       // how many need manual input
+    //   stage: 'stats' | 'sequential',  // which modal is currently showing
+    // }
+
+    // Called by useFileProcessor once a categorisation run genuinely
+    // finishes - checks whether any transactions are sitting at
+    // NEEDS_MANUAL_REVIEW, and if so, kicks off the blocking flow. This
+    // lives in AppContext (not either screen) since categorisation can be
+    // triggered from Dashboard OR HomeScreen, and the blocking overlay
+    // needs to work regardless of which one triggered it.
+    const startManualReviewFlowIfNeeded = useCallback((allProcessedTransactions) => {
+        const needsReview = allProcessedTransactions.filter(t => t.category === NEEDS_MANUAL_REVIEW);
+        if (needsReview.length === 0) return;
+
+        setManualReviewFlow({
+            totalTransactions: allProcessedTransactions.length,
+            autoResolvedCount: allProcessedTransactions.length - needsReview.length,
+            needsReviewCount: needsReview.length,
+            // NEW - the actual full transaction objects still needing
+            // review, not just the count - both the bulk "Put in Other"
+            // call and the sequential one-by-one modal need real
+            // description/date/amount to send to /categorize/resolve.
+            needsReviewItems: needsReview,
+            stage: 'stats',
+        });
+    }, []);
+
+    const enterSequentialReview = useCallback(() => {
+        setManualReviewFlow(prev => prev ? { ...prev, stage: 'sequential' } : prev);
+    }, []);
+
+    const closeManualReviewFlow = useCallback(() => {
+        setManualReviewFlow(null);
+    }, []);
     // "All" toggle - fills the set with every given category name, or
     // empties it entirely, based on whether it's CURRENTLY full.
     // allCategoryNames is passed in at call time (not read from
@@ -185,7 +226,19 @@ export function AppProvider({ children }) {
                     offset += page.transactions.length;
                     if (offset >= total) break;
                 }
-                if (!cancelled) setAllTransactionsLoaded(true);
+                if (!cancelled) {
+                    setAllTransactionsLoaded(true);
+                    // Resume the manual-review flow if the account has any
+                    // NEEDS_MANUAL_REVIEW transactions left over from an incomplete
+                    // previous session (reload, closed tab, auto/manual re-login) -
+                    // reuses the SAME function a fresh categorisation run triggers,
+                    // just fed the full freshly-loaded transaction list instead of
+                    // just one run's items.
+                    setTransactions(currentTransactions => {
+                        startManualReviewFlowIfNeeded(currentTransactions);
+                        return currentTransactions;
+                    });
+                }
             } catch (e) {
                 if (e.name === 'AbortError') return;
                 if (cancelled) return;
@@ -297,6 +350,11 @@ export function AppProvider({ children }) {
             mobileSelectedCategories,
             toggleMobileCategory,
             toggleAllMobileCategories,
+            manualReviewFlow,
+            setManualReviewFlow,
+            startManualReviewFlowIfNeeded,
+            enterSequentialReview,
+            closeManualReviewFlow,
         }}>
             {children}
         </AppContext.Provider>
