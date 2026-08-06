@@ -8,5 +8,5 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 LOCAL_DEV = os.environ.get('VITE_LOCAL_DEV', 'false').lower() == 'true'
-CORS_ORIGINS = ["http://192.168.0.101:5173"] if LOCAL_DEV else ["https://ideas-of-stuff-to-learn.github.io"]
+CORS_ORIGINS = ["http://192.168.0.15:5173"] if LOCAL_DEV else ["https://ideas-of-stuff-to-learn.github.io"]
 print(f"[startup] LOCAL_DEV={LOCAL_DEV}, CORS_ORIGINS={CORS_ORIGINS}", flush=True)

@@ -61,12 +61,21 @@
 .selection-button-text-danger { color: #fff; font-size: 12px; font-weight: 700; }
 
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 1000; }
-.modal-card { background: #fff; border-radius: 12px; padding: 16px; max-height: 70%; overflow: hidden; display: flex; flex-direction: column; }
+.modal-card { background: #fff; border-radius: 12px; padding: 16px; max-height: 70%; overflow: hidden; display: flex; flex-direction: column;   justify-content: center; /* Horizontal center */
+  align-items: center; }
 .modal-title-row { display: flex; justify-content: space-between; align-items: flex-start; }
-.modal-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; padding-right: 8px; }
+.modal-title { font-size: 30px; font-weight: 700; margin-bottom: 4px; padding-right: 8px; }
 .modal-remaining-count { font-size: 12px; font-weight: 700; color: #D94F4F; background: rgba(217,79,79,0.1); padding: 3px 8px; border-radius: 10px; }
 .modal-desc { font-size: 14px; color: #333; margin-bottom: 2px; }
 .modal-amount { font-size: 13px; color: #888; margin-bottom: 12px; }
 .modal-list { margin-top: 4px; overflow-y: auto; }
-.modal-option { padding: 12px 0; border-bottom: 0.5px solid #eee; background: none; border-left: none; border-right: none; border-top: none; width: 100%; text-align: left; cursor: pointer; }
+.modal-option {     display: flex;
+justify-content: center; /* Horizontal center */
+  align-items: center; padding: 12px 0; border-bottom: 0.5px solid #eee; background: none; border-left: none; border-right: none; border-top: none; width: 100%; text-align: left; cursor: pointer; }
 .modal-option-text { font-size: 14px; color: #2E5C8A; }
+.modal-info {display: flex; flex-direction: row; gap: 15px; margin-bottom: 20px; align-items: center;}
+.modal-info h1,
+.modal-info h2,
+.modal-info p {
+    margin: 0;
+}

@@ -6,9 +6,18 @@
     border-radius: 8px;
     font-size: 15px;
     line-height: 1.1;
-    color: #555;
+    color: #290fd2;
 }
 
+
+.chart-footnote :first-child{
+    font-weight: bold;
+}
+
+.chart-footnote :nth-child(4){
+    font-weight: bold;
+    color: #520912;
+} 
 /* targeting the speicfic p elements that are mapped over inside the container */
 .chart-footnote p {
     margin: 0;

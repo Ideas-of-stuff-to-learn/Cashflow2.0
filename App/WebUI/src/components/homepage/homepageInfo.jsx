@@ -13,16 +13,7 @@ export default function HomepageInfo({ dateRangeInfo, uploadBreakdown }) {
         <>
             <h1 className="title">Spending Pattern Visualisation Tool</h1>
 
-            <div className="range-text">
-                <UploadFilesPopup
-                    label="Files uploaded this session"
-                    files={uploadBreakdown.session_files}
-                    count={uploadBreakdown.session_count}
-                    isOpen={openPopup === 'session'}
-                    onOpen={() => setOpenPopup('session')}
-                    onClose={() => setOpenPopup(null)}
-                />
-            </div>
+
             <div className="range-text">
                 <UploadFilesPopup
                     label="Past files uploaded"
@@ -33,6 +24,18 @@ export default function HomepageInfo({ dateRangeInfo, uploadBreakdown }) {
                     onClose={() => setOpenPopup(null)}
                 />
             </div>
+            
+            <div className="range-text">
+                <UploadFilesPopup
+                    label="Files uploaded this session"
+                    files={uploadBreakdown.session_files}
+                    count={uploadBreakdown.session_count}
+                    isOpen={openPopup === 'session'}
+                    onOpen={() => setOpenPopup('session')}
+                    onClose={() => setOpenPopup(null)}
+                />
+            </div>
+
 
             {dateRangeInfo && (
                 <p className="range-text">
