@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { getMonthWindow, getDefaultMonthWindowStart, getMonthDataBounds, addMonths } from '../../../shared/utils/monthWindow.js';
 import { getYearWindow, getDefaultYearWindowStart, getYearDataBounds, syncYearWindowToMonthWindow } from '../../../shared/utils/yearWindow.js';
 import { WINDOW_SIZE_OFFSET } from '../../../shared/utils/chartWindowConfig.js';
@@ -9,6 +9,18 @@ export function useChartWindows(monthly, yearly) {
 
     const [monthWindowStart, setMonthWindowStart] = useState(() => getDefaultMonthWindowStart(monthly));
     const [yearWindowStart, setYearWindowStart] = useState(() => getDefaultYearWindowStart(yearly));
+
+    // Reset window to most-recent data when data first arrives (monthly/yearly
+    // are empty on mount while the initial load is still in progress).
+    const seededRef = useRef(false);
+    useEffect(() => {
+        if (seededRef.current) return;
+        if (monthly && monthly.length > 0) {
+            seededRef.current = true;
+            setMonthWindowStart(getDefaultMonthWindowStart(monthly));
+            setYearWindowStart(getDefaultYearWindowStart(yearly));
+        }
+    }, [monthly, yearly]);
 
     const monthWindow = useMemo(() => getMonthWindow(monthly, monthWindowStart.year, monthWindowStart.month), [monthly, monthWindowStart]);
     const yearWindowEntries = useMemo(() => getYearWindow(yearly, yearWindowStart), [yearly, yearWindowStart]);
