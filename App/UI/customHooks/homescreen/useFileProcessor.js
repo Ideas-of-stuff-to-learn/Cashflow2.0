@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { parseCSVFiles, categorizeCachedExact, categorizeCachedMerchant, categorizeCachedSimilarity, categorizeLLM } from '../../api.js';
 import { useApp } from '../../AppContext.js';
-import { mergeById, chunkArray } from '../../utils/homescreen/homescreenUtils.js';
-import { NOT_YET_CATEGORISED } from '../../checkingName.js';
+import { mergeById, chunkArray } from '../../../shared/utils/homescreenUtils.js';
+import { NOT_YET_CATEGORISED } from '../../../shared/checkingName.js';
 
 // --- Chunking config for /categorize/cached ---
 //
@@ -154,14 +154,16 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export function useFileProcessor(setStatus, setError,selectedFiles){
+export function useFileProcessor(setStatus, setError, selectedFiles) {
     const [loading, setLoading] = useState(false);
+    const [progress, setProgress] = useState({ current: 0, total: 0, phase: '' });
     const {
         transactions,
         setTransactions,
         setCategorising,
         setProcessingStage,
-        bumpChartDataVersion
+        bumpChartDataVersion,
+        startManualReviewFlowIfNeeded,
     } = useApp();
 
     // Runs the full cache-tier -> LLM-tier categorisation pipeline over
@@ -174,6 +176,7 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
     async function categorizeTransactions(itemsNeedingCategorization, runLabel = 'Categorise') {
         setProcessingStage('checkingCache');
         setCategorising(true);
+        setProgress({ current: 0, total: itemsNeedingCategorization.length, phase: 'cache' });
 
         // Same reasoning as the LLM chunking below, applied to
         // the cache tier: split into bounded-size requests
@@ -333,6 +336,7 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
 
         setProcessingStage('waitingForLLM');
         setCategorising(true);
+        setProgress({ current: 0, total: phase1.filter(t => t.category === 'PENDING_LLM').length, phase: 'llm' });
         // Phase 2: Categorise in background - may take a while
         // Navigation has already happened, this continues running
         const pendingItems = phase1.filter(t => t.category === 'PENDING_LLM');
@@ -435,10 +439,8 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
                 });
 
                 setTransactions(prev => mergeById(prev, workingPhase1));
-                // Same reasoning as the cache-tier tick above - this
-                // chunk's results are already committed via
-                // /categorize/llm's update_transaction_categories call.
                 bumpChartDataVersion();
+                setProgress(p => ({ ...p, current: Math.min(p.current + chunks[i].length, p.total) }));
             }
 
             setProcessingStage('done');
@@ -452,6 +454,14 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
             setStatus('All transactions resolved via cache - no LLM step needed.');
             setProcessingStage('done');
         }
+
+        // Trigger blocking manual-review flow if any items need it.
+        const processedIds = new Set(itemsNeedingCategorization.map(t => t.id));
+        setTransactions(currentTransactions => {
+            const processedNow = currentTransactions.filter(t => processedIds.has(t.id));
+            startManualReviewFlowIfNeeded(processedNow);
+            return currentTransactions;
+        });
     }
 
     // The single entry point for the "Categorise" button - handles
@@ -516,9 +526,8 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
             setLoading(false);
             setStatus(null);
             setCategorising(false);
-            setProcessingStage(prev =>
-                prev === 'done' ? 'done' : 'idle'
-            );
+            setProcessingStage(prev => prev === 'done' ? 'done' : 'idle');
+            setProgress({ current: 0, total: 0, phase: '' });
         }
     }
 
@@ -526,5 +535,6 @@ export function useFileProcessor(setStatus, setError,selectedFiles){
         processFiles,
         loading,
         setLoading,
-    }
+        progress,
+    };
 }

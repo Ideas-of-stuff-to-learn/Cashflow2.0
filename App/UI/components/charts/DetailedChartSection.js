@@ -3,7 +3,7 @@ import Slider from '@react-native-community/slider';
 import { useState } from 'react';
 import { styles } from '../../styles/chartStyes.js';
 import SpendingStackChart from './SpendingStackedChart.js';
-import { monthLabel } from '../../utils/charts/yearlyChartUtils.js';
+import { monthLabel } from '../../../shared/utils/yearlyChartUtils.js';
 
 export default function DetailedChartSection({
     selectedYear,

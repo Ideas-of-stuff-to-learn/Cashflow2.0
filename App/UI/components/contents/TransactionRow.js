@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Text, View, TouchableOpacity } from 'react-native';
-import { NEEDS_MANUAL_REVIEW, NOT_YET_CATEGORISED } from '../../checkingName.js';
+import { NEEDS_MANUAL_REVIEW, NOT_YET_CATEGORISED } from '../../../shared/checkingName.js';
 import { styles } from '../../styles/contentsStyles.js';
 
 // Extracted as its own file (not just outside ContentsScreen) so

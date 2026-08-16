@@ -1,16 +1,17 @@
 import { View, TouchableOpacity, Text } from 'react-native';
 import { styles } from '../../styles/chartStyes.js';
 
-export default function CategorySlicer({ availableCategories, selectedCategories, setSelectedCategories, toggleItem, selectAll }) {
+export default function CategorySlicer({ availableCategories, selectedCategories, toggleItem, selectAll }) {
+    const allSelected = selectedCategories.size === availableCategories.length && availableCategories.length > 0;
     return (
         <>
             <Text style={styles.slicerLabel}>Categories</Text>
             <View style={styles.chipWrap}>
                 <TouchableOpacity
-                    style={[styles.chip, selectedCategories.size === 0 && styles.chipActive]}
-                    onPress={() => selectAll(setSelectedCategories)}
+                    style={[styles.chip, allSelected && styles.chipActive]}
+                    onPress={selectAll}
                 >
-                    <Text style={[styles.chipText, selectedCategories.size === 0 && styles.chipTextActive]}>
+                    <Text style={[styles.chipText, allSelected && styles.chipTextActive]}>
                         All
                     </Text>
                 </TouchableOpacity>
@@ -18,7 +19,7 @@ export default function CategorySlicer({ availableCategories, selectedCategories
                     <TouchableOpacity
                         key={cat}
                         style={[styles.chip, selectedCategories.has(cat) && styles.chipActive]}
-                        onPress={() => toggleItem(selectedCategories, setSelectedCategories, cat)}
+                        onPress={() => toggleItem(cat)}
                     >
                         <Text style={[styles.chipText, selectedCategories.has(cat) && styles.chipTextActive]}>
                             {cat}

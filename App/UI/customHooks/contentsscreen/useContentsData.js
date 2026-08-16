@@ -10,16 +10,16 @@ export function useContentsData() {
         transactions, setTransactions, categorising, categoryNames,
         initialLoading, setCategories, bumpChartDataVersion,
         initialLoadError, setInitialLoadError, retryInitialLoad,
+        selectedCategories, toggleCategory, toggleAllCategories,
     } = useApp();
 
     useStalenessResync({ transactions, categoryNames, initialLoading, setCategories, setTransactions });
 
     const {
         searchText, setSearchText,
-        selectedCategories, toggleCategory, clearCategories,
         sortField, sortAsc, toggleSort,
         availableCategories, filtered,
-    } = useTransactionFilters(transactions);
+    } = useTransactionFilters(transactions, selectedCategories);
 
     const {
         selectionMode, setSelectionMode,
@@ -62,7 +62,8 @@ export function useContentsData() {
         onRetryInitialLoad: handleRetryInitialLoad,
 
         searchText, setSearchText,
-        selectedCategories, toggleCategory, clearCategories,
+        selectedCategories, toggleCategory,
+        toggleAllCategories: () => toggleAllCategories(availableCategories),
         sortField, sortAsc, toggleSort,
         availableCategories, filtered,
 

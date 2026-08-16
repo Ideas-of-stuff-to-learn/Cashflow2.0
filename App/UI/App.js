@@ -22,6 +22,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AppProvider } from './AppContext.js';
 import RoleBadge from './components/RoleBadge.js';
+import ManualReviewGate from './components/manualReview/ManualReviewGate.js';
 
 import HomeScreen from './screens/HomeScreen';
 import ChartsScreen from './screens/ChartsScreen';
@@ -34,6 +35,7 @@ const Stack = createNativeStackNavigator();
 export default function App() {
   return (
     <AppProvider>
+      <ManualReviewGate />
       <NavigationContainer>
         {/* screenOptions.headerRight applies to every screen in this
             navigator that doesn't override it - Login/Signup already

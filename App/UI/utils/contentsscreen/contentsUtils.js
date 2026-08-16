@@ -1,4 +1,4 @@
-import { NEEDS_MANUAL_REVIEW, NOT_YET_CATEGORISED } from '../../checkingName.js';
+import { NEEDS_MANUAL_REVIEW, NOT_YET_CATEGORISED } from '../../../shared/checkingName.js';
 
 // A transaction is "stale" if it carries a category name that no longer
 // exists in the current category list (renamed/combined/deleted since

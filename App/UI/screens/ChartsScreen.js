@@ -40,9 +40,8 @@ export default function ChartsScreen({ navigation }) {
         selectedSegment,
         availableCategories,
         selectedCategories,
-        setSelectedCategories,
-        toggleItem,
-        selectAll,
+        toggleCategory,
+        toggleAllCategories,
         closeDrilldown,
     } = useChartData();
 
@@ -67,9 +66,8 @@ export default function ChartsScreen({ navigation }) {
         <CategorySlicer
             availableCategories={availableCategories}
             selectedCategories={selectedCategories}
-            setSelectedCategories={setSelectedCategories}
-            toggleItem={toggleItem}
-            selectAll={selectAll}
+            toggleItem={toggleCategory}
+            selectAll={() => toggleAllCategories(availableCategories)}
         />
 
         <StackOrderEditor

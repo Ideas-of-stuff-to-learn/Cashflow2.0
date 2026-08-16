@@ -1,6 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
-
-const BASE_URL = "https://cashflow2-0.onrender.com";
+import { BASE_URL } from './localConfig.js';
 
 // Fallback timeout if a caller doesn't specify one. Callers that care
 // (useFileProcessor.js) pass their own timeoutMs tied to the backend's
@@ -33,10 +32,15 @@ function now() {
 // client-side slightly BEFORE that happens means we get a clear,
 // catchable timeout error instead of an ambiguous network failure, and
 // callers can react to it deliberately (see useFileProcessor.js).
-async function fetchWithTimeout(url, options, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, onTiming) {
+async function fetchWithTimeout(url, options, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, onTiming, externalSignal) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     const startedAt = now();
+
+    if (externalSignal) {
+        if (externalSignal.aborted) controller.abort();
+        else externalSignal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
 
     try {
         const response = await fetch(url, { ...options, signal: controller.signal });
@@ -166,7 +170,7 @@ async function tryRefreshAccessToken() {
 // matching the exact message every existing caller already checks for
 // - no call site elsewhere in this file needed to change its own
 // error handling for this.
-async function authorizedFetch(url, options = {}, timeoutMs, onTiming) {
+async function authorizedFetch(url, options = {}, timeoutMs, onTiming, externalSignal) {
     const token = await getToken();
     if (!token) throw new Error('Not logged in');
 
@@ -189,7 +193,7 @@ async function authorizedFetch(url, options = {}, timeoutMs, onTiming) {
 
     let response;
     try {
-        response = await fetchWithTimeout(url, withAuth(token), effectiveTimeout, onTiming);
+        response = await fetchWithTimeout(url, withAuth(token), effectiveTimeout, onTiming, externalSignal);
     } catch (err) {
         if (err.isTimeout) {
             throw new Error('The server is taking a while to start up - please wait a moment and try again.');
@@ -210,7 +214,7 @@ async function authorizedFetch(url, options = {}, timeoutMs, onTiming) {
         if (!newAccessToken) throw new Error('Not logged in');
 
         try {
-            response = await fetchWithTimeout(url, withAuth(newAccessToken), effectiveTimeout, onTiming);
+            response = await fetchWithTimeout(url, withAuth(newAccessToken), effectiveTimeout, onTiming, externalSignal);
         } catch (err) {
             if (err.isTimeout) {
                 throw new Error('The server is taking a while to start up - please wait a moment and try again.');
@@ -238,16 +242,14 @@ export async function resetCategoryDefaults(names) {
 
 // Total number of CSV files this user has ever uploaded - powers the
 // "you've uploaded N files" summary on the home screen.
-export async function getUploadCount() {
-    const response = await authorizedFetch(`${BASE_URL}/uploads/count`, { method: 'GET' });
-
+export async function getUploadCount(signal) {
+    const response = await authorizedFetch(`${BASE_URL}/uploads/count`, { method: 'GET' }, undefined, undefined, signal);
     const data = await parseJsonResponse(response, 'Failed to fetch upload count');
     return data.count;
 }
 
-export async function getCategories() {
-    const response = await authorizedFetch(`${BASE_URL}/categories`, { method: 'GET' });
-
+export async function getCategories(signal) {
+    const response = await authorizedFetch(`${BASE_URL}/categories`, { method: 'GET' }, undefined, undefined, signal);
     const data = await parseJsonResponse(response, 'Failed to fetch categories');
     return data.categories;
 }
@@ -278,7 +280,7 @@ export async function updateCategory(categoryName, { newName, color } = {}) {
 // With { offset, limit }: fetches one page and returns
 // { transactions, total, offset, limit } so the caller knows the full
 // count and can loop for subsequent pages.
-export async function getTransactionHistory({ offset, limit } = {}) {
+export async function getTransactionHistory({ offset, limit } = {}, signal) {
     const params = new URLSearchParams();
     if (offset !== undefined) params.set('offset', offset);
     if (limit !== undefined) params.set('limit', limit);
@@ -287,6 +289,9 @@ export async function getTransactionHistory({ offset, limit } = {}) {
     const response = await authorizedFetch(
         `${BASE_URL}/transactions${qs ? '?' + qs : ''}`,
         { method: 'GET' },
+        undefined,
+        undefined,
+        signal,
     );
 
     const data = await parseJsonResponse(response, 'Failed to fetch transaction history');
@@ -590,6 +595,19 @@ export async function resolveCategories(resolutions) {
     });
 
     return await parseJsonResponse(response, 'Resolve failed');
+}
+
+export async function resolveRemainingToOther() {
+    const response = await authorizedFetch(`${BASE_URL}/categorize/resolve-remaining-to-other`, {
+        method: 'POST',
+    });
+    return await parseJsonResponse(response, 'Resolve remaining failed');
+}
+
+export async function getUploadBreakdown({ mode = 'rolling', duration_value = 30, duration_unit = 'days' } = {}) {
+    const params = new URLSearchParams({ mode, duration_value, duration_unit });
+    const response = await authorizedFetch(`${BASE_URL}/uploads/breakdown?${params.toString()}`, { method: 'GET' });
+    return await parseJsonResponse(response, 'Failed to fetch upload breakdown');
 }
 
 // Pre-aggregated (year, category) and (year, month, category) sums for

@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
 import { resolveCategories, getCategories, getTransactionHistory } from '../../api.js';
-import { NEEDS_MANUAL_REVIEW } from '../../checkingName.js';
-import { makeKey } from '../../utils/contentsscreen/contentsUtils.js';
+import { NEEDS_MANUAL_REVIEW } from '../../../shared/checkingName.js';
+import { makeKey } from '../../../shared/utils/contentsUtils.js';
 
 export function useCategoryResolve({
     transactions, setTransactions, setCategories, bumpChartDataVersion,

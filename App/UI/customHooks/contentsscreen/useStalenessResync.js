@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { getCategories, getTransactionHistory } from '../../api.js';
-import { isStale } from '../../utils/contentsscreen/contentsUtils.js';
+import { isStale } from '../../../shared/utils/contentsUtils.js';
 
 // Proactively catches the case where a category was renamed/combined/
 // deleted (by an admin, elsewhere) while this device is still holding

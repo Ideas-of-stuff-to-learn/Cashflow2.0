@@ -1,8 +1,7 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react'; // useState kept for searchText/sortField/sortAsc
 
-export function useTransactionFilters(transactions) {
+export function useTransactionFilters(transactions, selectedCategories) {
     const [searchText, setSearchText] = useState('');
-    const [selectedCategories, setSelectedCategories] = useState(new Set());
     const [sortField, setSortField] = useState('date');
     const [sortAsc, setSortAsc] = useState(false);
 
@@ -65,18 +64,6 @@ export function useTransactionFilters(transactions) {
         return rows;
     }, [transactions, parsedDates, searchText, selectedCategories, sortField, sortAsc]);
 
-    const toggleCategory = useCallback((cat) => {
-        setSelectedCategories(prev => {
-            const next = new Set(prev);
-            next.has(cat) ? next.delete(cat) : next.add(cat);
-            return next;
-        });
-    }, []);
-
-    const clearCategories = useCallback(() => {
-        setSelectedCategories(new Set());
-    }, []);
-
     const toggleSort = useCallback((field) => {
         if (sortField === field) {
             setSortAsc(a => !a);
@@ -88,7 +75,6 @@ export function useTransactionFilters(transactions) {
 
     return {
         searchText, setSearchText,
-        selectedCategories, toggleCategory, clearCategories,
         sortField, sortAsc, toggleSort,
         availableCategories, filtered,
     };

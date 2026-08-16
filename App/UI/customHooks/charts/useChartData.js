@@ -1,8 +1,8 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useStackOrder } from './useStackOrder.js';
 import { useApp } from '../../AppContext.js';
 import { buildDummyTotals, toggleItem, selectAll } from '../../utils/charts/chartUtils.js';
-import { buildYearStackData, selectMonthsForDrilldown, buildMonthStackDataFromEntries } from '../../utils/charts/yearlyChartUtils.js';
+import { buildYearStackData, selectMonthsForDrilldown, buildMonthStackDataFromEntries } from '../../../shared/utils/yearlyChartUtils.js';
 
 export function useChartData() {
     const { categoryNames, categoryColors, processingStage, chartSummary } = useApp();
@@ -22,7 +22,7 @@ export function useChartData() {
     const [selectedSegment, setSelectedSegment] = useState(null);
     const [selectedYear, setSelectedYear] = useState(null);
     const [selectedYearSegment, setSelectedYearSegment] = useState(null);
-    const [selectedCategories, setSelectedCategories] = useState(new Set());
+    const { selectedCategories, toggleCategory, toggleAllCategories } = useApp();
 
     // Dummy data is shown only while we have genuinely nothing real to
     // show yet AND something is actively in progress - NOT for the
@@ -185,9 +185,8 @@ export function useChartData() {
         selectedSegment,
         availableCategories,
         selectedCategories,
-        setSelectedCategories,
-        toggleItem,
-        selectAll,
+        toggleCategory,
+        toggleAllCategories,
         closeDrilldown,
     };
 }

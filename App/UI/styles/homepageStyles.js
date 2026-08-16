@@ -17,4 +17,7 @@ export const styles = StyleSheet.create({
     error: { color: '#D94F4F', marginBottom: 12, fontSize: 14, alignSelf: 'stretch' },
     logoutButton: { backgroundColor: '#D94F4F', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, marginTop: 12, width: '100%', alignItems: 'center' },
     logoutText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+    banner: { backgroundColor: '#FFF3CD', borderRadius: 8, padding: 12, marginBottom: 12, width: '100%' },
+    bannerText: { color: '#856404', fontSize: 14 },
+    uploadStats: { marginBottom: 4, alignItems: 'center' },
 });
