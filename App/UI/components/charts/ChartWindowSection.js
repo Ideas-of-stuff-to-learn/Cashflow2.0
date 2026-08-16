@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable } from 'react-native';
 import SpendingStackChart from './SpendingStackedChart.js';
+import { MONTH_LABELS_FULL } from '../../../shared/utils/monthWindow.js';
 
 export default function ChartWindowSection({
     ready, hasData,
@@ -51,10 +52,10 @@ export default function ChartWindowSection({
         else scrollMonthWindow(direction);
     }
 
-    const segmentLabel = activeSegment
+    const periodLabel = activeSegment
         ? activeSegment.month
-            ? `${activeSegment.year}/${String(activeSegment.month).padStart(2,'0')} — ${activeSegment.category}: £${(activeSegment.value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-            : `${activeSegment.year} — ${activeSegment.category}: £${(activeSegment.value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+            ? `${MONTH_LABELS_FULL[activeSegment.month - 1]} ${activeSegment.year}`
+            : `${activeSegment.year}`
         : null;
 
     return (
@@ -112,7 +113,11 @@ export default function ChartWindowSection({
             >
                 <Pressable style={styles.popupBackdrop} onPress={() => setActiveSegment(null)}>
                     <Pressable style={styles.popupBox} onPress={() => {}}>
-                        <Text style={styles.popupText}>{segmentLabel}</Text>
+                        <Text style={styles.popupPeriod}>{periodLabel}</Text>
+                        <Text style={styles.popupCategory}>{activeSegment?.category}</Text>
+                        <Text style={styles.popupValue}>
+                            £{(activeSegment?.value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </Text>
                         <TouchableOpacity onPress={() => setActiveSegment(null)} style={styles.popupClose}>
                             <Text style={styles.popupCloseText}>Dismiss</Text>
                         </TouchableOpacity>
@@ -189,9 +194,21 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 12,
     },
-    popupText: {
+    popupPeriod: {
+        fontSize: 13,
+        color: '#666',
+        textAlign: 'center',
+    },
+    popupCategory: {
         fontSize: 15,
+        fontWeight: '600',
         color: '#222',
+        textAlign: 'center',
+    },
+    popupValue: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#2E5C8A',
         textAlign: 'center',
     },
     popupClose: {

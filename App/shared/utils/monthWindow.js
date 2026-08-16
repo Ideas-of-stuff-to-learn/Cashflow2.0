@@ -1,6 +1,7 @@
 import { WINDOW_SIZE, WINDOW_SIZE_OFFSET } from './chartWindowConfig.js';
 
 export const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+export const MONTH_LABELS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 export function addMonths(year, month, delta) {
     const zeroBasedTotal = (year * 12 + (month - 1)) + delta;
@@ -40,11 +41,18 @@ export function getDefaultMonthWindowStart(monthly) {
         const now = new Date();
         return addMonths(now.getFullYear(), now.getMonth() + 1, -WINDOW_SIZE_OFFSET);
     }
-    const latest = monthly.reduce((max, row) => {
+    let earliest = null, latest = null;
+    for (const row of monthly) {
         const key = row.year * 100 + row.month;
-        return key > max.key ? { key, year: row.year, month: row.month } : max;
-    }, { key: -Infinity, year: 0, month: 0 });
-    return addMonths(latest.year, latest.month, -WINDOW_SIZE_OFFSET);
+        if (!earliest || key < earliest.key) earliest = { key, year: row.year, month: row.month };
+        if (!latest || key > latest.key) latest = { key, year: row.year, month: row.month };
+    }
+    // Prefer showing most-recent 12 months, but never start before the
+    // earliest real data point — that avoids a wall of empty bars on the left.
+    const ideal = addMonths(latest.year, latest.month, -WINDOW_SIZE_OFFSET);
+    const idealKey = ideal.year * 100 + ideal.month;
+    if (idealKey < earliest.key) return { year: earliest.year, month: earliest.month };
+    return ideal;
 }
 
 export function getMonthDataBounds(monthly) {
