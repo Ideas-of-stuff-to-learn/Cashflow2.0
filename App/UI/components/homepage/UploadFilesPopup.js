@@ -40,8 +40,8 @@ export default function UploadFilesPopup({ label, files, count, isOpen, onOpen, 
 
 const styles = StyleSheet.create({
     trigger: {
-        color: '#2E5C8A',
         textDecorationLine: 'underline',
+        textDecorationStyle: 'dotted',
         fontSize: 14,
         marginVertical: 2,
     },
@@ -66,8 +66,6 @@ const styles = StyleSheet.create({
     item: {
         fontSize: 14,
         paddingVertical: 4,
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
         color: '#222',
     },
     closeBtn: {
