@@ -7,24 +7,13 @@ set "RN_DIR=%SCRIPT_DIR%App\UI"
 set "ENV_FILE=%SCRIPT_DIR%App\.env"
 set "RN_CONFIG_FILE=%RN_DIR%\generatedLocalConfig.js"
 
-:: ── Detect local WiFi IP ──────────────────────────────────────────────────────
+:: ── Detect local IP ───────────────────────────────────────────────────────────
 set "LOCAL_IP="
 for /f "tokens=2 delims=:" %%A in ('ipconfig ^| findstr /i "IPv4"') do (
-    set "CANDIDATE=%%A"
-    setlocal enabledelayedexpansion
-    set "CANDIDATE=!CANDIDATE: =!"
-    if not "!CANDIDATE!"=="127.0.0.1" (
-        if not defined LOCAL_IP (
-            endlocal
-            set "LOCAL_IP=%%A"
-            set "LOCAL_IP=%LOCAL_IP: =%"
-        ) else (
-            endlocal
-        )
-    ) else (
-        endlocal
-    )
+    if not defined LOCAL_IP set "LOCAL_IP=%%A"
 )
+:: Strip leading space
+for /f "tokens=* delims= " %%A in ("%LOCAL_IP%") do set "LOCAL_IP=%%A"
 
 if not defined LOCAL_IP (
     echo.
