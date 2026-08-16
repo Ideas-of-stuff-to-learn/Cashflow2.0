@@ -56,7 +56,7 @@ export default function HomeScreen({ navigation }) {
                 onPress={pickFiles}
                 disabled={loading || categorising}
             >
-                <Text style={styles.buttonText}>Choose CSV Files</Text>
+                <Text style={styles.buttonText}>Choose CSV or Excel Files</Text>
             </TouchableOpacity>
 
             {selectedFiles.length > 0 && (
@@ -84,8 +84,8 @@ export default function HomeScreen({ navigation }) {
                     ? <ActivityIndicator color="#fff" />
                     : <Text style={styles.buttonText}>
                         {notYetCategorisedCount > 0
-                            ? `Categorise${selectedFiles.length > 0 ? '' : ` (retry ${notYetCategorisedCount})`}`
-                            : 'Categorise'}
+                            ? `Automatically categorise (retry ${notYetCategorisedCount})`
+                            : 'Automatically categorise'}
                       </Text>
                 }
             </TouchableOpacity>
@@ -101,7 +101,7 @@ export default function HomeScreen({ navigation }) {
                 style={[styles.button, styles.secondaryButton]}
                 onPress={() => navigation.navigate('Contents')}
             >
-                <Text style={styles.buttonText}>Go to CSV Contents</Text>
+                <Text style={styles.buttonText}>Go to Transactions</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>

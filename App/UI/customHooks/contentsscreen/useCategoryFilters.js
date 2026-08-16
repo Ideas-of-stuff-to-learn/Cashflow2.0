@@ -1,12 +1,17 @@
 import { useState, useMemo, useCallback } from 'react'; // useState kept for searchText/sortField/sortAsc
+import { NEEDS_MANUAL_REVIEW, NOT_YET_CATEGORISED } from '../../../shared/checkingName.js';
+
+const SYSTEM_CATEGORIES = new Set([NEEDS_MANUAL_REVIEW, NOT_YET_CATEGORISED]);
 
 export function useTransactionFilters(transactions, selectedCategories) {
     const [searchText, setSearchText] = useState('');
     const [sortField, setSortField] = useState('date');
     const [sortAsc, setSortAsc] = useState(false);
 
+    // Exclude system categories from chips — they are never user-selectable
+    // and must always remain visible regardless of the filter state.
     const availableCategories = useMemo(() => {
-        const cats = new Set(transactions.map(t => t.category).filter(Boolean));
+        const cats = new Set(transactions.map(t => t.category).filter(c => c && !SYSTEM_CATEGORIES.has(c)));
         return [...cats].sort();
     }, [transactions]);
 
@@ -33,7 +38,7 @@ export function useTransactionFilters(transactions, selectedCategories) {
         for (let i = 0; i < transactions.length; i++) {
             const t = transactions[i];
             if (q && !t.description?.toLowerCase().includes(q)) continue;
-            if (hasCatFilter && !selectedCategories.has(t.category)) continue;
+            if (hasCatFilter && !SYSTEM_CATEGORIES.has(t.category) && !selectedCategories.has(t.category)) continue;
             rows.push(t);
             rowDates.push(parsedDates[i]);
         }
