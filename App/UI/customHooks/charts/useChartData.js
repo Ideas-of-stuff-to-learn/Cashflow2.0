@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState } from 'react';
 import { useStackOrder } from './useStackOrder.js';
 import { useApp } from '../../AppContext.js';
 import { buildDummyTotals, toggleItem, selectAll } from '../../utils/charts/chartUtils.js';
