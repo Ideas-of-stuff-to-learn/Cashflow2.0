@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { transformValue } from '../../utils/charts/chartUtils.js';
 import { View, ScrollView, Pressable, Text, StyleSheet } from 'react-native';
 import Svg, { Polyline } from 'react-native-svg';
@@ -101,7 +101,9 @@ const StackBar = React.memo(function StackBar({ bar, barIndex, maxValue, chartHe
     );
 });
 
-function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
+function SpendingStackChart({ stackData, incomeData, heightScale = 1, initialScrollX = 0 }) {
+    const hScrollRef = useRef(null);
+
     if (!stackData || stackData.length === 0) {
         return null;
     }
@@ -161,7 +163,16 @@ function SpendingStackChart({ stackData, incomeData, heightScale = 1 }) {
                     ))}
                 </View>
 
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    ref={hScrollRef}
+                    onLayout={() => {
+                        if (initialScrollX > 0) {
+                            hScrollRef.current?.scrollTo({ x: initialScrollX, animated: false });
+                        }
+                    }}
+                >
                     <View style={{ width: totalWidth, height: TOP_PADDING + chartHeight + LABEL_ROW_HEIGHT }}>
                         {/* Horizontal gridlines, one per y-axis label */}
                         {yAxisLabels.map((label, i) => (

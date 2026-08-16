@@ -44,6 +44,11 @@ export default function ChartWindowSection({
     const stackData = buildWithPopup(activeEntries, mode === 'year' ? jumpMonthWindowToYear : null);
     const incomeData = incomeForEntries(activeEntries);
 
+    // Scroll chart initially so the first bar with real data is visible.
+    const BAR_COLUMN_WIDTH = 52; // BAR_WIDTH(32) + BAR_SPACING(20) from SpendingStackedChart
+    const firstDataIndex = stackData.findIndex(bar => bar.stacks.some(s => s.value > 0));
+    const initialScrollX = firstDataIndex > 0 ? firstDataIndex * BAR_COLUMN_WIDTH : 0;
+
     const canGoBack = mode === 'year' ? canScrollYearBack : canScrollMonthBack;
     const canGoForward = mode === 'year' ? canScrollYearForward : canScrollMonthForward;
 
@@ -82,9 +87,11 @@ export default function ChartWindowSection({
             </View>
 
             <SpendingStackChart
+                key={mode}
                 stackData={stackData}
                 incomeData={incomeData}
                 heightScale={1}
+                initialScrollX={initialScrollX}
             />
 
             <View style={styles.navRow}>
