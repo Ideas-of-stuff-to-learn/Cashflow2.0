@@ -13,26 +13,25 @@ export default function UploadFilesPopup({ label, files, count, isOpen, onOpen, 
                 animationType="fade"
                 onRequestClose={onClose}
             >
-                <TouchableWithoutFeedback onPress={onClose}>
-                    <View style={styles.backdrop}>
-                        <TouchableWithoutFeedback>
-                            <View style={styles.box}>
-                                {files.length === 0 ? (
-                                    <Text style={styles.empty}>No files here yet.</Text>
-                                ) : (
-                                    <ScrollView>
-                                        {files.map((f, i) => (
-                                            <Text key={i} style={styles.item}>{f.filename}</Text>
-                                        ))}
-                                    </ScrollView>
-                                )}
-                                <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                                    <Text style={styles.closeText}>Close</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </TouchableWithoutFeedback>
+                <View style={styles.backdrop}>
+                    <TouchableWithoutFeedback onPress={onClose}>
+                        <View style={StyleSheet.absoluteFill} />
+                    </TouchableWithoutFeedback>
+                    <View style={styles.box}>
+                        {files.length === 0 ? (
+                            <Text style={styles.empty}>No files here yet.</Text>
+                        ) : (
+                            <ScrollView>
+                                {files.map((f, i) => (
+                                    <Text key={i} style={styles.item}>{f.filename}</Text>
+                                ))}
+                            </ScrollView>
+                        )}
+                        <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                            <Text style={styles.closeText}>Close</Text>
+                        </TouchableOpacity>
                     </View>
-                </TouchableWithoutFeedback>
+                </View>
             </Modal>
         </>
     );
@@ -51,6 +50,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         padding: 24,
+        position: 'relative',
     },
     box: {
         backgroundColor: '#fff',
