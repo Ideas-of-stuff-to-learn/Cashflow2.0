@@ -1,14 +1,34 @@
 import '../../styles/contentsStyles.css';
 
-// Purely presentational, same pattern as ManualReviewStatsModal - just
-// shows whatever CURRENT transaction it's given, and how many remain,
-// calling onPick(category) when a category is chosen. Holds no state,
-// no list logic, no API calls of its own - all real logic lives in
-// ManualReviewGate.jsx, which owns the actual list.
-//
-// Deliberately no onClick on the backdrop - unlike CategoryResolveModal,
-// this one must NOT be dismissible by clicking outside.
-export default function ManualReviewSequentialModal({ current, remainingCount, selectableCategories, onPick }) {
+// Purely presentational. ManualReviewGate owns all logic and state.
+// Deliberately no onClick on the backdrop - must NOT be dismissible by clicking outside.
+export default function ManualReviewSequentialModal({
+    current, remainingCount, selectableCategories, onPick,
+    flushError, flushing, isDone, onRetry,
+}) {
+    if (flushing || isDone) {
+        return (
+            <div className="modal-backdrop">
+                <div className="modal-card">
+                    <p className="modal-desc">{flushing ? 'Saving your categories…' : 'All done!'}</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (flushError) {
+        return (
+            <div className="modal-backdrop">
+                <div className="modal-card">
+                    <p className="modal-desc">Saving failed. Please check your connection and try again.</p>
+                    <button className="modal-option" onClick={onRetry}>
+                        <span className="modal-option-text">Retry</span>
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="modal-backdrop">
             <div className="modal-card">

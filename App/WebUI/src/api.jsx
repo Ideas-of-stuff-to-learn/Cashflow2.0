@@ -554,6 +554,18 @@ export async function resolveCategories(resolutions) {
     return await parseJsonResponse(response, 'Resolve failed');
 }
 
+export async function resolveRemainingToOther() {
+    const response = await authorizedFetch(`${BASE_URL}/categorize/resolve-remaining-to-other`, {
+        method: 'POST',
+    });
+
+    return await parseJsonResponse(response, 'Resolve remaining failed');
+}
+
+export function beaconResolveRemainingToOther() {
+    navigator.sendBeacon(`${BASE_URL}/categorize/resolve-remaining-to-other`);
+}
+
 // Pre-aggregated (year, category) and (year, month, category) sums for
 // the Charts screen - computed inside Postgres, not client-side, so the
 // payload stays small (bounded by years x months x categories) no

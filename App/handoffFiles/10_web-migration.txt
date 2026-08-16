@@ -1,0 +1,187 @@
+# Handoff — React Native → Web Migration (App/WebUI)
+
+**Scope:** Entire frontend replaced. `App/UI/` (React Native/Expo) is now a dead directory — do not edit it. The live frontend is `App/WebUI/`, a React + Vite web app. The backend (`App/API/`) is unchanged.
+
+---
+
+## READ THIS FIRST
+
+**The repo is the source of truth. This document can become stale.**
+
+1. All handoff docs up to and including handoff9 describe the React Native (`App/UI/`) codebase. That codebase still exists on disk but is no longer the live product.
+2. Everything from handoff10 onwards describes `App/WebUI/`.
+3. The backend API, database schema, and all categorisation logic are unchanged. The web frontend calls the exact same endpoints as the RN app did.
+4. Deployed to GitHub Pages at `https://ideas-of-stuff-to-learn.github.io/Cashflow2.0/`. The `vite.config.js` `base` is set to `/Cashflow2.0/` for production builds and `/` for local dev.
+
+---
+
+## Why the migration happened
+
+The React Native / Expo Go setup had reached its limits:
+- Expo Go's AsyncStorage limitation meant stack-order persistence never worked without a native build
+- Every new native dependency (camera, file picker, etc.) required a full EAS build or sideload
+- The web browser gives file picking, responsive layout, and keyboard/mouse interaction for free
+- GitHub Pages is free hosting; Expo Go required either EAS (paid) or a custom APK workflow
+
+The decision was made to rebuild the frontend as a web app, preserving all backend API contracts exactly. The RN `App/UI/` directory is kept for reference but receives no further changes.
+
+---
+
+## New tech stack
+
+| Concern | Old (RN) | New (Web) |
+|---|---|---|
+| Framework | React Native + Expo | React 19 + Vite |
+| Routing | React Navigation | React Router v7 |
+| Styling | StyleSheet objects (`.js`) | CSS files (`.css`) |
+| File picking | Expo DocumentPicker | `<input type="file">` |
+| Storage | AsyncStorage | localStorage |
+| Hosting | Expo Go / APK | GitHub Pages |
+| Build | EAS / Metro | Vite |
+
+---
+
+## App structure (`App/WebUI/src/`)
+
+```
+App.jsx                  — root: AppProvider, ManualReviewGate, BrowserRouter, Routes
+AppContext.jsx           — all global state (transactions, categories, auth, filter sets, manual review flow)
+AppReal.jsx              — (unused/experimental, ignore)
+api.jsx                  — every HTTP call to the Flask backend
+checkingName.jsx         — NEEDS_MANUAL_REVIEW / NOT_YET_CATEGORISED sentinel constants
+main.jsx                 — ReactDOM.createRoot entry point
+
+screens/
+  LoginScreen.jsx
+  SignupScreen.jsx
+  HomeScreen.jsx         — file pick + categorise button, upload summary
+  Dashboard.jsx          — HomeScreen + charts + FilterPane side-by-side (desktop)
+  ChartsScreen.jsx       — phone-mimic charts view (CategorySlicer, StackOrderEditor, ChartWindowSection)
+  ContentsScreen.jsx     — virtualised transaction table with search/filter/sort/selection
+
+components/
+  Layout.jsx             — shared nav wrapper for authenticated screens
+  RequiresAuth.jsx       — redirects to /login if not logged in
+  ResponsiveGate.jsx     — redirects / to /dashboard (desktop) or /home (mobile)
+  OrientationGuard.jsx   — blocks landscape on mobile
+  homepage/              — HomepageInfo, ActionButtons
+  dashboard/             — FilterPane (category checkboxes + stack order editor)
+  charts/                — ChartWindowSection, SpendingOverview, CategorySlicer, StackOrderEditor, etc.
+  contents/              — TransactionRow, TableHeader, CategoryChipRow, CategoryResolveModal, etc.
+  manualReview/          — ManualReviewGate, ManualReviewStatsModal, ManualReviewSequentialModal
+  loading/               — loading spinners/states
+
+customHooks/
+  homescreen/            — useInitialLoadLogic, useFilePicker, useFileProcessor, useLogout
+                           useFileProcessor splits into cacheTierRunner + llmTierRunner sub-hooks
+  charts/                — useChartData, useChartFilters, useChartWindows, useStackOrder,
+                           useDetailedChartReveal, useSegmentPopup, useModalSegmentPopup,
+                           useCategoryRecolor, useDataReadiness
+  contentsscreen/        — useContentsData, useCategoryFilters, useSelectionMode,
+                           useCategoryResolve, useStalenessResync
+  useIsMobile.jsx        — single breakpoint hook used everywhere
+
+config/
+  categoryFilterToggle.jsx
+  uploadWindowConfig.jsx
+  routeConfig.jsx
+  breakpointConfig.jsx
+
+utils/
+  homescreen/            — homescreenUtils.jsx (mergeById etc.)
+  charts/                — buildStackData.jsx, chartUtils.jsx, chartWindowConfig.jsx,
+                           monthWindow.jsx, yearWindow.jsx, stackChartGeometry.jsx,
+                           yearlyChartUtils.jsx
+  contentsscreen/        — contentsUtils.jsx (isStale, makeKey, ROW_HEIGHT=46)
+
+styles/                  — one .css file per screen/component
+```
+
+---
+
+## Authentication
+
+JWT auth via httpOnly cookies — same as the RN app. The web app uses `credentials: 'include'` on every `authorizedFetch` call so the browser sends the cookie automatically. No token is ever stored in JS state or localStorage.
+
+CSRF: a separate CSRF access token is stored in memory (`csrfAccessToken` in `api.jsx`), sent as a header on mutating requests. Fetched at login and refreshed on 401.
+
+`RequiresAuth.jsx` checks `isLoggedIn` from AppContext. `isLoggedIn` is set by `completeLogin()` (called after a successful login response) and cleared by `endSession()` (logout).
+
+---
+
+## Responsive layout — two separate experiences
+
+`ResponsiveGate` and `useIsMobile()` split the app into two distinct UIs at a breakpoint defined in `breakpointConfig.jsx`:
+
+- **Desktop (≥ breakpoint):** `/dashboard` — HomeScreen + Charts + FilterPane all on one page. Filter state is `contentsSelectedCategories` from AppContext, shared between FilterPane, the Dashboard chart, and ContentsScreen-at-desktop-width.
+- **Mobile (< breakpoint):** `/home` → `/charts` → `/contents` — separate screens navigated between. Filter state is `mobileSelectedCategories` from AppContext, shared between ChartsScreen's CategorySlicer and ContentsScreen-at-mobile-width.
+
+**These are two genuinely separate filter states** — `contentsSelectedCategories` and `mobileSelectedCategories` — that never cross-pollinate. ContentsScreen reads whichever one matches the current viewport width at render time, not which route was used to get there.
+
+Chart category filter semantics: checkbox-list (empty set = nothing shown, full set = everything shown). The old "empty means show all" sentinel model was explicitly removed.
+
+---
+
+## AppContext — what lives there
+
+Everything that needs to survive screen navigation or be shared between screens:
+
+- `transactions` / `setTransactions` — the full flat array of all loaded transactions
+- `categories` / `categoryNames` / `categoryColors` — loaded from `/categories` on login
+- `isLoggedIn`, `completeLogin`, `endSession`, `userRole`
+- `categorising`, `processingStage` — set by useFileProcessor during a categorisation run
+- `chartSummary` — pre-aggregated yearly/monthly totals fetched from `/charts/summary`
+- `chartDataVersion` / `bumpChartDataVersion` — bumped after any mutation that should refresh charts
+- `uploadCount`, `uploadBreakdown` — for the HomepageInfo summary display
+- `contentsSelectedCategories` + toggle/toggleAll — desktop filter state
+- `mobileSelectedCategories` + toggle/toggleAll — mobile filter state
+- `manualReviewFlow` + `startManualReviewFlowIfNeeded` + `enterSequentialReview` + `closeManualReviewFlow` — the blocking post-categorisation manual review overlay
+- `initialLoading`, `allTransactionsLoaded`, `initialLoadError`, `retryInitialLoad`
+
+AppContext loads all transaction history in paginated batches (500/page) on login. `initialLoading` clears after the first batch; `allTransactionsLoaded` clears only after all pages finish. The Categorise button is gated on `allTransactionsLoaded`.
+
+---
+
+## Categorisation flow (web version)
+
+`useFileProcessor` in `customHooks/homescreen/useFileProcessor.jsx` orchestrates the full run. It delegates to two sub-runners:
+
+- `cacheTierRunner.jsx` — calls `/categorize/cached/exact`, then `/categorize/cached/merchant`, then `/categorize/cached/similarity` in sequence. Each phase's results are applied to state (and `bumpChartDataVersion`) before the next phase starts, so exact-match results appear on screen immediately.
+- `llmTierRunner.jsx` — calls `/categorize/llm` for whatever remains after cache tiers.
+
+After both runners finish, `startManualReviewFlowIfNeeded` is called with the just-processed transactions to check if any landed at `NEEDS_MANUAL_REVIEW`.
+
+`processFiles()` retries `NOT_YET_CATEGORISED` items first (if any exist), then processes newly selected files. One button handles both.
+
+---
+
+## Manual review flow
+
+Detailed in handoff11 (that session also optimised it). Short version:
+
+`ManualReviewGate` is mounted in `App.jsx` above all routes so it renders as a full-screen overlay regardless of which screen triggered categorisation. It reads `manualReviewFlow` from AppContext.
+
+Two stages:
+1. **stats** — `ManualReviewStatsModal`: shows auto-categorised vs needs-review counts. "Categorise Now" → sequential stage. "Put in Other" → bulk resolves all to Other.
+2. **sequential** — `ManualReviewSequentialModal`: one transaction at a time, category buttons. Non-dismissible. All logic in `ManualReviewGate`, modal is purely presentational.
+
+`startManualReviewFlowIfNeeded` is also called after the initial transaction load on login, so any leftover `NEEDS_MANUAL_REVIEW` transactions from a previous incomplete session re-trigger the flow immediately.
+
+---
+
+## Local dev setup
+
+See handoff11 for the auto-IP detection setup. Short version: `run.bat` → `start-dev.sh` detects the LAN IP, writes `App/.env` (gitignored), launches Flask backend and Vite frontend in separate terminal windows. The `App/.env` file is fully auto-generated — never edit it by hand.
+
+Config files:
+- `App/frontendLocalConfig.jsx` — `url` and `local` flag, read by `api.jsx`
+- `App/backendLocalConfig.py` — `CORS_ORIGINS` and `LOCAL_DEV` flag, imported by Flask routes
+- `App/WebUI/vite.config.js` — `envDir: '../'` makes Vite read `App/.env`
+
+---
+
+## Known gaps carried forward from RN era
+
+- **No automated test suite** — flagged in every handoff since handoff1. Still the single biggest gap.
+- **`revoked_tokens` pruning** — open since handoff6, still open.
+- **The open thread from handoff9** — user had an idea for an "even faster solution" to the mid-run re-check asymmetry (merchant-tagged results update global cache; non-merchant results only update personal cache, invisible to the similarity re-check's `global_resolved` lookup). Never stated. Worth asking.

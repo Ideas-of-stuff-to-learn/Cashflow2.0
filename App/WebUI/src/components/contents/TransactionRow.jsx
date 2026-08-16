@@ -29,6 +29,7 @@ const TransactionRow = memo(function TransactionRow({
     onToggle,
     onOpenPicker,
     onEnterSelectionMode,
+    style,
 }) {
     const isManual = item.category === NEEDS_MANUAL_REVIEW;
     const isFailed = item.category === NOT_YET_CATEGORISED;
@@ -60,6 +61,7 @@ const TransactionRow = memo(function TransactionRow({
 
     return (
         <button
+            style={style}
             className={[
                 'row',
                 index % 2 === 0 ? 'row-alt' : '',

@@ -41,7 +41,7 @@ export function buildStackDataFromEntries(entries, extraOnPress, {
         const stacks = orderedCategories.map(category => {
             const realValue = entry.categoryTotals[category] || 0;
             trueTotal += realValue;
-            const visible = selectedCategories.size === 0 || selectedCategories.has(category);
+            const visible = selectedCategories.has(category);
             return {
                 value: visible ? withMinHeight(realValue) : 0,
                 color: categoryColors[category] || '#BBBBBB',

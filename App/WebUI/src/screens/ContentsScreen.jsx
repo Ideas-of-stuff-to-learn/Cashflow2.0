@@ -1,5 +1,8 @@
+import { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useContentsData } from '../customHooks/contentsscreen/useContentsData';
+import { ROW_HEIGHT } from '../utils/contentsscreen/contentsUtils';
 import TransactionRow from '../components/contents/TransactionRow';
 import TableHeader from '../components/contents/TableHeader';
 import CategoryChipRow from '../components/contents/CategoryChipRow';
@@ -10,6 +13,7 @@ import '../styles/contentsStyles.css';
 
 export default function ContentsScreen() {
     const navigate = useNavigate();
+    const tableRef = useRef(null);
 
     const {
         transactions,
@@ -40,6 +44,13 @@ export default function ContentsScreen() {
 
         onToggle, onOpenPicker, onEnterSelectionMode,
     } = useContentsData();
+
+    const virtualizer = useVirtualizer({
+        count: filtered.length,
+        getScrollElement: () => tableRef.current,
+        estimateSize: () => ROW_HEIGHT,
+        overscan: 5,
+    });
 
     return (
         <div className="container">
@@ -100,19 +111,31 @@ export default function ContentsScreen() {
                 onToggleSort={toggleSort}
             />
 
-            <div className="table">
-                {filtered.map((item, index) => (
-                    <TransactionRow
-                        key={item.id || `${item.date}-${item.description}-${item.amount}`}
-                        item={item}
-                        index={index}
-                        isSelected={selectedIds.has(item.id)}
-                        inSelectionMode={selectionMode}
-                        onToggle={onToggle}
-                        onOpenPicker={onOpenPicker}
-                        onEnterSelectionMode={onEnterSelectionMode}
-                    />
-                ))}
+            <div className="table" ref={tableRef}>
+                <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+                    {virtualizer.getVirtualItems().map(virtualRow => {
+                        const item = filtered[virtualRow.index];
+                        return (
+                            <TransactionRow
+                                key={item.id || `${item.date}-${item.description}-${item.amount}`}
+                                style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    transform: `translateY(${virtualRow.start}px)`,
+                                }}
+                                item={item}
+                                index={virtualRow.index}
+                                isSelected={selectedIds.has(item.id)}
+                                inSelectionMode={selectionMode}
+                                onToggle={onToggle}
+                                onOpenPicker={onOpenPicker}
+                                onEnterSelectionMode={onEnterSelectionMode}
+                            />
+                        );
+                    })}
+                </div>
             </div>
 
             <CategoryResolveModal
