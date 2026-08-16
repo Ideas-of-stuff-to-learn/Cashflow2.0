@@ -1,9 +1,9 @@
 import { Text, View } from 'react-native';
 import { styles } from '../../styles/homepageStyles.js';
 
-export default function HomepageInfo({ dateRangeInfo, uploadCount, uploadBreakdown }) {
+export default function HomepageInfo({ dateRangeInfo, uploadBreakdown }) {
     const sessionCount = uploadBreakdown?.session_count ?? 0;
-    const pastCount = uploadBreakdown?.past_count ?? uploadCount;
+    const pastCount = uploadBreakdown?.past_count ?? 0;
 
     return (
         <>
@@ -12,10 +12,8 @@ export default function HomepageInfo({ dateRangeInfo, uploadCount, uploadBreakdo
             <Text style={styles.subtitle}>Upload a CSV to get started</Text>
 
             <View style={styles.uploadStats}>
-                <Text style={styles.rangeText}>Total files uploaded: {uploadCount}</Text>
-                {sessionCount > 0 && (
-                    <Text style={styles.rangeText}>This session: {sessionCount} · Previous: {pastCount}</Text>
-                )}
+                <Text style={styles.rangeText}>Past files uploaded: {pastCount}</Text>
+                <Text style={styles.rangeText}>Files uploaded this session: {sessionCount}</Text>
             </View>
 
             {dateRangeInfo && (

@@ -29,7 +29,6 @@ export default function HomeScreen({ navigation }) {
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
             <HomepageInfo
                 dateRangeInfo={dateRangeInfo}
-                uploadCount={uploadCount}
                 uploadBreakdown={uploadBreakdown}
             />
 
