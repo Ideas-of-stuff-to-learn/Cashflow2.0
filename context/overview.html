@@ -1,0 +1,438 @@
+<title>Cashflow2.0 Overview</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    --bg:#f5f3ef;
+    --surface:#ffffff;
+    --surface-sunken:#ece8e0;
+    --ink:#221f1a;
+    --ink-soft:#5b564c;
+    --ink-faint:#8c877b;
+    --line:#ddd7cb;
+    --accent:#1d6f5c;
+    --accent-ink:#ffffff;
+    --accent-soft:#e2efe9;
+    --shadow:0 1px 2px rgba(30,25,15,0.06), 0 6px 20px rgba(30,25,15,0.06);
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#17160f;
+      --surface:#201f18;
+      --surface-sunken:#191811;
+      --ink:#efece2;
+      --ink-soft:#b6b09f;
+      --ink-faint:#847f6f;
+      --line:#39362a;
+      --accent:#5fc5a5;
+      --accent-ink:#0c1a15;
+      --accent-soft:#1f322b;
+      --shadow:0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#17160f;
+    --surface:#201f18;
+    --surface-sunken:#191811;
+    --ink:#efece2;
+    --ink-soft:#b6b09f;
+    --ink-faint:#847f6f;
+    --line:#39362a;
+    --accent:#5fc5a5;
+    --accent-ink:#0c1a15;
+    --accent-soft:#1f322b;
+    --shadow:0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans',system-ui,sans-serif;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  code,.mono{font-family:'IBM Plex Mono',monospace;}
+
+  .ruler{
+    height:6px;
+    width:100%;
+    background:repeating-linear-gradient(90deg,var(--accent) 0 8px, transparent 8px 16px);
+    opacity:0.55;
+  }
+
+  header.hero{
+    padding:48px 32px 36px;
+    max-width:1180px;
+    margin:0 auto;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    font-weight:600;
+    margin-bottom:14px;
+  }
+  header.hero h1{
+    margin:0 0 12px;
+    font-size:clamp(28px,4vw,42px);
+    font-weight:700;
+    letter-spacing:-0.01em;
+  }
+  .lede{
+    color:var(--ink-soft);
+    font-size:17px;
+    max-width:760px;
+    margin:0 0 20px;
+  }
+  .tags{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .pill{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    padding:5px 12px;
+    border-radius:999px;
+    background:var(--accent-soft);
+    color:var(--accent);
+    border:1px solid var(--line);
+    font-weight:500;
+  }
+
+  .layout{
+    max-width:1180px;
+    margin:0 auto;
+    padding:0 32px 64px;
+    display:grid;
+    grid-template-columns:240px 1fr;
+    gap:36px;
+    align-items:start;
+  }
+
+  nav.toc{
+    position:sticky;
+    top:24px;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:18px;
+    box-shadow:var(--shadow);
+  }
+  nav.toc .toc-title{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin-bottom:10px;
+  }
+  nav.toc ul{list-style:none;margin:0;padding:0;}
+  nav.toc li{margin-bottom:2px;}
+  nav.toc a{
+    display:block;
+    padding:7px 10px;
+    border-radius:7px;
+    color:var(--ink-soft);
+    text-decoration:none;
+    font-size:13.5px;
+  }
+  nav.toc a:hover{background:var(--surface-sunken);color:var(--ink);}
+  nav.toc li.toc-current a{
+    background:var(--accent-soft);
+    color:var(--accent);
+    font-weight:600;
+  }
+  nav.toc ul.sub{margin-left:10px;margin-top:2px;}
+  nav.toc ul.sub a{font-size:12.5px;padding:5px 10px;}
+
+  main{min-width:0;}
+
+  section.card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:28px 30px;
+    margin-bottom:22px;
+    box-shadow:var(--shadow);
+    scroll-margin-top:20px;
+  }
+  section.card h2{
+    margin:0 0 6px;
+    font-size:20px;
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  section.card .sub{
+    color:var(--ink-faint);
+    font-size:13.5px;
+    margin:0 0 18px;
+  }
+
+  .milestone-tag{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    padding:3px 9px;
+    border-radius:999px;
+    font-weight:600;
+  }
+  .milestone-tag.current{background:var(--accent);color:var(--accent-ink);}
+  .milestone-tag.past{background:var(--surface-sunken);color:var(--ink-faint);border:1px solid var(--line);}
+
+  .milestone-divider{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    margin:30px 0;
+    color:var(--ink-faint);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+  }
+  .milestone-divider::before,.milestone-divider::after{
+    content:"";
+    flex:1;
+    height:1px;
+    background:var(--line);
+  }
+
+  .entry{margin-bottom:20px;}
+  .entry:last-child{margin-bottom:0;}
+  .entry h3{margin:0 0 6px;font-size:15px;font-weight:600;}
+  .entry p{margin:0 0 8px;color:var(--ink-soft);font-size:14.5px;}
+  .entry p:last-child{margin-bottom:0;}
+
+  .stat-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+    gap:12px;
+  }
+  .stat-tile{
+    background:var(--surface-sunken);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:14px 16px;
+  }
+  .stat-tile .label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin-bottom:6px;
+  }
+  .stat-tile .value{font-size:14.5px;font-weight:600;color:var(--ink);}
+
+  .tree{
+    background:var(--surface-sunken);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px 20px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12.5px;
+    line-height:1.7;
+    overflow-x:auto;
+    white-space:pre;
+    color:var(--ink-soft);
+  }
+
+  table.keyfiles{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13.5px;
+  }
+  table.keyfiles th{
+    text-align:left;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    padding:8px 10px;
+    border-bottom:1px solid var(--line);
+  }
+  table.keyfiles td{
+    padding:10px 10px;
+    border-bottom:1px solid var(--line);
+    vertical-align:top;
+    color:var(--ink-soft);
+  }
+  table.keyfiles td:first-child{
+    font-family:'IBM Plex Mono',monospace;
+    color:var(--ink);
+    white-space:nowrap;
+  }
+  table.keyfiles tr:last-child td{border-bottom:none;}
+
+  .rough-list{display:flex;flex-direction:column;gap:10px;}
+  .rough-item{
+    border-left:3px solid var(--accent);
+    background:var(--surface-sunken);
+    border-radius:0 8px 8px 0;
+    padding:10px 16px;
+    font-size:13.5px;
+    color:var(--ink-soft);
+  }
+  .rough-item strong{color:var(--ink);}
+
+  footer{
+    max-width:1180px;
+    margin:0 auto;
+    padding:20px 32px 48px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    color:var(--ink-faint);
+  }
+
+  @media (max-width:860px){
+    .layout{grid-template-columns:1fr;}
+    nav.toc{position:static;}
+    nav.toc ul{display:flex;flex-wrap:wrap;gap:6px;}
+    nav.toc ul.sub{display:flex;flex-wrap:wrap;margin-left:0;}
+  }
+</style>
+
+<div class="ruler"></div>
+
+<header class="hero">
+  <div class="eyebrow">Project Overview</div>
+  <h1>Cashflow2.0</h1>
+  <p class="lede">A personal-finance tracker that turns uploaded bank statements into auto-categorized spending charts, using a tiered matching pipeline (exact → merchant → fuzzy → AI) so the app needs less manual tagging over time.</p>
+  <div class="tags">
+    <span class="pill">Flask + Postgres (Supabase)</span>
+    <span class="pill">React 19 + Vite</span>
+    <span class="pill">Expo / React Native</span>
+    <span class="pill">Gemini AI categorization</span>
+    <span class="pill">JWT auth</span>
+    <span class="pill">No test suite</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <div class="toc-title">Contents</div>
+    <ul>
+      <li class="toc-current"><a href="#since-last-change">Since the last major change</a></li>
+      <li><a href="#stack">Stack at a glance</a></li>
+      <li><a href="#source-layout">Source layout</a></li>
+      <li><a href="#key-files">Key files</a></li>
+      <li><a href="#rough-edges">Known rough edges</a></li>
+      <div class="milestone-divider">History</div>
+      <li><a href="#major-original-build">Major change: original build</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <section class="card" id="since-last-change">
+      <h2><span class="milestone-tag current">Current</span> Since the last major change</h2>
+      <p class="sub">Most recent work, newest first.</p>
+
+      <div class="entry">
+        <h3>Fixed: reviewing leftover transactions one at a time was slow, and closing the tab too early could lose your progress</h3>
+        <p>When a batch of uploaded transactions couldn't be automatically sorted into a category, the app asks the person to go through them one by one and pick a category. Previously, every single pick was sent to the server immediately, so reviewing fifty transactions meant fifty separate round trips to the server before you could move on. Now the app collects all your picks locally and sends them all at once in a single request when you finish, which makes the review flow feel instant. If the final save fails, the app keeps your picks and shows a retry button instead of making you start over.</p>
+        <p>Separately, the "just put everything left over into a generic category" option used to ask the server to update each leftover transaction one at a time behind the scenes. It now tells the server to update all of them in one single instruction, which is much faster for people with a lot of leftover transactions.</p>
+        <p>There was also a gap where, if someone closed the browser tab in the middle of reviewing transactions, any leftover unsorted ones could stay stuck in limbo. A safety check now runs automatically the moment the tab starts closing, sweeping any remaining unsorted transactions into the generic category so nothing gets lost or stuck.</p>
+      </div>
+
+      <div class="entry">
+        <h3>Fixed: unchecking every spending category left the chart looking like nothing was filtered</h3>
+        <p>The spending charts let you tick and untick categories to control which ones show up as bars. A leftover piece of logic from an earlier version of the filtering system meant that if you unticked every single category, the chart mistakenly treated that as "show everything" instead of "show nothing." This has been corrected so that unticking all categories now correctly empties the chart, matching how every other filter in the app behaves.</p>
+      </div>
+
+      <div class="entry">
+        <h3>Mobile app brought up to match the web app's chart experience</h3>
+        <p>The mobile (phone/tablet) version of the app previously had a simpler set of charts than the website. This round of work rebuilt the mobile charts so they behave the same way as the web charts — same scrolling and windowing behavior, the same tap-to-see-details popup on each bar, and the same filtering behavior — so switching between using the app on a computer and on a phone feels consistent.</p>
+      </div>
+
+      <div class="entry">
+        <h3>Easier local setup for developers</h3>
+        <p>Starting the project on a new computer used to require manually figuring out network addresses and hand-editing configuration files. A new startup script now detects the right local network address automatically and generates the needed configuration files itself, so a developer can start the whole system (website, mobile app, and server) with a single double-click instead of manual setup steps.</p>
+      </div>
+    </section>
+
+    <section class="card" id="stack">
+      <h2>Stack at a glance</h2>
+      <p class="sub">Core technology choices across the three parts of the system.</p>
+      <div class="stat-grid">
+        <div class="stat-tile"><div class="label">Backend</div><div class="value">Python 3.13 / Flask 3.1</div></div>
+        <div class="stat-tile"><div class="label">Database</div><div class="value">Postgres via Supabase</div></div>
+        <div class="stat-tile"><div class="label">DB access</div><div class="value">Raw SQL, no ORM</div></div>
+        <div class="stat-tile"><div class="label">Web frontend</div><div class="value">React 19 + Vite</div></div>
+        <div class="stat-tile"><div class="label">Mobile frontend</div><div class="value">Expo SDK 54 / RN 0.81</div></div>
+        <div class="stat-tile"><div class="label">Charts</div><div class="value">recharts / gifted-charts</div></div>
+        <div class="stat-tile"><div class="label">Auth</div><div class="value">JWT + refresh + revocation</div></div>
+        <div class="stat-tile"><div class="label">AI tier</div><div class="value">Google Gemini</div></div>
+        <div class="stat-tile"><div class="label">Backups</div><div class="value">Nightly GitHub Actions pg_dump</div></div>
+        <div class="stat-tile"><div class="label">Tests</div><div class="value">None currently</div></div>
+      </div>
+    </section>
+
+    <section class="card" id="source-layout">
+      <h2>Source layout</h2>
+      <p class="sub">Where things live in the repository.</p>
+      <div class="tree">Cashflow2.0/
+├── Reports/            — narrative &amp; engineering write-ups (docx/pdf)
+├── .github/workflows/   — deploy, nightly DB backup, DB keep-alive
+└── App/
+    ├── shared/          — cross-platform JS utils (web + mobile)
+    ├── adminClI/, API/oldCLI/ — standalone admin CLI scripts
+    ├── handoffFiles/    — 11 numbered past engineering session write-ups
+    ├── API/             — Flask backend (routes/, categorise/, matching/, schema.sql)
+    ├── UI/              — Expo / React Native mobile app
+    └── WebUI/           — Vite / React web app</div>
+    </section>
+
+    <section class="card" id="key-files">
+      <h2>Key files</h2>
+      <p class="sub">Where a developer would start for common changes.</p>
+      <table class="keyfiles">
+        <tr><th>File</th><th>Owns</th></tr>
+        <tr><td>App/API/backend.py</td><td>App entrypoint, route registration</td></tr>
+        <tr><td>App/API/categorise/pipeline.py</td><td>Categorization tier order/orchestration</td></tr>
+        <tr><td>App/API/schema.sql</td><td>Database schema + design-decision comments</td></tr>
+        <tr><td>AppContext.jsx / AppContext.js</td><td>Global frontend state (web / mobile)</td></tr>
+        <tr><td>utils/charts/buildStackData.jsx</td><td>Chart segment visibility/filtering logic</td></tr>
+        <tr><td>App/shared/checkingName.js</td><td>The "needs manual review" sentinel constant</td></tr>
+        <tr><td>start-all.bat</td><td>Local dev environment setup + launch</td></tr>
+      </table>
+    </section>
+
+    <section class="card" id="rough-edges">
+      <h2>Known rough edges</h2>
+      <p class="sub">Things a future contributor should know are provisional.</p>
+      <div class="rough-list">
+        <div class="rough-item"><strong>No automated tests</strong> exist anywhere in the project — changes are currently verified by hand.</div>
+        <div class="rough-item"><strong>No database migration system</strong> — schema changes are applied by directly editing the schema file, with no history or rollback.</div>
+        <div class="rough-item"><strong>A shared constant is duplicated in three places</strong> across the codebase instead of one canonical copy, so it's possible to update one copy and miss the others.</div>
+        <div class="rough-item"><strong>The top-level README files are placeholders</strong> — this document and the accompanying technical handoff notes are the real documentation.</div>
+        <div class="rough-item"><strong>A very large raw chat transcript</strong> sits alongside the curated session write-ups — useful only as a last resort, not meant to be read start to end.</div>
+      </div>
+    </section>
+
+    <div class="milestone-divider">History</div>
+
+    <section class="card" id="major-original-build">
+      <h2><span class="milestone-tag past">Major change</span> Original build</h2>
+      <p class="sub">The system as it stood before the most recent round of work.</p>
+      <div class="entry">
+        <p>The project was originally built as a mobile-only app, then later gained a full website version alongside it, so the same features now work on both a phone and a computer. Over a series of past working sessions, the project grew from a simple statement-upload tool into a fuller system: automatic categorization of transactions using multiple fallback strategies (including an AI step for anything unclear), spending charts broken down by month and year, a searchable and filterable transaction list, user accounts with different permission levels (owner, admin, regular user), and an automated nightly backup of the database. A step-by-step review screen was added for any transaction the automatic system couldn't confidently sort on its own.</p>
+        <p>This baseline reflects the state of the project heading into the most recent round of work described above — it is a summary of prior progress rather than a single dated event, since the detailed session-by-session history lives in the project's internal engineering notes rather than in this document.</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer>
+  context/overview.html — updated on request, not automatically.
+</footer>
