@@ -57,7 +57,7 @@ export default function DashboardScreen() {
     return (
         <div className="dashboard-flex">
             <div className="dashboard-home-box">
-                <HomepageInfo dateRangeInfo={dateRangeInfo} uploadBreakdown={uploadBreakdown} />
+                <HomepageInfo dateRangeInfo={dateRangeInfo} uploadBreakdown={uploadBreakdown} showTitle={false} />
                 {initialLoadError && (
                     <div className="banner">
                         <p className="banner-text">{initialLoadError}</p>
@@ -81,31 +81,33 @@ export default function DashboardScreen() {
 
             <div className="dashboard-main">
                 <div className="dashboard-charts-box">
-                    <ChartWindowSection
-                        ready={chartReady}
-                        hasData={hasData}
-                        monthWindow={monthWindow}
-                        yearWindowEntries={yearWindowEntries}
-                        scrollMonthWindow={scrollMonthWindow}
-                        scrollYearWindow={scrollYearWindow}
-                        jumpMonthWindowToYear={jumpMonthWindowToYear}
-                        canScrollMonthBack={canScrollMonthBack}
-                        canScrollMonthForward={canScrollMonthForward}
-                        canScrollYearBack={canScrollYearBack}
-                        canScrollYearForward={canScrollYearForward}
-                        setMonthWindowByIndex={setMonthWindowByIndex}
-                        setYearWindowByIndex={setYearWindowByIndex}
-                        monthSliderMaxIndex={monthSliderMaxIndex}
-                        monthSliderCurrentIndex={monthSliderCurrentIndex}
-                        yearSliderMaxIndex={yearSliderMaxIndex}
-                        yearSliderCurrentIndex={yearSliderCurrentIndex}
-                        monthSliderTrackMax={monthSliderTrackMax}
-                        yearSliderTrackMax={yearSliderTrackMax}
-                        buildStackDataFromEntries={buildStackDataFromEntries}
-                        incomeForEntries={incomeForEntries}
-                        monthBounds={monthBounds}
-                        yearBounds={yearBounds}
-                    />
+                    <div className="dashboard-chart-area">
+                        <ChartWindowSection
+                            ready={chartReady}
+                            hasData={hasData}
+                            monthWindow={monthWindow}
+                            yearWindowEntries={yearWindowEntries}
+                            scrollMonthWindow={scrollMonthWindow}
+                            scrollYearWindow={scrollYearWindow}
+                            jumpMonthWindowToYear={jumpMonthWindowToYear}
+                            canScrollMonthBack={canScrollMonthBack}
+                            canScrollMonthForward={canScrollMonthForward}
+                            canScrollYearBack={canScrollYearBack}
+                            canScrollYearForward={canScrollYearForward}
+                            setMonthWindowByIndex={setMonthWindowByIndex}
+                            setYearWindowByIndex={setYearWindowByIndex}
+                            monthSliderMaxIndex={monthSliderMaxIndex}
+                            monthSliderCurrentIndex={monthSliderCurrentIndex}
+                            yearSliderMaxIndex={yearSliderMaxIndex}
+                            yearSliderCurrentIndex={yearSliderCurrentIndex}
+                            monthSliderTrackMax={monthSliderTrackMax}
+                            yearSliderTrackMax={yearSliderTrackMax}
+                            buildStackDataFromEntries={buildStackDataFromEntries}
+                            incomeForEntries={incomeForEntries}
+                            monthBounds={monthBounds}
+                            yearBounds={yearBounds}
+                        />
+                    </div>
                     <ChartFootnote />
                 </div>
             </div>

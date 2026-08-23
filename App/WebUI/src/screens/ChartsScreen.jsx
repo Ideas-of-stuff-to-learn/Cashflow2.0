@@ -5,10 +5,9 @@ import { useChartData } from '../customHooks/charts/useChartData';
 import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartReveal';
 
 import ChartWindowSection from '../components/charts/ChartWindowSection';
-import SpendingOverview from '../components/charts/SpendingOverview';
-import CategorySlicer from '../components/charts/categorySlicer';
+import ChartFootnote from '../components/charts/ChartFootnote';
 import StatusBanners from '../components/charts/StatusBanners';
-import StackOrderEditor from '../components/charts/StackOrderEditor';
+import FilterPane from '../components/dashboard/FilterPane';
 import '../styles/chartStyles.css';
 
 export default function ChartsScreen() {
@@ -27,7 +26,7 @@ export default function ChartsScreen() {
     } = useApp();
 
     const {
-        hasData, allTimeChartData2, selectedSegment,
+        hasData, selectedSegment,
         effectiveOrder, isCustomOrder, updateOrder, resetOrder, persist, togglePersist,
         availableCategories, setSelectedCategories: setChartSelectedCategories,
         monthBounds, yearBounds,
@@ -56,37 +55,27 @@ export default function ChartsScreen() {
     return (
         <div className="charts-container">
             <div className="charts-scroll-content">
-                <h1 className="charts-title">Spending by Category</h1>
                 <StatusBanners initialLoading={initialLoading} processingStage={processingStage} />
 
-                <SpendingOverview
-                    hasData={hasData}
-                    filteredChartData2={allTimeChartData2}
-                    categorising={categorising}
-                    initialLoading={initialLoading}
-                    selectedBar={null}
-                />
-
-                {/* CategorySlicer's own checkbox clicks now write
-                    DIRECTLY to the shared context state (mobileSelectedCategories),
-                    not to useChartData's local mirror - the mirror only
-                    ever flows context -> local, via the effect above. */}
-                <CategorySlicer
-                    availableCategories={availableCategories}
-                    selectedCategories={mobileSelectedCategories}
-                    toggleCategory={toggleMobileCategory}
-                    toggleAllCategories={toggleAllMobileCategories}
-                    categoryColors={categoryColors}
-                />
-
-                <StackOrderEditor
-                    effectiveOrder={effectiveOrder}
-                    isCustomOrder={isCustomOrder}
-                    updateOrder={updateOrder}
-                    resetOrder={resetOrder}
-                    persist={persist}
-                    togglePersist={togglePersist}
-                />
+                {/* Same combined category-selection + drag-to-reorder
+                    pane as Dashboard's FilterPane, just laid out full-width
+                    inline instead of as a docked sidebar (see
+                    .charts-filter-wrap override in chartStyles.css). */}
+                <div className="charts-filter-wrap">
+                    <FilterPane
+                        availableCategories={availableCategories}
+                        contentsSelectedCategories={mobileSelectedCategories}
+                        toggleContentsCategory={toggleMobileCategory}
+                        toggleAllContentsCategories={toggleAllMobileCategories}
+                        categoryColors={categoryColors}
+                        effectiveOrder={effectiveOrder}
+                        isCustomOrder={isCustomOrder}
+                        updateOrder={updateOrder}
+                        resetOrder={resetOrder}
+                        persist={persist}
+                        togglePersist={togglePersist}
+                    />
+                </div>
 
                 <ChartWindowSection
                     ready={chartReady}
@@ -122,6 +111,8 @@ export default function ChartsScreen() {
                         {selectedSegment.category}: £{selectedSegment.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </p>
                 )}
+
+                <ChartFootnote />
 
                 <button className="charts-button" onClick={() => navigate(-1)}>
                     Back to Home

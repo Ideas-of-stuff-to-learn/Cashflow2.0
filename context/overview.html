@@ -329,6 +329,7 @@
       <li><a href="#key-files">Key files</a></li>
       <li><a href="#rough-edges">Known rough edges</a></li>
       <div class="milestone-divider">History</div>
+      <li><a href="#major-manual-review-chart-parity">Major change: manual review optimisation &amp; chart/mobile parity</a></li>
       <li><a href="#major-original-build">Major change: original build</a></li>
     </ul>
   </nav>
@@ -339,25 +340,29 @@
       <p class="sub">Most recent work, newest first.</p>
 
       <div class="entry">
-        <h3>Fixed: reviewing leftover transactions one at a time was slow, and closing the tab too early could lose your progress</h3>
-        <p>When a batch of uploaded transactions couldn't be automatically sorted into a category, the app asks the person to go through them one by one and pick a category. Previously, every single pick was sent to the server immediately, so reviewing fifty transactions meant fifty separate round trips to the server before you could move on. Now the app collects all your picks locally and sends them all at once in a single request when you finish, which makes the review flow feel instant. If the final save fails, the app keeps your picks and shows a retry button instead of making you start over.</p>
-        <p>Separately, the "just put everything left over into a generic category" option used to ask the server to update each leftover transaction one at a time behind the scenes. It now tells the server to update all of them in one single instruction, which is much faster for people with a lot of leftover transactions.</p>
-        <p>There was also a gap where, if someone closed the browser tab in the middle of reviewing transactions, any leftover unsorted ones could stay stuck in limbo. A safety check now runs automatically the moment the tab starts closing, sweeping any remaining unsorted transactions into the generic category so nothing gets lost or stuck.</p>
+        <h3>The phone version of the app renamed internally for clarity</h3>
+        <p>The folder holding the phone/tablet app's code used to just be called "UI," which was easy to confuse with the website's own UI code sitting right next to it. It's been renamed to make clear it's specifically the native phone app, and every startup script and configuration file that pointed at the old name has been updated to match.</p>
       </div>
 
       <div class="entry">
-        <h3>Fixed: unchecking every spending category left the chart looking like nothing was filtered</h3>
-        <p>The spending charts let you tick and untick categories to control which ones show up as bars. A leftover piece of logic from an earlier version of the filtering system meant that if you unticked every single category, the chart mistakenly treated that as "show everything" instead of "show nothing." This has been corrected so that unticking all categories now correctly empties the chart, matching how every other filter in the app behaves.</p>
+        <h3>The phone app's category filters caught up to the website's new combined design</h3>
+        <p>Following on from the website change described below, the phone app's category-selection screen and its separate reordering screen have been merged into one the same way — each category now shows as a single row with a checkbox and a drag handle, instead of two separate lists to manage. Dragging works by press-and-hold on the handle and moving your finger up or down, which is the natural touchscreen equivalent of dragging with a mouse. The phone app's charts screen also had its own redundant summary chart removed, to match the website.</p>
       </div>
 
       <div class="entry">
-        <h3>Mobile app brought up to match the web app's chart experience</h3>
-        <p>The mobile (phone/tablet) version of the app previously had a simpler set of charts than the website. This round of work rebuilt the mobile charts so they behave the same way as the web charts — same scrolling and windowing behavior, the same tap-to-see-details popup on each bar, and the same filtering behavior — so switching between using the app on a computer and on a phone feels consistent.</p>
+        <h3>Combined the category filter list and the reorder list on the website into one</h3>
+        <p>The website previously had two separate ways to control how spending categories appear on the charts: one list of checkboxes to turn categories on/off, and a completely separate list with up/down buttons to change their stacking order. Both listed the exact same categories, just for two different purposes. They're now one single list — each row has a checkbox, a colour swatch, the category name, and a drag handle, so ticking a category and reordering it happen in the same place instead of two.</p>
       </div>
 
       <div class="entry">
-        <h3>Easier local setup for developers</h3>
-        <p>Starting the project on a new computer used to require manually figuring out network addresses and hand-editing configuration files. A new startup script now detects the right local network address automatically and generates the needed configuration files itself, so a developer can start the whole system (website, mobile app, and server) with a single double-click instead of manual setup steps.</p>
+        <h3>Dashboard now fits on one screen without scrolling</h3>
+        <p>The main dashboard page was reworked so that, at a normal screen size, everything — the header, the spending chart, the category filters, and the explanatory footnote text — fits within the visible area at once, with only the transaction list (a separate page) still expected to scroll. This took several rounds of tracking down exactly which part of the page was scrolling when it shouldn't, including one genuinely subtle browser quirk: a rule that says horizontal scrolling and vertical scrolling can't be set independently in one specific combination, which was silently creating an extra, unwanted scrollbar. Once identified, that was a one-line fix.</p>
+        <p>The filter panel can still be collapsed down to just its title bar to save space, and it no longer has the option to be dragged to the opposite side of the screen, which wasn't being used and only added visual clutter.</p>
+      </div>
+
+      <div class="entry">
+        <h3>Chart pop-up behaviour is now a single setting instead of scattered logic</h3>
+        <p>When you tap a bar on the spending chart, a small pop-up shows the details. Previously, exactly where that pop-up appears and how it's triggered was buried inside several different files. That's now controlled from one settings file per platform, so changing how the pop-up behaves in the future (or making it consistent between the website and the phone app) is a small, contained change rather than a hunt through the codebase.</p>
       </div>
     </section>
 
@@ -386,10 +391,10 @@
 ├── .github/workflows/   — deploy, nightly DB backup, DB keep-alive
 └── App/
     ├── shared/          — cross-platform JS utils (web + mobile)
-    ├── adminClI/, API/oldCLI/ — standalone admin CLI scripts
+    ├── adminClI/        — standalone admin CLI scripts (talks to the live backend over HTTP)
     ├── handoffFiles/    — 11 numbered past engineering session write-ups
     ├── API/             — Flask backend (routes/, categorise/, matching/, schema.sql)
-    ├── UI/              — Expo / React Native mobile app
+    ├── NativeAppUI/     — Expo / React Native mobile app (renamed from UI/)
     └── WebUI/           — Vite / React web app</div>
     </section>
 
@@ -411,16 +416,71 @@
     <section class="card" id="rough-edges">
       <h2>Known rough edges</h2>
       <p class="sub">Things a future contributor should know are provisional.</p>
+      <p class="sub" style="margin-top:-4px;margin-bottom:14px;">Grouped by which part of the codebase they live in.</p>
+
+      <h3 style="font-size:14px;margin:0 0 8px;color:var(--ink-soft);">Backend</h3>
       <div class="rough-list">
-        <div class="rough-item"><strong>No automated tests</strong> exist anywhere in the project — changes are currently verified by hand.</div>
+        <div class="rough-item"><strong>No automated tests</strong> exist anywhere in the Flask app — the categorization pipeline and permission logic are only ever checked by hand.</div>
         <div class="rough-item"><strong>No database migration system</strong> — schema changes are applied by directly editing the schema file, with no history or rollback.</div>
+        <div class="rough-item"><strong>Working CSV files sit inside the backend source folder</strong> rather than in a fixtures or scratch directory — harmless, but easy to mistake for something the code actually depends on.</div>
+      </div>
+
+      <h3 style="font-size:14px;margin:20px 0 8px;color:var(--ink-soft);">Admin CLI</h3>
+      <div class="rough-list">
+        <div class="rough-item"><strong>Always points at the live production server</strong> — there's no setting to make the admin tools talk to a local/test backend instead, so every admin action is run against real data by default.</div>
+        <div class="rough-item"><strong>Inconsistent internal structure</strong> — some of its sub-folders are set up as proper importable modules and some aren't, with no functional difference today but worth tidying for consistency.</div>
+        <div class="rough-item"><strong>A colour palette is manually copy-pasted</strong> between the admin tool and the two apps rather than shared from one place, and the comment pointing at where the "real" copy lives is itself out of date.</div>
+        <div class="rough-item"><strong>Older internal notes reference a CLI location that no longer exists</strong> — the tools have only ever lived in one place; any mention otherwise is stale.</div>
+      </div>
+
+      <h3 style="font-size:14px;margin:20px 0 8px;color:var(--ink-soft);">Web app</h3>
+      <div class="rough-list">
+        <div class="rough-item"><strong>No automated tests, no type-checking</strong> — same caveat as the backend, and now covers larger pieces (chart windowing, manual review, the newly combined filter panel) with no test coverage at all.</div>
         <div class="rough-item"><strong>A shared constant is duplicated in three places</strong> across the codebase instead of one canonical copy, so it's possible to update one copy and miss the others.</div>
         <div class="rough-item"><strong>The top-level README files are placeholders</strong> — this document and the accompanying technical handoff notes are the real documentation.</div>
+      </div>
+
+      <h3 style="font-size:14px;margin:20px 0 8px;color:var(--ink-soft);">Native mobile app</h3>
+      <div class="rough-list">
+        <div class="rough-item"><strong>The chart pop-up settings file isn't actually wired up yet</strong> — the phone app has its own separate, hardcoded pop-up behaviour; the new shared settings file exists for consistency of naming but doesn't control it yet.</div>
+        <div class="rough-item"><strong>Drag-to-reorder is a hand-built touch gesture, not a polished animated one</strong> — it works, but the category row doesn't visually follow your finger while dragging the way it might with a dedicated animation library (which is already available if that polish is wanted later).</div>
+        <div class="rough-item"><strong>No automated tests</strong>, same as the other two parts of the system.</div>
+      </div>
+
+      <h3 style="font-size:14px;margin:20px 0 8px;color:var(--ink-soft);">Across the whole project</h3>
+      <div class="rough-list">
         <div class="rough-item"><strong>A very large raw chat transcript</strong> sits alongside the curated session write-ups — useful only as a last resort, not meant to be read start to end.</div>
       </div>
     </section>
 
     <div class="milestone-divider">History</div>
+
+    <section class="card" id="major-manual-review-chart-parity">
+      <h2><span class="milestone-tag past">Major change</span> Manual review optimisation &amp; chart/mobile parity</h2>
+      <p class="sub">What changed in this milestone, newest-first within it.</p>
+
+      <div class="entry">
+        <h3>Fixed: reviewing leftover transactions one at a time was slow, and closing the tab too early could lose your progress</h3>
+        <p>When a batch of uploaded transactions couldn't be automatically sorted into a category, the app asks the person to go through them one by one and pick a category. Previously, every single pick was sent to the server immediately, so reviewing fifty transactions meant fifty separate round trips to the server before you could move on. Now the app collects all your picks locally and sends them all at once in a single request when you finish, which makes the review flow feel instant. If the final save fails, the app keeps your picks and shows a retry button instead of making you start over.</p>
+        <p>Separately, the "just put everything left over into a generic category" option used to ask the server to update each leftover transaction one at a time behind the scenes. It now tells the server to update all of them in one single instruction, which is much faster for people with a lot of leftover transactions.</p>
+        <p>There was also a gap where, if someone closed the browser tab in the middle of reviewing transactions, any leftover unsorted ones could stay stuck in limbo. A safety check now runs automatically the moment the tab starts closing, sweeping any remaining unsorted transactions into the generic category so nothing gets lost or stuck.</p>
+      </div>
+
+      <div class="entry">
+        <h3>Fixed: unchecking every spending category left the chart looking like nothing was filtered</h3>
+        <p>The spending charts let you tick and untick categories to control which ones show up as bars. A leftover piece of logic from an earlier version of the filtering system meant that if you unticked every single category, the chart mistakenly treated that as "show everything" instead of "show nothing." This has been corrected so that unticking all categories now correctly empties the chart, matching how every other filter in the app behaves.</p>
+      </div>
+
+      <div class="entry">
+        <h3>Mobile app brought up to match the web app's chart experience</h3>
+        <p>The mobile (phone/tablet) version of the app previously had a simpler set of charts than the website. This round of work rebuilt the mobile charts so they behave the same way as the web charts — same scrolling and windowing behavior, the same tap-to-see-details popup on each bar, and the same filtering behavior — so switching between using the app on a computer and on a phone feels consistent.</p>
+      </div>
+
+      <div class="entry">
+        <h3>Easier local setup for developers</h3>
+        <p>Starting the project on a new computer used to require manually figuring out network addresses and hand-editing configuration files. A new startup script now detects the right local network address automatically and generates the needed configuration files itself, so a developer can start the whole system (website, mobile app, and server) with a single double-click instead of manual setup steps.</p>
+      </div>
+    </section>
 
     <section class="card" id="major-original-build">
       <h2><span class="milestone-tag past">Major change</span> Original build</h2>

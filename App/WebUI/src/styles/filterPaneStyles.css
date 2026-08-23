@@ -6,28 +6,15 @@
     border: 1px solid #eee;
     border-radius: 8px;
     padding: 12px;
-    height: fit-content;
-    max-height: 85vh;
-    overflow-y: auto;
+    height: 100%;
+    min-height: 0;
     width: 220px;
     flex-shrink: 0;
 }
 
-.filter-pane-minimized {
-    width: auto;
-    padding: 8px;
-}
-
-.filter-pane-expand-btn {
-    background: #2E5C8A;
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    padding: 10px 8px;
-    cursor: pointer;
-    font-size: 13px;
-    writing-mode: horizontal-tb;
-    white-space: nowrap;
+.filter-pane-collapsed {
+    height: fit-content;
+    flex-shrink: 0;
 }
 
 .filter-pane-header {
@@ -37,6 +24,12 @@
     margin-bottom: 8px;
     padding-bottom: 8px;
     border-bottom: 1px solid #ddd;
+}
+
+.filter-pane-collapsed .filter-pane-header {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
 }
 
 .filter-pane-title {
@@ -68,11 +61,21 @@
     margin-bottom: 12px;
     padding-bottom: 12px;
     border-bottom: 1px solid #eee;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
 }
 
 .filter-pane-section:last-child {
     border-bottom: none;
     margin-bottom: 0;
+}
+
+.filter-pane-scroll-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .filter-pane-section-title {
@@ -98,43 +101,34 @@
     cursor: pointer;
 }
 
-.filter-pane-order-row {
+.filter-pane-combined-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 4px 0;
-    border-bottom: 1px solid #f0f0f0;
+    gap: 6px;
+    border-radius: 4px;
+    border: 2px solid transparent;
 }
 
-.filter-pane-order-label {
-    font-size: 12px;
-    color: #333;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+.filter-pane-combined-row.filter-pane-drag-over {
+    border-top: 2px solid #2E5C8A;
+}
+
+.filter-pane-combined-label {
+    padding: 4px 0;
     flex: 1;
 }
 
-.filter-pane-order-buttons {
-    display: flex;
-    gap: 4px;
+.filter-pane-drag-handle {
+    cursor: grab;
+    color: #999;
+    font-size: 14px;
+    padding: 0 2px;
+    user-select: none;
+    flex-shrink: 0;
 }
 
-.filter-pane-order-btn {
-    width: 24px;
-    height: 24px;
-    border-radius: 4px;
-    border: 1px solid #2E5C8A;
-    background: #fff;
-    color: #2E5C8A;
-    font-size: 13px;
-    cursor: pointer;
-}
-
-.filter-pane-order-btn:disabled {
-    border-color: #ddd;
-    color: #ccc;
-    cursor: not-allowed;
+.filter-pane-drag-handle:active {
+    cursor: grabbing;
 }
 
 .filter-pane-persist-row {

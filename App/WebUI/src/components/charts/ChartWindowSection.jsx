@@ -9,8 +9,7 @@ import RangeWindowSlider from './RangeWindowSlider';
 import { useDataReadiness } from '../../customHooks/charts/useDataReadiness';
 import { useSegmentPopup } from '../../customHooks/charts/useSegmentPopup';
 import { useApp } from '../../AppContext';
-
-const POPUP_VARIANT = 'floating'; // 'fixed' | 'floating' | 'modal'
+import { POPUP_VARIANT, POPUP_STATES } from '../../config/popupChartConfig';
 
 export default function ChartWindowSection({
     ready, hasData,
@@ -74,13 +73,13 @@ export default function ChartWindowSection({
     return (
         <>
             <div className="chart-header-row">
-                <IncomeLegend incomeData={incomeData} />
+                <p className="section-label">
+                    {mode === 'year' ? 'Spending by year' : 'Spending by month'} — tap a segment for details
+                </p>
                 <ChartWindowToggle mode={mode} setMode={setMode} />
             </div>
 
-            <p className="section-label">
-                {mode === 'year' ? 'Spending by year' : 'Spending by month'} — tap a segment for details
-            </p>
+            <IncomeLegend incomeData={incomeData} />
 
             <div className="window-scroll-row">
                 <SpendingStackChart
@@ -120,7 +119,7 @@ export default function ChartWindowSection({
                 endLabel={sliderEndLabel}
             />
             */}
-            {POPUP_VARIANT === 'fixed' && <SegmentPopupFixed segment={activeSegment} />}
+            {POPUP_VARIANT === POPUP_STATES.BELOW_CHART && <SegmentPopupFixed segment={activeSegment} />}
         </>
     );
 }

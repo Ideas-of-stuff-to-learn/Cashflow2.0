@@ -2,6 +2,7 @@
 import SegmentPopupFixed from './SegmentPopupFixed';
 import SegmentPopupFloating from './SegmentPopupFloating';
 import SegmentPopupModal from './SegmentPopupModal';
+import { POPUP_STATES } from '../../config/popupChartConfig';
 
 // Decides WHICH popup variant actually renders, based on popupVariant.
 // Extracted out of SpendingStackedChart.jsx - that file no longer
@@ -16,11 +17,11 @@ import SegmentPopupModal from './SegmentPopupModal';
 // (floating, anchored to a segment) or as an overlay ON TOP of it
 // (modal).
 export default function ChartPopupLayer({ popupVariant, activeSegment }) {
-    if (popupVariant === 'floating' && activeSegment) {
+    if (popupVariant === POPUP_STATES.FLOATING_IN_CHART && activeSegment) {
         return <SegmentPopupFloating segment={activeSegment} />;
     }
 
-    if (popupVariant === 'modal') {
+    if (popupVariant === POPUP_STATES.MODAL_IN_CHART) {
         return <SegmentPopupModal segment={activeSegment} />;
     }
 

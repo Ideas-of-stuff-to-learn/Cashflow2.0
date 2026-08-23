@@ -1,5 +1,5 @@
 .stack-chart-scroll { overflow-y: visible; min-width: 0; flex: 1; }
-.stack-chart-hscroll { overflow-x: auto; overflow-y: visible; }
+.stack-chart-hscroll { overflow-x: hidden; overflow-y: hidden; }
 
 .stack-segment { border: none; cursor: pointer; padding: 0; transition: opacity 0.1s; }
 .stack-segment:hover, .stack-segment:active { opacity: 0.6; }

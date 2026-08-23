@@ -2,7 +2,7 @@ import { useState } from 'react';
 import UploadFilesPopup from './UploadFilesPopup';
 import '../../styles/homePage.css';
 
-export default function HomepageInfo({ dateRangeInfo, uploadBreakdown }) {
+export default function HomepageInfo({ dateRangeInfo, uploadBreakdown, showTitle = true }) {
     // Single shared value - null means neither open, otherwise holds
     // WHICH one is open ('session' | 'past'). Opening one always sets
     // this to itself, which automatically closes the other, since
@@ -11,8 +11,7 @@ export default function HomepageInfo({ dateRangeInfo, uploadBreakdown }) {
 
     return (
         <>
-            <h1 className="title">Spending Pattern Visualisation Tool</h1>
-
+            {showTitle && <h1 className="title">Spending Pattern Visualisation Tool</h1>}
 
             <div className="range-text">
                 <UploadFilesPopup

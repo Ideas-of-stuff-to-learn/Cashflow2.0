@@ -1,16 +1,16 @@
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, TouchableOpacity, Text } from 'react-native';
 import { useApp } from '../AppContext';
-import CategorySlicer from '../components/charts/categorySlicer.js';
 import StatusBanners from '../components/charts/StatusBanners.js';
-import StackOrderEditor from '../components/charts/StackOrderEditor.js';
 import ChartWindowSection from '../components/charts/ChartWindowSection.js';
+import ChartFootnote from '../components/charts/ChartFootnote.js';
+import FilterPane from '../components/dashboard/FilterPane.js';
 import { useChartData } from '../customHooks/charts/useChartData.js';
 import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartReveal.js';
 import { styles } from '../styles/chartStyes.js';
 
 export default function ChartsScreen({ navigation }) {
-    const { categorising, initialLoading, processingStage } = useApp();
+    const { categorising, initialLoading, processingStage, categoryColors } = useApp();
     const insets = useSafeAreaInsets();
 
     const {
@@ -32,17 +32,14 @@ export default function ChartsScreen({ navigation }) {
             style={styles.container}
             contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
         >
-            <Text style={styles.title}>Spending by Category</Text>
             <StatusBanners initialLoading={initialLoading} processingStage={processingStage} showingDummyData={false} />
 
-            <CategorySlicer
+            <FilterPane
                 availableCategories={availableCategories}
                 selectedCategories={selectedCategories}
-                toggleItem={toggleCategory}
-                selectAll={() => toggleAllCategories(availableCategories)}
-            />
-
-            <StackOrderEditor
+                toggleCategory={toggleCategory}
+                toggleAllCategories={toggleAllCategories}
+                categoryColors={categoryColors}
                 effectiveOrder={effectiveOrder}
                 isCustomOrder={isCustomOrder}
                 updateOrder={updateOrder}
@@ -66,6 +63,8 @@ export default function ChartsScreen({ navigation }) {
                 buildStackDataFromEntries={buildStackDataFromEntries}
                 incomeForEntries={incomeForEntries}
             />
+
+            <ChartFootnote />
 
             <TouchableOpacity style={styles.button} onPress={() => navigation.goBack()}>
                 <Text style={styles.buttonText}>Back to Home</Text>

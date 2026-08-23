@@ -1,12 +1,15 @@
 .chart-footnote {
     margin-top: 16px;
-    padding: 0px 16px;
+    padding: 8px 16px;
     background: #5cb962;
     border: 1px solid #eee;
     border-radius: 8px;
     font-size: 15px;
     line-height: 1.1;
     color: #290fd2;
+    flex-shrink: 0;
+    max-height: 180px;
+    overflow-y: auto;
 }
 
 

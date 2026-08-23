@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { transformValue } from '../../utils/charts/chartUtils';
 import { computeSegmentAnchor } from '../../utils/charts/stackChartGeometry';
+import { INTERACTION_MODE, INTERACTION_MODES } from '../../config/popupChartConfig';
 
 const BAR_WIDTH = 32;
 const LEFT_PADDING = 10;
@@ -57,7 +58,7 @@ const StackBar = memo(function StackBar({
                     <button
                         key={segIndex}
                         onClick={fire}
-                        onMouseEnter={fire}
+                        onMouseEnter={INTERACTION_MODE === INTERACTION_MODES.HOVER ? fire : undefined}
                         className="stack-segment"
                         style={{
                             position: 'absolute',
