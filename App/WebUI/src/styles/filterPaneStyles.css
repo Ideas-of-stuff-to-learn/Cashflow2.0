@@ -139,6 +139,7 @@
     color: #333;
     margin-top: 8px;
     cursor: pointer;
+    flex-shrink: 0;
 }
 
 .filter-pane-reset-btn {
@@ -152,6 +153,7 @@
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
+    flex-shrink: 0;
 }
 
 .filter-pane-colour-dot {
