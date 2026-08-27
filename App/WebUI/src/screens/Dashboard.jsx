@@ -107,8 +107,8 @@ export default function DashboardScreen() {
                             monthBounds={monthBounds}
                             yearBounds={yearBounds}
                         />
+                        <ChartFootnote />
                     </div>
-                    <ChartFootnote />
                 </div>
             </div>
 
