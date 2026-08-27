@@ -2,9 +2,8 @@
     display: flex;
     gap: 16px;
     padding: 16px;
-    height: 100%;
     background: #fff;
-    align-items: stretch;
+    align-items: flex-start;
 }
 
 .dashboard-home-box {
@@ -18,20 +17,15 @@
 .dashboard-main {
     flex: 1;
     min-width: 0;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
 }
 
 .dashboard-charts-box {
-    flex: 1;
     min-width: 0;
-    min-height: 0;
+    padding-bottom: 32px;
 }
 
 .dashboard-chart-area {
-    height: 100%;
-    overflow-y: auto;
+    /* natural height — no flex stretching, no scroll container */
 }
 
 /* FilterPane docks visually left or right via flex order - it's the
