@@ -10,6 +10,7 @@
     min-height: 0;
     width: 220px;
     flex-shrink: 0;
+    overflow-y: auto;
 }
 
 .filter-pane-collapsed {
@@ -63,8 +64,7 @@
     border-bottom: 1px solid #eee;
     display: flex;
     flex-direction: column;
-    min-height: 0;
-    flex: 1;
+    flex-shrink: 0;
 }
 
 .filter-pane-section:last-child {
@@ -73,8 +73,7 @@
 }
 
 .filter-pane-scroll-list {
-    flex: 1;
-    min-height: 0;
+    max-height: 280px;
     overflow-y: auto;
 }
 
