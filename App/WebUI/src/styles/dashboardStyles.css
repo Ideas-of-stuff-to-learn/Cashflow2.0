@@ -21,11 +21,15 @@
 
 .dashboard-charts-box {
     min-width: 0;
-    padding-bottom: 32px;
+    max-height: calc(100vh - 80px);
+    display: flex;
+    flex-direction: column;
 }
 
 .dashboard-chart-area {
-    /* natural height — no flex stretching, no scroll container */
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 /* FilterPane docks visually left or right via flex order - it's the

@@ -7,6 +7,7 @@
     font-size: 15px;
     line-height: 1.1;
     color: #290fd2;
+    flex-shrink: 0;
 }
 
 

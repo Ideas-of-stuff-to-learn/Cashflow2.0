@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { useInitialLoadLogic } from '../customHooks/homescreen/useInitialLoadLogic';
@@ -49,6 +49,12 @@ export default function DashboardScreen() {
         buildStackDataFromEntries, incomeForEntries, selectedSegment,
     } = useChartData();
     const chartReady = useDetailedChartReveal();
+    const chartAreaRef = useRef(null);
+    useEffect(() => {
+        if (hasData && chartAreaRef.current) {
+            chartAreaRef.current.scrollTop = chartAreaRef.current.scrollHeight;
+        }
+    }, [hasData]);
 
     useEffect(() => {
         setChartSelectedCategories(new Set(contentsSelectedCategories));
@@ -81,7 +87,7 @@ export default function DashboardScreen() {
 
             <div className="dashboard-main">
                 <div className="dashboard-charts-box">
-                    <div className="dashboard-chart-area">
+                    <div className="dashboard-chart-area" ref={chartAreaRef}>
                         <ChartWindowSection
                             ready={chartReady}
                             hasData={hasData}
@@ -107,8 +113,8 @@ export default function DashboardScreen() {
                             monthBounds={monthBounds}
                             yearBounds={yearBounds}
                         />
-                        <ChartFootnote />
                     </div>
+                    <ChartFootnote />
                 </div>
             </div>
 
