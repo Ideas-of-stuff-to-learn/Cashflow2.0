@@ -16,7 +16,7 @@ import { useRef, useEffect } from 'react';
 
 const BAR_WIDTH = 32;
 const BAR_SPACING = 20;
-const BASE_CHART_HEIGHT = 250;
+const BASE_CHART_HEIGHT = 170;
 const LEFT_PADDING = 10;
 const LABEL_ROW_HEIGHT = 24;
 const Y_AXIS_LABEL_WIDTH = 46;

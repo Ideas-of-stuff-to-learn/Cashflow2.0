@@ -10,7 +10,7 @@
     flex-shrink: 0;
     overflow-y: auto;
     position: sticky;
-    top: 16px;
+    top: 10px;
     align-self: flex-start;
 }
 

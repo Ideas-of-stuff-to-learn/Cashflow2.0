@@ -5,10 +5,13 @@
 
 .search { margin: 12px; border: 1px solid #ddd; border-radius: 8px; padding: 10px; font-size: 14px; color: #333; width: calc(100% - 24px); }
 
-.chip-row { display: flex; overflow-x: auto; padding: 0 12px; margin-bottom: 8px; white-space: nowrap; }
-.chip { border: 1px solid #2E5C8A; border-radius: 16px; padding: 4px 12px; margin-right: 6px; background: none; cursor: pointer; display: inline-block; }
-.chip-active { background: #2E5C8A; }
-.chip-text { font-size: 12px; color: #2E5C8A; }
+.chip-row { display: flex; overflow-x: auto; padding: 0 12px; margin-bottom: 8px; white-space: nowrap; gap: 6px; }
+.chip-row::-webkit-scrollbar { height: 3px; }
+.chip-row::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
+.chip { border: 1px solid #d0d8e4; border-radius: 20px; padding: 4px 12px; background: #f5f7fa; cursor: pointer; display: inline-block; transition: border-color 0.15s, background 0.15s; }
+.chip:hover { border-color: #2E5C8A; background: #eef2f8; }
+.chip-active { background: #2E5C8A; border-color: #2E5C8A; }
+.chip-text { font-size: 12px; color: #555; }
 .chip-text-active { color: #fff; }
 
 .banner { background: #FFF3CD; padding: 8px; margin: 0 12px 6px; border-radius: 6px; }
@@ -20,13 +23,13 @@
 .row-count { font-size: 12px; color: #888; }
 .select-entry-text { font-size: 12px; color: #2E5C8A; font-weight: 600; background: none; border: none; cursor: pointer; }
 
-.table-header { display: flex; background: #2E5C8A; padding: 8px 4px; }
+.table-header { display: flex; background: #f0f4f8; padding: 6px 4px; border-top: 1px solid #e0e6ed; border-bottom: 1px solid #e0e6ed; }
 .header-cell { flex: 1; padding: 0 4px; background: none; border: none; cursor: pointer; text-align: left; }
-.header-text { color: #fff; font-size: 11px; font-weight: 600; }
-.header-text-active { color: #FFD700; }
+.header-text { color: #666; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.header-text-active { color: #2E5C8A; }
 
 .table { flex: 1; overflow-y: auto; }
-.row { display: flex; align-items: center; height: 46px; padding: 8px 4px; border-bottom: 0.5px solid #eee; cursor: pointer; background: none; width: 100%; text-align: left; border-left: none; border-right: none; border-top: none; }
+.row { display: flex; align-items: center; height: 38px; padding: 4px 4px; border-bottom: 0.5px solid #eee; cursor: pointer; background: none; width: 100%; text-align: left; border-left: none; border-right: none; border-top: none; }
 .row-alt { background: #F8F9FA; }
 .row-manual { background: #FFF3CD; }
 .row-failed { background: #FDECEA; }
