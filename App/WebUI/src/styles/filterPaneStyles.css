@@ -8,7 +8,8 @@
     padding: 12px;
     width: 220px;
     flex-shrink: 0;
-    overflow-y: auto;
+    max-height: calc(100vh - 20px);
+    overflow: hidden;
     position: sticky;
     top: 10px;
     align-self: flex-start;
@@ -75,7 +76,7 @@
 
 .filter-pane-scroll-list {
     max-height: 280px;
-    overflow-y: auto;
+    overflow: hidden;
 }
 
 .filter-pane-section-title {
