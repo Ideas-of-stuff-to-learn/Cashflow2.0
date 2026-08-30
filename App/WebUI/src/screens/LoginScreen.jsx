@@ -35,6 +35,7 @@ export default function LoginScreen() {
     const [isSlowStart, setIsSlowStart] = useState(false);
     const [progress, setProgress] = useState(0);
     const [spinnerFading, setSpinnerFading] = useState(false);
+    const [completing, setCompleting] = useState(false);
     const wakeupStartRef = useRef(null);
     const progressRafRef = useRef(null);
     const { completeLogin } = useApp();
@@ -53,6 +54,7 @@ export default function LoginScreen() {
         setIsSlowStart(false);
         setProgress(0);
         setSpinnerFading(false);
+        setCompleting(false);
 
         // After 3.5s with no response, transition to wakeup UI
         const slowTimer = setTimeout(() => {
@@ -77,13 +79,15 @@ export default function LoginScreen() {
             try {
                 const me = await getMe();
                 if (cancelled) return;
-                // Snap bar to 100%, brief pause, then navigate
+                // Stop rAF, smoothly fill to 100% via CSS transition, then fade and navigate
+                if (progressRafRef.current) cancelAnimationFrame(progressRafRef.current);
+                setCompleting(true);
                 setProgress(100);
                 setTimeout(() => {
                     if (cancelled) return;
                     completeLogin(me.username);
                     navigate(POST_LOGIN_ROUTE, { replace: true });
-                }, 400);
+                }, 1300); // 600ms fill + 700ms fade delay
             } catch (e) {
                 if (cancelled) return;
                 const msg = e.message || '';
@@ -139,14 +143,17 @@ export default function LoginScreen() {
                         </button>
                     </>
                 ) : isSlowStart ? (
-                    <div className="login-wakeup-wrap login-wakeup-fade-in">
+                    <div className={`login-wakeup-wrap login-wakeup-fade-in${completing ? ' login-wakeup-done' : ''}`}>
                         <p className="login-wakeup-msg">
                             Server is waking up…
                             <span>This can take up to a minute on first load</span>
                         </p>
                         <div className="login-progress-bar-row">
                             <div className="login-progress-track">
-                                <div className="login-progress-fill" style={{ width: `${progress}%` }} />
+                                <div
+                                    className={`login-progress-fill${completing ? ' login-progress-fill-complete' : ''}`}
+                                    style={{ width: `${progress}%` }}
+                                />
                             </div>
                             <span className="login-progress-pct">{Math.round(progress)}%</span>
                         </div>
