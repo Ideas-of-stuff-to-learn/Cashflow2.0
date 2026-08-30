@@ -52,8 +52,6 @@ const WAKEUP_STAGES = [
     'Almost ready now…',
     'Hang tight…',
     'Wrapping up…',
-    'Finishing up…',
-    'Done',
 ];
 
 export default function LoginScreen() {
@@ -106,9 +104,9 @@ export default function LoginScreen() {
                     progressRafRef.current = requestAnimationFrame(tick);
                 }
                 progressRafRef.current = requestAnimationFrame(tick);
-                // Cycle stage text every 3.5s
+                // Cycle stage text every 3.5s, looping until request arrives
                 stageIntervalRef.current = setInterval(() => {
-                    setStageIndex(i => Math.min(i + 1, WAKEUP_STAGES.length - 1));
+                    setStageIndex(i => (i + 1) % WAKEUP_STAGES.length);
                 }, 3500);
             }, 400); // wait for spinner fade-out animation
         }, 3500);
@@ -197,7 +195,7 @@ export default function LoginScreen() {
                             </div>
                             <span className="login-progress-pct">{Math.round(progress)}%</span>
                         </div>
-                        <p key={stageIndex} className="login-progress-stage">{WAKEUP_STAGES[stageIndex]}</p>
+                        <p key={completing ? 'done' : stageIndex} className="login-progress-stage">{completing ? 'Done' : WAKEUP_STAGES[stageIndex]}</p>
                     </div>
                 ) : (
                     <div className="login-loading-wrap">
