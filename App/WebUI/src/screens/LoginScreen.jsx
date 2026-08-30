@@ -146,7 +146,7 @@ export default function LoginScreen() {
                     <div className={`login-wakeup-wrap login-wakeup-fade-in${completing ? ' login-wakeup-done' : ''}`}>
                         <p className="login-wakeup-msg">
                             Server is waking up…
-                            <span>This can take up to a minute on first load</span>
+                            <span>This can take up to 2 minutes on first load</span>
                         </p>
                         <div className="login-progress-bar-row">
                             <div className="login-progress-track">
