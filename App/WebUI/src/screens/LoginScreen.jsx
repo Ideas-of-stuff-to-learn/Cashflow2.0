@@ -144,10 +144,11 @@ export default function LoginScreen() {
                             Server is waking up…
                             <span>This can take up to a minute on first load</span>
                         </p>
-                        <div className="login-progress-track">
-                            <div className="login-progress-fill" style={{ width: `${progress}%` }}>
-                                <span className="login-progress-pct">{Math.round(progress)}%</span>
+                        <div className="login-progress-bar-row">
+                            <div className="login-progress-track">
+                                <div className="login-progress-fill" style={{ width: `${progress}%` }} />
                             </div>
+                            <span className="login-progress-pct">{Math.round(progress)}%</span>
                         </div>
                         <p className="login-progress-stage">{wakeupStage(progress)}</p>
                     </div>
