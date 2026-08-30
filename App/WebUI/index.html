@@ -25,7 +25,9 @@
       // Fire-and-forget warm-up ping — gives Render's free-tier instance
       // a head start on waking up before React even boots or getMe() fires.
       // Runs only in production (not local dev where the backend is always warm).
-      if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      var h = location.hostname;
+      var isLocal = h === 'localhost' || h === '127.0.0.1' || h.startsWith('192.168.') || h.startsWith('10.') || h.startsWith('172.');
+      if (!isLocal) {
         fetch('https://cashflow2-0.onrender.com/health', { method: 'GET', mode: 'no-cors', credentials: 'omit' }).catch(function(){});
       }
     </script>
