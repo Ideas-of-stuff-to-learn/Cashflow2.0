@@ -14,7 +14,7 @@ function wakeupProgress(elapsedSeconds) {
     return 90 + Math.min(3, (elapsedSeconds - 35) * 0.15);           // 90→93%, crawl
 }
 
-// Ordered boot stage messages — cycle through on a timer, independent of the bar.
+// Ordered boot stage messages — enough to cover up to 2 minutes at 3.5s each.
 // Deliberately generic: no implementation details, framework names, or architecture exposed.
 const WAKEUP_STAGES = [
     'Starting up…',
@@ -23,10 +23,35 @@ const WAKEUP_STAGES = [
     'Loading application data…',
     'Running startup checks…',
     'Setting up services…',
+    'Initialising core systems…',
+    'Configuring application…',
+    'Loading user services…',
+    'Preparing data layer…',
+    'Verifying system integrity…',
+    'Setting up secure session handling…',
+    'Loading transaction services…',
+    'Preparing categorisation engine…',
+    'Bringing services online…',
+    'Completing system checks…',
+    'Finalising configuration…',
     'Almost there…',
-    'Finishing up…',
+    'Activating services…',
+    'Loading your workspace…',
+    'Warming up…',
+    'Checking service health…',
+    'Preparing your environment…',
+    'Systems coming online…',
+    'Synchronising services…',
+    'Nearly ready…',
+    'Finishing startup sequence…',
+    'Last few checks…',
     'Getting things ready for you…',
+    'Applying final configuration…',
+    'Services are responding…',
     'Just a moment longer…',
+    'Wrapping up…',
+    'Almost ready now…',
+    'Hang tight…',
 ];
 
 export default function LoginScreen() {
