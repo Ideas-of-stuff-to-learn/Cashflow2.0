@@ -8,11 +8,11 @@ import ManualReviewGate from './components/manualReview/ManualReviewGate';
 
 import LoginScreen from './screens/LoginScreen';
 import SignupScreen from './screens/SignupScreen';
+import HomeScreen from './screens/HomeScreen';
+import DashboardScreen from './screens/Dashboard';
 
-const HomeScreen = lazy(() => import('./screens/HomeScreen'));
 const ChartsScreen = lazy(() => import('./screens/ChartsScreen'));
 const ContentsScreen = lazy(() => import('./screens/ContentsScreen'));
-const DashboardScreen = lazy(() => import('./screens/Dashboard'));
 
 function ScreenSpinner() {
   return (
