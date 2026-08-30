@@ -100,7 +100,7 @@
 .login-progress-fill {
     height: 100%;
     border-radius: 99px;
-    transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: none;
     width: 0%;
     background: linear-gradient(90deg, #1d4f7a, #2E5C8A 40%, #5a9fd4 70%, #a8d4f0);
     background-size: 200% 100%;
