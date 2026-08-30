@@ -114,7 +114,11 @@
   <p><strong>Fixes, in order of effort:</strong></p>
   <ol>
     <li><strong>Collapse the 3 permission queries into 1</strong> — a single query with a <code>LEFT JOIN</code> across <code>role_permissions</code> and <code>user_permission_overrides</code>, applying the override logic in SQL (or in Python from one combined result set) instead of 3 separate round trips. Purely mechanical, no behavior change. <em>Feasibility: straightforward. Impact: cuts 3 round trips to 1 on every gated request.</em></li>
-    <li><strong>Cache revocation checks in memory</strong> — since revocations are rare (only on logout/admin action), cache the revoked-jti set (or a "not revoked" positive cache with short TTL) in the process, invalidated on write. <em>Feasibility: moderate — needs care around multi-worker gunicorn processes not sharing memory. Impact: removes 1 DB round trip from every authenticated request, not just gated ones.</em></li>
+    <li><strong>Cache revocation checks in memory</strong> — since revocations are rare (only on logout/admin action), cache the revoked-jti set (or a "not revoked" positive cache with short TTL) in the process, invalidated on write. <em>Feasibility: moderate — needs care around multi-worker gunicorn processes not sharing memory. Impact: removes 1 DB round trip from every authenticated request, not just gated ones.</em>
+      <ul>
+        <li><strong>Redis as the proper fix for the multi-worker problem</strong> — instead of each gunicorn worker maintaining its own in-process revocation cache (which means a token revoked in worker A isn't immediately known to workers B/C/D), a shared Redis instance gives all workers a single source of truth. A revocation write goes to Redis once; every worker reads from it. Redis also naturally supports TTL-based expiry matching the token's own expiry, so the set never grows unbounded. Render offers a free Redis instance (25MB free tier — more than enough for a small revoked-token set). <em>Feasibility: moderate — adds a new dependency (redis-py), needs a Redis URL env var, and changes the blocklist loader and revocation write path. Touches auth so warrants care. Impact: solves the multi-worker consistency problem cleanly and removes the DB round trip on every request.</em></li>
+      </ul>
+    </li>
     <li><strong>Cache a user's resolved role+permissions for the lifetime of a request</strong> — trivial, avoids nothing right now since it's already only computed once per request, but worth noting if any route ever calls it twice.</li>
   </ol>
 
