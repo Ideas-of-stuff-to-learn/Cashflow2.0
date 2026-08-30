@@ -15,17 +15,18 @@ function wakeupProgress(elapsedSeconds) {
 }
 
 // Ordered boot stage messages — cycle through on a timer, independent of the bar.
+// Deliberately generic: no implementation details, framework names, or architecture exposed.
 const WAKEUP_STAGES = [
-    'Spinning up server process…',
-    'Forking gunicorn worker processes…',
-    'Loading Python application modules…',
-    'Connecting to database…',
-    'Initialising connection pool (up to 10 connections)…',
+    'Starting up…',
+    'Preparing server…',
+    'Establishing secure connection…',
+    'Loading application data…',
     'Running startup checks…',
-    'Configuring JWT authentication…',
-    'Loading categorisation pipeline…',
-    'Warming up request handlers…',
-    'Almost ready — waiting for first response…',
+    'Setting up services…',
+    'Almost there…',
+    'Finishing up…',
+    'Getting things ready for you…',
+    'Just a moment longer…',
 ];
 
 export default function LoginScreen() {
