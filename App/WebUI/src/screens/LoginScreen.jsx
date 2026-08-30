@@ -14,6 +14,17 @@ function wakeupProgress(elapsedSeconds) {
     return 90 + Math.min(3, (elapsedSeconds - 35) * 0.15);           // 90→93%, crawl
 }
 
+// Maps progress % to a real phase description of what Render is doing.
+function wakeupStage(pct) {
+    if (pct < 15)  return 'Starting up server process…';
+    if (pct < 35)  return 'Booting application workers…';
+    if (pct < 55)  return 'Initialising database connection pool…';
+    if (pct < 72)  return 'Loading application modules…';
+    if (pct < 88)  return 'Running pre-request checks…';
+    if (pct < 100) return 'Almost ready…';
+    return 'Done';
+}
+
 export default function LoginScreen() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -134,8 +145,11 @@ export default function LoginScreen() {
                             <span>This can take up to a minute on first load</span>
                         </p>
                         <div className="login-progress-track">
-                            <div className="login-progress-fill" style={{ width: `${progress}%` }} />
+                            <div className="login-progress-fill" style={{ width: `${progress}%` }}>
+                                <span className="login-progress-pct">{Math.round(progress)}%</span>
+                            </div>
                         </div>
+                        <p className="login-progress-stage">{wakeupStage(progress)}</p>
                     </div>
                 ) : (
                     <div className="login-loading-wrap">
