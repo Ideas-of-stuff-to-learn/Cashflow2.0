@@ -6,16 +6,29 @@ resolved by cache tiers. This is the main loop tying batch_recheck.py
 and gemini_call.py together, plus the setup (caches, client,
 categories) and teardown (merchant/cache saves, result building) that
 wraps around them.
+
+Optimisations in this file:
+- Pipeline (B): each batch's recheck is pre-started as a background
+  thread immediately after category_by_description is updated, so it
+  overlaps with the previous batch's Gemini call. Snapshots of
+  category_by_description, normalized_merchants, and personal_resolved
+  are passed to the thread to avoid racing against Gemini's writes.
+- Async saves (A): the final cache/merchant DB writes are done in a
+  background thread after the result dict is built and returned, so
+  the route handler responds immediately instead of stalling post-100%.
 """
 
 import os
 import sys
 import time
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 from google import genai
 
 from cache import CategoryCache
 from checkingName import NEEDS_MANUAL_REVIEW, NOT_YET_CATEGORISED
+from database import get_connection, release_connection
 from matching import chunked, load_merchants, add_merchants_batch, load_categories
 from categorise.helpers import uniqueDescriptions, rowsByDescription
 from .empty_result import empty_llm_result
@@ -23,6 +36,54 @@ from .batch_recheck import run_batch_recheck
 from .gemini_call import run_gemini_call
 
 DEFAULT_GEMINI_REQUEST_TIMEOUT_MS = 30000
+
+
+def _run_recheck(batch_descriptions, personal_resolved, global_resolved, category_by_description, normalized_merchants, rows_by_description):
+    """Wrapper around run_batch_recheck with its own timings dict so it
+    can be submitted to a thread without sharing the main accumulator."""
+    t = {
+        'exact_transactions': 0, 'merchant_transactions': 0, 'similarity_transactions': 0,
+        'exact_ms': 0.0, 'merchant_ms': 0.0, 'similarity_ms': 0.0, 'recheck_ms': 0.0,
+    }
+    result = run_batch_recheck(
+        batch_descriptions, personal_resolved, global_resolved,
+        category_by_description, normalized_merchants,
+        rows_by_description, t,
+    )
+    return t, result
+
+
+def _background_cache_save(global_cache, personal_cache, newly_learned_merchants):
+    """Flushes merchant writes and dirty caches to the DB in a background
+    thread after the main result has already been returned. Gets its own
+    connection so the route handler's connection can be released first."""
+    conn = get_connection()
+    try:
+        global_cache.conn = conn
+        personal_cache.conn = conn
+
+        t = time.perf_counter()
+        add_merchants_batch(conn, newly_learned_merchants)
+        print(f"  [async save] merchant write: {time.perf_counter() - t:.2f}s ({len(newly_learned_merchants)} merchant(s))", file=sys.stderr)
+
+        if global_cache.dirty:
+            t = time.perf_counter()
+            global_cache.save()
+            print(f"  [async save] global cache save: {time.perf_counter() - t:.2f}s", file=sys.stderr)
+
+        if personal_cache.dirty:
+            t = time.perf_counter()
+            personal_cache.save()
+            print(f"  [async save] personal cache save: {time.perf_counter() - t:.2f}s", file=sys.stderr)
+
+    except Exception as e:
+        print(f"  [async save] background cache save failed: {e}", file=sys.stderr)
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+    finally:
+        release_connection(conn)
 
 
 def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int = 200, gemini_timeout_ms: int = None) -> dict:
@@ -58,17 +119,14 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
 
     pseudo_transactions = [{'description': d} for d in unique_descriptions]
 
-    # Pre-existing resolved global/personal descriptions, loaded ONCE -
-    # the per-batch re-check merges these with category_by_description
+    # Pre-existing resolved descriptions, loaded ONCE before the loop.
+    # The per-batch re-check merges these with category_by_description
     # (which grows as THIS run resolves more), so a later batch can
-    # match against BOTH what was already known before this run started
-    # AND whatever this run has already resolved so far.
+    # match against BOTH what was already known before this run AND
+    # whatever this run has already resolved.
     global_resolved = global_cache.resolved_descriptions()
     personal_resolved = personal_cache.resolved_descriptions()
 
-    # Accumulates newly-learned merchants across the WHOLE run (every
-    # Gemini batch), written in ONE add_merchants_batch() call at the
-    # end.
     newly_learned_merchants = []
 
     batches = list(chunked(pseudo_transactions, batch_size))
@@ -83,22 +141,31 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
         'gemini_transactions': 0, 'gemini_percentage': 0.0,
     }
 
+    executor = ThreadPoolExecutor(max_workers=1)
+    next_recheck_future = None
+
     for batch_index, batch in enumerate(batches):
         try:
             batch_descriptions = [item['description'] for item in batch]
 
-            resolved_updates, merchant_hits, similarity_hits, still_needing_llm_descriptions, timing_summary = run_batch_recheck(
-                batch_descriptions, personal_resolved, global_resolved,
-                category_by_description, normalized_merchants,
-                rows_by_description, timings,
-            )
+            # Use pre-computed recheck if the previous iteration started
+            # it early (pipeline), otherwise run synchronously.
+            if next_recheck_future is not None:
+                batch_timings, recheck_result = next_recheck_future.result()
+                next_recheck_future = None
+            else:
+                batch_timings, recheck_result = _run_recheck(
+                    batch_descriptions, personal_resolved, global_resolved,
+                    category_by_description, normalized_merchants, rows_by_description,
+                )
+
+            for k, v in batch_timings.items():
+                timings[k] = timings.get(k, 0) + v
+
+            resolved_updates, merchant_hits, similarity_hits, still_needing_llm_descriptions, timing_summary = recheck_result
 
             category_by_description.update(resolved_updates)
 
-            # Same cache-writing this used to do inline - merchant and
-            # similarity hits specifically get written to the global
-            # cache (personal/global exact hits are already cached,
-            # nothing to write for those).
             for desc, cat in merchant_hits.items():
                 for row in rows_by_description.get(desc, []):
                     global_cache.add_record(desc, row['date'], row['amount'], cat)
@@ -122,6 +189,24 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
                 file=sys.stderr,
             )
 
+            # Pipeline: pre-start the next batch's recheck now so it
+            # overlaps with the Gemini call below. Pass snapshots of the
+            # mutable shared dicts to avoid racing against Gemini's writes
+            # to category_by_description, personal_resolved, and
+            # normalized_merchants. global_resolved is never mutated after
+            # construction so it's safe to share directly.
+            next_batch_index = batch_index + 1
+            if next_batch_index < len(batches) and still_needing_llm:
+                next_recheck_future = executor.submit(
+                    _run_recheck,
+                    [item['description'] for item in batches[next_batch_index]],
+                    dict(personal_resolved),
+                    global_resolved,
+                    dict(category_by_description),
+                    dict(normalized_merchants),
+                    rows_by_description,
+                )
+
             if not still_needing_llm:
                 continue
 
@@ -138,14 +223,13 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
             )
 
         except Exception as e:
-            # A batch-level failure (Gemini down, a bug, anything) no
-            # longer aborts the WHOLE run - only THIS batch, and every
-            # batch not yet attempted, gets marked FAILED - rerun.
             print(f"  [stage timing] batch {batch_index + 1}/{len(batches)} failed: {e}", file=sys.stderr)
             for remaining_batch in batches[batch_index:]:
                 for item in remaining_batch:
                     failed_descriptions.add(item['description'])
             break
+
+    executor.shutdown(wait=False)
 
     if total_transactions > 0:
         timings['exact_percentage'] = round(timings['exact_transactions'] / total_transactions * 100, 2)
@@ -153,25 +237,15 @@ def run_llm_tier(pending_transactions: list, user_id: str, conn, batch_size: int
         timings['similarity_percentage'] = round(timings['similarity_transactions'] / total_transactions * 100, 2)
         timings['gemini_percentage'] = round(timings['gemini_transactions'] / total_transactions * 100, 2)
 
-    merchants_start = time.perf_counter()
-    add_merchants_batch(conn, newly_learned_merchants)
-    merchants_elapsed = time.perf_counter() - merchants_start
-    timings['merchant_write_ms'] = merchants_elapsed * 1000
-    print(f"  [stage timing] merchant write: {merchants_elapsed:.2f}s ({len(newly_learned_merchants)} merchant(s))", file=sys.stderr)
-
-    if global_cache.dirty:
-        global_save_start = time.perf_counter()
-        global_cache.save()
-        global_save_elapsed = time.perf_counter() - global_save_start
-        timings['global_cache_save_ms'] = global_save_elapsed * 1000
-        print(f"  [stage timing] global cache save: {global_save_elapsed:.2f}s", file=sys.stderr)
-
-    if personal_cache.dirty:
-        personal_save_start = time.perf_counter()
-        personal_cache.save()
-        personal_save_elapsed = time.perf_counter() - personal_save_start
-        timings['personal_cache_save_ms'] = personal_save_elapsed * 1000
-        print(f"  [stage timing] personal cache save: {personal_save_elapsed:.2f}s", file=sys.stderr)
+    # Async saves (A): fire cache and merchant DB writes in the background
+    # and return immediately. The visible post-100% stall is eliminated.
+    # If the save thread fails, categorisation results are still correct
+    # for this request — the cache just won't benefit future requests.
+    threading.Thread(
+        target=_background_cache_save,
+        args=(global_cache, personal_cache, newly_learned_merchants),
+        daemon=True,
+    ).start()
 
     result = []
     for txn in pending_transactions:
