@@ -6,3 +6,143 @@
 .login-button { width: 100%; background: #2E5C8A; padding: 14px 0; border-radius: 8px; color: #fff; font-size: 16px; font-weight: 600; margin-top: 8px; border: none; cursor: pointer; }
 .login-button:disabled { opacity: 0.6; }
 .login-switch { margin-top: 16px; background: none; border: none; color: #2E5C8A; font-size: 14px; cursor: pointer; }
+
+/* ── Loading states ─────────────────────────────────────────────── */
+.login-loading-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+    margin-top: 32px;
+    width: 100%;
+    max-width: 280px;
+}
+
+/* Spinner — two concentric arcs counter-rotating */
+.login-spinner-ring {
+    position: relative;
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+}
+.login-spinner-ring::before,
+.login-spinner-ring::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    border: 3px solid transparent;
+}
+.login-spinner-ring::before {
+    inset: 0;
+    border-top-color: #2E5C8A;
+    border-right-color: #2E5C8A;
+    animation: spin-cw 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+.login-spinner-ring::after {
+    inset: 8px;
+    border-bottom-color: #7aabdb;
+    border-left-color: #7aabdb;
+    animation: spin-ccw 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@keyframes spin-cw  { to { transform: rotate(360deg);  } }
+@keyframes spin-ccw { to { transform: rotate(-360deg); } }
+
+/* Fade transition between spinner and wakeup state */
+.login-spinner-fade-out {
+    animation: fade-out 0.4s ease forwards;
+}
+.login-wakeup-fade-in {
+    animation: fade-in 0.5s ease forwards;
+}
+@keyframes fade-out { to { opacity: 0; transform: scale(0.9); } }
+@keyframes fade-in  { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Wakeup section */
+.login-wakeup-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    max-width: 280px;
+    margin-top: 32px;
+}
+.login-wakeup-msg {
+    font-size: 20px;
+    color: #555;
+    text-align: center;
+    line-height: 1.5;
+    font-weight: 500;
+}
+.login-wakeup-msg span {
+    display: block;
+    font-size: 15px;
+    color: #999;
+    margin-top: 4px;
+    font-weight: 400;
+}
+
+/* Progress bar */
+.login-progress-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+.login-progress-track {
+    flex: 1;
+    height: 14px;
+    background: #e8edf2;
+    border-radius: 99px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
+}
+.login-progress-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: none;
+    width: 0%;
+    background: linear-gradient(90deg, #1d4f7a, #2E5C8A 40%, #5a9fd4 70%, #a8d4f0);
+    background-size: 200% 100%;
+    animation: liquid-flow 2s linear infinite;
+    box-shadow: 0 1px 4px rgba(46,92,138,0.35);
+}
+@keyframes liquid-flow {
+    0%   { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+}
+.login-progress-pct {
+    font-size: 14px;
+    font-weight: 700;
+    color: #2E5C8A;
+    white-space: nowrap;
+    min-width: 38px;
+    text-align: right;
+    flex-shrink: 0;
+}
+.login-progress-stage {
+    font-size: 14px;
+    color: #777;
+    text-align: center;
+    min-height: 20px;
+    letter-spacing: 0.01em;
+    animation: stage-fade-in 0.5s ease forwards;
+    width: 100%;
+    padding-right: 48px; /* offset to visually centre under the track, not the % label */
+}
+@keyframes stage-fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.login-progress-fill-complete {
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.login-wakeup-done {
+    animation: wakeup-done-fade 0.5s ease 0.7s forwards;
+    opacity: 1;
+}
+@keyframes wakeup-done-fade {
+    to { opacity: 0; transform: translateY(-6px); }
+}
