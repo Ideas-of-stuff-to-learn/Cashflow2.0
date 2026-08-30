@@ -4,6 +4,8 @@ Full audit of the frontend and backend (what's already implemented, and every po
 
 > **Everything in this document is a proposal, not a plan.** Nothing here should be implemented without an explicit, direct go-ahead from the project owner — given twice: once approving the idea/approach after discussion, and once confirming the actual scope right before any code is written. Agreement with the reasoning ("that sounds good," "that seems viable," "I like that") is feedback on the analysis, not authorization to write code. This applies especially to anything touching auth, sessions, permissions, or the database schema, where a mistake is harder to spot and more costly than a UI tweak. See `CLAUDE.md` / project memory for the same rule.
 
+> **Branch workflow:** when implementation is authorized, all changes go on a new branch (not directly to main). Push the branch, open a PR, and check out that branch locally so the owner can test it. Only merge to main after the owner confirms it's good and explicitly says to merge. After the merge, check out main locally again.
+
 ---
 
 ## Feature ideas (proposed, not yet discussed in depth)
