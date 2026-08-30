@@ -1,4 +1,4 @@
-import { useApp } from '../AppContext';
+import { useTransactions, useProcessing } from '../appState';
 import { useInitialLoadLogic } from '../customHooks/homescreen/useInitialLoadLogic';
 import { useLogout } from '../customHooks/homescreen/useLogout';
 import { useFilePicker } from '../customHooks/homescreen/useFilePicker';
@@ -10,10 +10,8 @@ import '../styles/homePage.css'
 import '../styles/shared.css'
 
 export default function HomeScreen() {
-    const {
-        categorising, transactions, initialLoadError, retryInitialLoad, allTransactionsLoaded,
-        uploadBreakdown, refetchUploadBreakdown,
-    } = useApp();
+    const { transactions, initialLoadError, retryInitialLoad, allTransactionsLoaded, uploadBreakdown, refetchUploadBreakdown } = useTransactions();
+    const { categorising } = useProcessing();
     const { dateRangeInfo, refetchUploadCount } = useInitialLoadLogic();
     const { handleLogout } = useLogout();
     const { pickFiles, selectedFiles, status, setStatus, error, setError } = useFilePicker();

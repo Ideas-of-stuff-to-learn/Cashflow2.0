@@ -3,7 +3,7 @@ import '../../styles/chartStyles.css';
 import SpendingStackChart from './SpendingStackedChart';
 import LoadingBarsPlaceholder from '../loading/LoadingBarsPlaceholder';
 import { useDataReadiness } from '../../customHooks/charts/useDataReadiness';
-import { useApp } from '../../AppContext';
+import { useTransactions, useProcessing } from '../../appState';
 
 export default function YearlyChartSection({
     ready, hasData,
@@ -11,7 +11,8 @@ export default function YearlyChartSection({
     selectedYear, selectedYearSegment, selectedYearTotal,
 }) {
     const [heightScale, setHeightScale] = useState(1);
-    const { initialLoading, categorising, processingStage } = useApp();
+    const { initialLoading } = useTransactions();
+    const { categorising, processingStage } = useProcessing();
     const { isLoading } = useDataReadiness(hasData, { initialLoading, categorising, processingStage });
 
     if (!ready) return null;

@@ -1,9 +1,9 @@
 // components/RequireAuth.jsx
 import { Navigate } from 'react-router-dom';
-import { useApp } from '../AppContext';
+import { useAuth } from '../appState';
 
 export default function RequireAuth({ children }) {
-    const { isLoggedIn } = useApp(); // adjust to whatever your context actually exposes
+    const { isLoggedIn } = useAuth();
 
     if (!isLoggedIn) {
         return <Navigate to="/login" replace />;

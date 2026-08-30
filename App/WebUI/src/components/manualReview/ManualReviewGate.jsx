@@ -1,15 +1,14 @@
 import { useRef, useState, useEffect } from 'react';
-import { useApp } from '../../AppContext';
+import { useTransactions, useProcessing, useChartFilter } from '../../appState';
 import { resolveCategories, resolveRemainingToOther, beaconResolveRemainingToOther } from '../../api';
 import { NEEDS_MANUAL_REVIEW } from '../../checkingName';
 import ManualReviewStatsModal from './ManualReviewStatsModal';
 import ManualReviewSequentialModal from './ManualReviewSequentialModal';
 
 export default function ManualReviewGate() {
-    const {
-        manualReviewFlow, setManualReviewFlow, enterSequentialReview, closeManualReviewFlow,
-        setTransactions, bumpChartDataVersion, categoryNames,
-    } = useApp();
+    const { manualReviewFlow, setManualReviewFlow, enterSequentialReview, closeManualReviewFlow } = useProcessing();
+    const { setTransactions, categoryNames } = useTransactions();
+    const { bumpChartDataVersion } = useChartFilter();
 
     const pendingResolutionsRef = useRef([]);
     const [flushError, setFlushError] = useState(false);

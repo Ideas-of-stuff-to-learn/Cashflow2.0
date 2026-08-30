@@ -8,7 +8,7 @@ import IncomeLegend from './IncomeLegend';
 import RangeWindowSlider from './RangeWindowSlider';
 import { useDataReadiness } from '../../customHooks/charts/useDataReadiness';
 import { useSegmentPopup } from '../../customHooks/charts/useSegmentPopup';
-import { useApp } from '../../AppContext';
+import { useTransactions, useProcessing } from '../../appState';
 import { POPUP_VARIANT, POPUP_STATES } from '../../config/popupChartConfig';
 
 export default function ChartWindowSection({
@@ -26,7 +26,8 @@ export default function ChartWindowSection({
 }) {
     const [heightScale, setHeightScale] = useState(1);
     const [mode, setMode] = useState('month');
-    const { initialLoading, categorising, processingStage } = useApp();
+    const { initialLoading } = useTransactions();
+    const { categorising, processingStage } = useProcessing();
     const { isLoading } = useDataReadiness(hasData, { initialLoading, categorising, processingStage });
 
     const { activeSegment, showSegment, handleChartMouseLeave, handleChartBackgroundClick } = useSegmentPopup();
