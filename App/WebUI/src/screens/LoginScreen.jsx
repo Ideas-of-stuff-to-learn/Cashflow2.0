@@ -49,9 +49,11 @@ const WAKEUP_STAGES = [
     'Applying final configuration…',
     'Services are responding…',
     'Just a moment longer…',
-    'Wrapping up…',
     'Almost ready now…',
     'Hang tight…',
+    'Wrapping up…',
+    'Finishing up…',
+    'Done',
 ];
 
 export default function LoginScreen() {
