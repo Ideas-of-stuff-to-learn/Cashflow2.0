@@ -3,5 +3,5 @@
 //                   the wakeup spinner/progress bar UI without a real cold server.
 // coldStartSimulatedSeconds: how long the fake delay lasts (30 = realistic Render cold start).
 
-export const simulateColdStart = true;
+export const simulateColdStart = false;
 export const coldStartSimulatedSeconds = 30;
