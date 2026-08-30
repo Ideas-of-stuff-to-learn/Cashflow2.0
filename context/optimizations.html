@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cashflow2.0 — Ideas &amp; Optimizations Backlog</title>
+<style>
+  :root{
+    --bg:#f5f3ef; --surface:#ffffff; --surface-sunken:#ece8e0;
+    --ink:#221f1a; --ink-soft:#5b564c; --ink-faint:#8c877b;
+    --line:#ddd7cb; --accent:#1d6f5c; --accent-ink:#ffffff; --accent-soft:#e2efe9;
+    --warn:#a1512b; --warn-soft:#fbe9de; --warn-line:#e7c2a8;
+    --shadow:0 1px 2px rgba(30,25,15,0.06), 0 6px 20px rgba(30,25,15,0.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#17160f; --surface:#201f18; --surface-sunken:#191811;
+      --ink:#efece2; --ink-soft:#b6b09f; --ink-faint:#847f6f;
+      --line:#39362a; --accent:#5fc5a5; --accent-ink:#0c1a15; --accent-soft:#1f322b;
+      --warn:#e2a077; --warn-soft:#2e2118; --warn-line:#5a3f28;
+      --shadow:0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  .page{max-width:840px;margin:0 auto;padding:48px 28px 80px;}
+  h1{font-size:28px;font-weight:700;margin:0 0 8px;letter-spacing:-0.01em;}
+  .lede{color:var(--ink-soft);font-size:15.5px;margin:0 0 20px;}
+  .callout{
+    border:1px solid var(--warn-line);
+    background:var(--warn-soft);
+    border-left:4px solid var(--warn);
+    border-radius:8px;
+    padding:14px 18px;
+    font-size:14px;
+    color:var(--ink);
+    margin-bottom:32px;
+  }
+  .callout strong{color:var(--warn);}
+  h2{font-size:19px;font-weight:700;margin:36px 0 6px;color:var(--accent);border-bottom:1px solid var(--line);padding-bottom:8px;}
+  h2.section-num{color:var(--ink);}
+  h3{font-size:15px;font-weight:700;margin:18px 0 4px;}
+  p{font-size:14.5px;color:var(--ink);margin:8px 0;}
+  ul,ol{padding-left:22px;margin:8px 0;}
+  li{font-size:14.5px;margin-bottom:8px;}
+  code{
+    font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+    background:var(--surface-sunken);
+    padding:1px 5px;border-radius:4px;font-size:13px;
+  }
+  em{color:var(--ink-soft);}
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:10px;
+    padding:20px 24px;margin:14px 0;box-shadow:var(--shadow);
+  }
+  .divider{border:none;border-top:1px solid var(--line);margin:28px 0;}
+  footer{margin-top:48px;font-size:12px;color:var(--ink-faint);font-family:monospace;}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Cashflow2.0 — Ideas &amp; Optimizations Backlog</h1>
+  <p class="lede">Full audit of the frontend and backend (what's already implemented, and every potential performance optimization found — how it would work, what it would take, whether it's feasible, and how much it would likely help), plus a running backlog of proposed features not yet discussed in depth. Written in response to reports that login/signup take noticeably long, and that automatic categorization stalls for a while even after reaching 100%.</p>
+
+  <div class="callout">
+    <strong>Everything in this document is a proposal, not a plan.</strong> Nothing here should be implemented without an explicit, direct go-ahead from the project owner — given twice: once approving the idea/approach after discussion, and once confirming the actual scope right before any code is written. Agreement with the reasoning ("that sounds good," "that seems viable," "I like that") is feedback on the analysis, not authorization to write code. This applies especially to anything touching auth, sessions, permissions, or the database schema, where a mistake is harder to spot and more costly than a UI tweak.
+  </div>
+
+  <h2>Feature ideas (proposed, not yet discussed in depth)</h2>
+  <p>These were raised together in one conversation and haven't each had their own dedicated discussion pass yet (tradeoffs, feasibility, how they interact with the existing JWT/session system) — they're recorded here so nothing gets lost, not because a direction has been decided.</p>
+  <div class="card">
+    <ul>
+      <li><strong>Third-party/"auto" login</strong> — sign in via Microsoft and Google (OAuth-style), similar to how those providers' own account pickers let you log in without retyping a password. Would need to sit alongside the existing username/password flow, not replace it, and raises real questions about how a Microsoft/Google-authenticated identity maps onto this app's existing <code>users</code>/<code>roles</code> tables.</li>
+      <li><strong>Email on the account</strong> — some notion of an email field/feature tied to login, likely in service of the password-reset idea below (a reset flow generally needs somewhere to send the reset link/code). Not yet clear if this is "email as an optional add-on to an existing username account" or "email as a first-class identity" — worth deciding before building either the OAuth idea or password reset, since both would want an answer to this.</li>
+      <li><strong>Password reset</strong> — a self-service "forgot password" flow, most likely email-based per the point above. Currently there is no such flow at all; only an admin can directly edit a user's credentials via the admin tools.</li>
+      <li><strong>Per-account "lock" toggle, visible in the app UI</strong> — an owner-facing switch on a user's account that, when on, prevents the admin CLI from viewing/editing that account's details, even though the CLI can normally do so for any account. This is a genuinely new concept in the permission model (today, permission and role-based restrictions govern who is allowed to act, not which specific <em>accounts</em> are exempt from CLI-level access at all) — would need real design thought on where that flag lives, what "the CLI can't access it" actually means mechanically (a check inside every relevant CLI script? a server-side check the CLI's HTTP calls would then fail?), and who is allowed to set/unset it.</li>
+      <li><strong>Biometrics</strong> — Face ID / Touch ID / fingerprint unlock for the native mobile app, likely via <code>expo-local-authentication</code> (not currently a dependency). Would most naturally sit as a secondary unlock step on top of the existing token-based session (e.g. "unlock the already-logged-in session with biometrics" rather than replacing the login itself), similar to how banking apps commonly layer it.</li>
+    </ul>
+  </div>
+
+  <h2>Open question: does the admin CLI stay a separate tool, or move into the app?</h2>
+  <p>Worth a real discussion on its own, not a quick decision folded into the items above: should <code>App/adminClI</code> remain a standalone command-line tool (as it is today — see <code>context/handoff.md</code>'s rough-edges section for its current limitations, e.g. hardcoded production <code>BASE_URL</code>), or should its functionality become a dedicated tab/section inside the owner's own in-app account view? Each direction has real tradeoffs (a CLI is scriptable and works even if the app's UI has a bug; an in-app tab is more discoverable and doesn't require a terminal, but duplicates UI work and changes the "blast radius" of a bug in that surface) — flagged here as a question to work through, not a foregone conclusion either way.</p>
+
+  <hr class="divider">
+
+  <h2 class="section-num">1. Infrastructure / deployment</h2>
+  <p><strong>What's implemented:</strong> connection pooling (<code>SimpleConnectionPool</code>, 1–10 conns) between the app and Supabase's session pooler; a scheduled GitHub Action that pings Supabase's database every 3 days specifically to prevent its 7-day free-tier auto-pause (queries a real table, not just the API gateway, since that's what Supabase's pause detection actually checks); a separate nightly backup workflow.</p>
+  <p><strong>What's missing / the gap:</strong> nothing pings the <strong>Render web service itself</strong>. If it's on Render's free tier, the process spins down after ~15 minutes idle and cold-starts in 30–60s on the next request — every dependency (gunicorn boot, Flask import graph, DB pool init) happens synchronously before the first response. This is, with high confidence, the actual cause of "login and signup take a sec": it's not that login is slow, it's that the <em>first</em> request after any idle period is slow, and login is very often that first request.</p>
+  <ul>
+    <li><strong>Fix:</strong> add a scheduled ping (every ~10 min) to a lightweight <code>/health</code> route, same pattern as the existing DB keep-alive workflow.</li>
+    <li><strong>Feasibility:</strong> trivial — one new GitHub Actions workflow, no app code changes.</li>
+    <li><strong>Impact:</strong> large and immediate for the specific "takes a sec" complaint, but only for cold starts; it does nothing for genuinely warm-request latency.</li>
+    <li><strong>Caveat:</strong> keeping a free-tier service always warm can burn most/all of Render's 750 free instance-hours/month across the whole account — see the follow-up discussion on windowed warming vs. wake-on-approach pings vs. a paid tier.</li>
+  </ul>
+
+  <hr class="divider">
+
+  <h2 class="section-num">2. Backend — authentication &amp; permission overhead</h2>
+  <p><strong>What's implemented:</strong> JWT auth via flask-jwt-extended with real server-side revocation (<code>revoked_tokens</code> table, checked via <code>token_in_blocklist_loader</code>), short-lived access tokens (24h) + refresh tokens (30d), a real role/permission system (roles → role_permissions → per-user overrides) replacing an old hardcoded username check.</p>
+  <p><strong>What digging into it found:</strong> every single authenticated request pays for this correctness, sequentially:</p>
+  <ol>
+    <li><code>check_if_token_revoked</code> — <strong>1 DB round trip</strong> (<code>SELECT 1 FROM revoked_tokens WHERE jti = %s</code>), on literally every <code>@jwt_required()</code> route.</li>
+    <li>Any route with <code>@require_permission(...)</code> then runs <code>get_user_role_and_permissions</code>, which is <strong>3 more sequential DB round trips</strong>: role lookup → role_permissions join → user_permission_overrides join — run in full even for an owner, whose actual permission check is a one-line short-circuit <em>after</em> all three queries already ran.</li>
+  </ol>
+  <p>So a single gated action (e.g. renaming a category) does 4 DB round trips just for auth/authz, before the route's own logic runs at all. Each round trip to Supabase over the public internet is real network latency (commonly 20–100ms+ depending on region/pooler), and this compounds directly with the cold-start problem above.</p>
+  <p><strong>Fixes, in order of effort:</strong></p>
+  <ol>
+    <li><strong>Collapse the 3 permission queries into 1</strong> — a single query with a <code>LEFT JOIN</code> across <code>role_permissions</code> and <code>user_permission_overrides</code>, applying the override logic in SQL (or in Python from one combined result set) instead of 3 separate round trips. Purely mechanical, no behavior change. <em>Feasibility: straightforward. Impact: cuts 3 round trips to 1 on every gated request.</em></li>
+    <li><strong>Cache revocation checks in memory</strong> — since revocations are rare (only on logout/admin action), cache the revoked-jti set (or a "not revoked" positive cache with short TTL) in the process, invalidated on write. <em>Feasibility: moderate — needs care around multi-worker gunicorn processes not sharing memory. Impact: removes 1 DB round trip from every authenticated request, not just gated ones.</em></li>
+    <li><strong>Cache a user's resolved role+permissions for the lifetime of a request</strong> — trivial, avoids nothing right now since it's already only computed once per request, but worth noting if any route ever calls it twice.</li>
+  </ol>
+
+  <hr class="divider">
+
+  <h2 class="section-num">3. Backend — the categorization pipeline (the "stalls at 100%" one)</h2>
+  <p><strong>What's implemented, accurately:</strong></p>
+  <ul>
+    <li>Cache tiers (exact → merchant → similarity) are separate HTTP round trips so the UI updates progressively.</li>
+    <li>LLM batches bundle <strong>up to 200 descriptions into one Gemini call</strong> (not one call per transaction) — genuinely good, this is the single biggest reason it's usable at all.</li>
+    <li><code>temperature: 0</code>, <code>thinking_budget: 0</code> — deliberately tuned for speed/determinism over the model "thinking more."</li>
+    <li>Per-item retry (only the specific descriptions Gemini answered invalidly get retried, not the whole batch), with a model-fallback chain rather than hammering one overloaded model.</li>
+    <li>Cache/merchant writes at the end use <code>execute_values</code> (batched multi-row INSERT), not a naive per-row loop.</li>
+    <li>A batch-level failure doesn't abort the whole run — only that batch and unattempted ones get marked failed/retryable.</li>
+  </ul>
+  <p><strong>What digging into <code>orchestrator.py</code> found:</strong></p>
+  <ul>
+    <li><strong>Batches run strictly sequentially</strong> — a plain <code>for batch_index, batch in enumerate(batches)</code> loop, each blocking on its own <code>client.models.generate_content</code> call before the next batch starts. For a large first-time upload with, say, 5 batches of 200 unrecognized descriptions each, and each Gemini call taking (very plausibly) 5–20s for a 200-item structured JSON response, that's 25–100 seconds of pure sequential wall-clock time.</li>
+    <li><strong>Cache saves happen once, at the very end</strong> — <code>global_cache.save()</code> and <code>personal_cache.save()</code> (plus <code>add_merchants_batch</code>) only run after every batch has finished. This is almost certainly the exact "stops for a bit even at 100%" symptom.</li>
+  </ul>
+  <div class="card">
+    <p><strong>Fix 1 — parallelize batches.</strong> Batches are largely independent, so 2–4 could run concurrently via a thread pool (Gemini calls are I/O-bound) or <code>asyncio</code>. Shared mutable state (<code>category_by_description</code>, the caches) would need a lock or a merge-after-the-fact approach. <em>Feasibility: real but non-trivial — needs careful handling of shared state, and Gemini rate limits need checking. Impact: potentially cuts total LLM-tier wall-clock roughly proportional to concurrency (e.g. ~3–4x with 4 concurrent batches) — the single largest lever available.</em></p>
+    <p><strong>Fix 2 — save incrementally, or in the background after responding.</strong> Write each batch's cache updates as it completes, or respond to the client immediately and finish merchant/cache writes asynchronously. <em>Feasibility: straightforward for "save per batch"; "respond then finish writing" needs a background task mechanism. Impact: removes the visible post-100% stall specifically — doesn't reduce total processing time, but removes the confusing invisible part of it.</em></p>
+    <p><strong>Fix 3 — stream LLM batch progress like the cache tiers already do.</strong> Extend the existing "one tier, one round trip, apply as you go" pattern to LLM batches. <em>Feasibility: moderate — reshapes the request/response contract. Impact: perceived-speed win, not an actual speed win, but often matters just as much.</em></p>
+  </div>
+
+  <hr class="divider">
+
+  <h2 class="section-num">4. Backend — database schema &amp; query design</h2>
+  <p><strong>What's implemented well:</strong> <code>idx_transactions_user_id</code> exists specifically because "every query filters by user_id" (the comment says so directly) — a real, deliberate, documented indexing decision. <code>idx_category_records_lookup</code> is a sensible composite index for the cache-tier exact-match lookup pattern.</p>
+  <p><strong>What digging into <code>charts.py</code> and <code>schema.sql</code> found:</strong></p>
+  <ul>
+    <li><strong><code>txn_date</code> is stored as <code>TEXT</code>, not a real <code>DATE</code> type.</strong> The charts-summary query extracts year/month via <code>SUBSTRING(txn_date FROM 7 FOR 4)</code> and validates the format via a <strong>regex match on every row</strong> (<code>txn_date ~ '^\d{2}/\d{2}/\d{4}$'</code>), then <code>GROUP BY</code> on those computed substring expressions. None of this can use an index.</li>
+    <li>Invisible at small scale, but a genuine scaling problem, and wasted CPU per request regardless of scale.</li>
+  </ul>
+  <p><strong>Fix:</strong> migrate <code>txn_date</code> to a real <code>DATE</code> column (one-time backfill from the existing <code>DD/MM/YYYY</code> text), use <code>EXTRACT(...)</code> instead of substring/regex, add a composite index on <code>(user_id, txn_date)</code>. <em>Feasibility: moderate — needs a real migration (none exists currently) and auditing every place <code>txn_date</code> is read/written as text. Impact: currently low-to-moderate given likely data volumes, but the one fix here that changes the scaling curve rather than shaving a constant amount of latency.</em></p>
+
+  <hr class="divider">
+
+  <h2 class="section-num">5. Web frontend</h2>
+  <p><strong>What's implemented:</strong> client-side fetch timeouts tied to backend worker limits (with a distinct, generous 110s timeout specifically for categorization requests); server-side aggregation for charts; virtualized transaction list (<code>@tanstack/react-virtual</code>); the manual-review batching work from an earlier session.</p>
+  <p><strong>What digging into <code>App.jsx</code> and <code>AppContext.jsx</code> found:</strong></p>
+  <ul>
+    <li><strong>Zero code-splitting.</strong> Every screen is imported directly at the top of <code>App.jsx</code> — no <code>React.lazy</code>/<code>Suspense</code> anywhere, no manual chunking in <code>vite.config.js</code>. The entire app ships in one JS bundle that has to load before the login screen can even render. <em>Fix: wrap each route's screen in <code>React.lazy</code> + <code>Suspense</code>. Feasibility: low effort, standard pattern. Impact: meaningfully smaller initial bundle/faster first paint.</em></li>
+    <li><strong><code>AppContext</code>'s Provider value is a fresh object literal on every render, not memoized.</strong> Every component calling <code>useApp()</code> re-renders whenever <em>any</em> app-wide state changes, anywhere. <em>Fix: wrap the provider value in <code>useMemo</code>, and/or split into smaller contexts by concern. Feasibility: the useMemo wrap is small and safe; splitting contexts is a larger refactor. Impact: a classic, well-documented React performance fix — real client-side jank reduction, independent of network latency.</em></li>
+  </ul>
+
+  <hr class="divider">
+
+  <h2 class="section-num">6. Native mobile app</h2>
+  <p>Same backend-latency exposure as the web app (identical API calls). App-specific findings:</p>
+  <ul>
+    <li>Drag-to-reorder in <code>FilterPane.js</code> uses <code>PanResponder</code> with state updates on every move event, rather than <code>react-native-reanimated</code> worklets (already a dependency). <em>Feasibility: a rewrite of that one component's gesture handling. Impact: negligible at current category-list sizes.</em></li>
+    <li>No lazy-loading equivalent applies the same way in RN (Metro bundles differently than Vite) — the code-splitting finding above is web-specific.</li>
+  </ul>
+
+  <hr class="divider">
+
+  <h2>Ranked by effort vs. impact on the reported symptoms</h2>
+  <ol>
+    <li><strong>Ping Render, not just Supabase</strong> (with the free-tier hours budget in mind — see the windowed/wake-on-approach discussion) — smallest effort, directly targets "login/signup take a sec."</li>
+    <li><strong>Memoize the <code>AppContext</code> provider value</strong> — small effort, real client-side snappiness win everywhere in the app.</li>
+    <li><strong>Parallelize LLM batches + save cache incrementally</strong> — bigger effort, but the actual mechanism behind "categorizing stops for a bit even at 100%."</li>
+    <li><strong>Collapse the 3 permission queries into 1</strong> — small-to-moderate effort, shaves latency off every gated admin action.</li>
+    <li><strong>Code-split the web bundle</strong> — small-to-moderate effort, improves first load specifically.</li>
+    <li><strong><code>txn_date</code> → real <code>DATE</code> column</strong> — the most invasive, least currently-felt, but the one genuine scaling-curve fix — worth scheduling before it becomes a real complaint.</li>
+  </ol>
+
+  <footer>context/optimizations.html — mirrors context/optimizations.md and context/optimizations.pdf. Updated on request, not automatically.</footer>
+</div>
+</body>
+</html>

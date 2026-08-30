@@ -1,6 +1,24 @@
-# Cashflow2.0 — Performance Deep Dive & Optimization Opportunities
+# Cashflow2.0 — Ideas & Optimizations Backlog
 
-Full audit of the frontend and backend, covering what's already implemented (accurately, based on reading the actual code) and every potential optimization found: how it would work, what it would take, whether it's actually feasible, and how much it would likely help. Written in response to reports that login/signup take noticeably long, and that automatic categorization stalls for a while even after reaching 100%.
+Full audit of the frontend and backend (what's already implemented, and every potential performance optimization found — how it would work, what it would take, whether it's feasible, and how much it would likely help), plus a running backlog of proposed features not yet discussed in depth. Written in response to reports that login/signup take noticeably long, and that automatic categorization stalls for a while even after reaching 100%.
+
+> **Everything in this document is a proposal, not a plan.** Nothing here should be implemented without an explicit, direct go-ahead from the project owner — given twice: once approving the idea/approach after discussion, and once confirming the actual scope right before any code is written. Agreement with the reasoning ("that sounds good," "that seems viable," "I like that") is feedback on the analysis, not authorization to write code. This applies especially to anything touching auth, sessions, permissions, or the database schema, where a mistake is harder to spot and more costly than a UI tweak. See `CLAUDE.md` / project memory for the same rule.
+
+---
+
+## Feature ideas (proposed, not yet discussed in depth)
+
+These were raised together in one conversation and haven't each had their own dedicated discussion pass yet (tradeoffs, feasibility, how they interact with the existing JWT/session system) — they're recorded here so nothing gets lost, not because a direction has been decided.
+
+- **Third-party/"auto" login** — sign in via Microsoft and Google (OAuth-style), similar to how those providers' own account pickers let you log in without retyping a password. Would need to sit alongside the existing username/password flow, not replace it, and raises real questions about how a Microsoft/Google-authenticated identity maps onto this app's existing `users`/`roles` tables.
+- **Email on the account** — some notion of an email field/feature tied to login, likely in service of the password-reset idea below (a reset flow generally needs somewhere to send the reset link/code). Not yet clear if this is "email as an optional add-on to an existing username account" or "email as a first-class identity" — worth deciding before building either the OAuth idea or password reset, since both would want an answer to this.
+- **Password reset** — a self-service "forgot password" flow, most likely email-based per the point above. Currently there is no such flow at all; only an admin can directly edit a user's credentials via the admin tools.
+- **Per-account "lock" toggle, visible in the app UI** — an owner-facing switch on a user's account that, when on, prevents the admin CLI from viewing/editing that account's details, even though the CLI can normally do so for any account. This is a genuinely new concept in the permission model (today, permission and role-based restrictions govern who is allowed to act, not which specific *accounts* are exempt from CLI-level access at all) — would need real design thought on where that flag lives, what "the CLI can't access it" actually means mechanically (a check inside every relevant CLI script? a server-side check the CLI's HTTP calls would then fail?), and who is allowed to set/unset it.
+- **Biometrics** — Face ID / Touch ID / fingerprint unlock for the native mobile app, likely via `expo-local-authentication` (not currently a dependency). Would most naturally sit as a secondary unlock step on top of the existing token-based session (e.g. "unlock the already-logged-in session with biometrics" rather than replacing the login itself), similar to how banking apps commonly layer it.
+
+## Open question: does the admin CLI stay a separate tool, or move into the app?
+
+Worth a real discussion on its own, not a quick decision folded into the items above: should `App/adminClI` remain a standalone command-line tool (as it is today — see `context/handoff.md`'s rough-edges section for its current limitations, e.g. hardcoded production `BASE_URL`), or should its functionality become a dedicated tab/section inside the owner's own in-app account view? Each direction has real tradeoffs (a CLI is scriptable and works even if the app's UI has a bug; an in-app tab is more discoverable and doesn't require a terminal, but duplicates UI work and changes the "blast radius" of a bug in that surface) — flagged here as a question to work through, not a foregone conclusion either way.
 
 ---
 
