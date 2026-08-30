@@ -127,6 +127,8 @@
     min-height: 20px;
     letter-spacing: 0.01em;
     animation: stage-fade-in 0.5s ease forwards;
+    width: 100%;
+    padding-right: 48px; /* offset to visually centre under the track, not the % label */
 }
 @keyframes stage-fade-in {
     from { opacity: 0; transform: translateY(4px); }
