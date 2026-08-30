@@ -316,7 +316,7 @@ export async function login(username, password) {
 // right of every screen. Also usable by future admin-facing screens
 // that need to know "am I even allowed to see this control."
 export async function getMe() {
-    if (simulateColdStart) await new Promise(r => setTimeout(r, coldStartSimulatedSeconds * 1000));
+    if (simulateColdStart && import.meta.env.VITE_LOCAL_DEV === 'true') await new Promise(r => setTimeout(r, coldStartSimulatedSeconds * 1000));
     const response = await authorizedFetch(`${BASE_URL}/auth/me`, { method: 'GET' });
     const data = await parseJsonResponse(response, 'Failed to fetch account info');
     if (data.csrf_access_token) csrfAccessToken = data.csrf_access_token;
