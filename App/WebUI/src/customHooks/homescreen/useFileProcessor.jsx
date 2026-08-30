@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { parseCSVFiles } from '../../api';
-import { useApp } from '../../AppContext';
+import { useTransactions, useProcessing, useChartFilter } from '../../appState';
 import { mergeById } from '../../utils/homescreen/homescreenUtils';
 import { NOT_YET_CATEGORISED } from '../../checkingName';
 import { runCacheTiers } from './cacheTierRunner';
@@ -10,14 +10,9 @@ export function useFileProcessor(setStatus, setError, selectedFiles) {
     const [loading, setLoading] = useState(false);
     const [progress, setProgress] = useState({ current: 0, total: 0, phase: '' });
 
-    const {
-        transactions,
-        setTransactions,
-        setCategorising,
-        setProcessingStage,
-        bumpChartDataVersion,
-        startManualReviewFlowIfNeeded,
-    } = useApp();
+    const { transactions, setTransactions } = useTransactions();
+    const { setCategorising, setProcessingStage, startManualReviewFlowIfNeeded } = useProcessing();
+    const { bumpChartDataVersion } = useChartFilter();
 
     async function categorizeTransactions(itemsNeedingCategorization, runLabel = 'Categorise') {
         setProcessingStage('checkingCache');

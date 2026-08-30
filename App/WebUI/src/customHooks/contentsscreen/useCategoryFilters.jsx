@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useIsMobile } from '../useIsMobile';
-import { useApp } from '../../AppContext';
+import { useChartFilter } from '../../appState';
 
 export function useTransactionFilters(transactions) {
     const [searchText, setSearchText] = useState('');
@@ -11,7 +11,7 @@ export function useTransactionFilters(transactions) {
     const {
         contentsSelectedCategories, toggleContentsCategory, toggleAllContentsCategories,
         mobileSelectedCategories, toggleMobileCategory, toggleAllMobileCategories,
-    } = useApp();
+    } = useChartFilter();
 
     // Which of the two independent filter states this screen actually
     // uses is decided PURELY by current viewport width - matches the

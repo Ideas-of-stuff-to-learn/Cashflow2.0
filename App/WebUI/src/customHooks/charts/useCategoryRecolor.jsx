@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { useApp } from '../../AppContext';
+import { useTransactions } from '../../appState';
 import { updateCategory, resetCategoryDefaults } from '../../api';
 import {toggleItem} from '../../utils/charts/chartUtils'
 
 export function useCategoryRecolor(availableCategories) {
-    const { setCategories } = useApp();
+    const { setCategories } = useTransactions();
 
     const [recolorSelected, setRecolorSelected] = useState(new Set());
     const [colorPickerOpen, setColorPickerOpen] = useState(false);

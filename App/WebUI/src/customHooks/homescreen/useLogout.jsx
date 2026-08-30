@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { logout } from '../../api';
-import { useApp } from '../../AppContext';
+import { useAuth } from '../../appState';
 
 export function useLogout() {
     const navigate = useNavigate();
-    const { endSession } = useApp();
+    const { endSession } = useAuth();
 
     const handleLogout = async () => {
         const confirmed = window.confirm('Are you sure you want to log out?');

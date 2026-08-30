@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useApp } from '../AppContext';
+import { useTransactions, useProcessing, useChartFilter } from '../appState';
 import { useInitialLoadLogic } from '../customHooks/homescreen/useInitialLoadLogic';
 import { useLogout } from '../customHooks/homescreen/useLogout';
 import { useFilePicker } from '../customHooks/homescreen/useFilePicker';
@@ -17,11 +17,9 @@ import '../styles/dashboardStyles.css';
 
 export default function DashboardScreen() {
     const navigate = useNavigate();
-    const {
-        categorising, transactions, initialLoadError, retryInitialLoad, allTransactionsLoaded,
-        contentsSelectedCategories, toggleContentsCategory, toggleAllContentsCategories, categoryColors,
-        uploadBreakdown, refetchUploadBreakdown,
-    } = useApp();
+    const { transactions, initialLoadError, retryInitialLoad, allTransactionsLoaded, categoryColors, uploadBreakdown, refetchUploadBreakdown } = useTransactions();
+    const { categorising } = useProcessing();
+    const { contentsSelectedCategories, toggleContentsCategory, toggleAllContentsCategories } = useChartFilter();
     const { dateRangeInfo, refetchUploadCount } = useInitialLoadLogic();
     const { handleLogout } = useLogout();
     const { pickFiles, selectedFiles, status, setStatus, error, setError } = useFilePicker();

@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useApp } from '../../AppContext';
+import { useTransactions, useProcessing, useChartFilter } from '../../appState';
 import { useTransactionFilters } from './useCategoryFilters';
 import { useSelectionMode } from './useSelectionMode';
 import { useCategoryResolve } from './useCategoryResolve';
@@ -7,10 +7,12 @@ import { useStalenessResync } from './useStalenessResync';
 
 export function useContentsData() {
     const {
-        transactions, setTransactions, categorising, categoryNames,
-        initialLoading, setCategories, bumpChartDataVersion,
+        transactions, setTransactions, categoryNames,
+        initialLoading, setCategories,
         initialLoadError, setInitialLoadError, retryInitialLoad,
-    } = useApp();
+    } = useTransactions();
+    const { categorising } = useProcessing();
+    const { bumpChartDataVersion } = useChartFilter();
 
     useStalenessResync({ transactions, categoryNames, initialLoading, setCategories, setTransactions });
 

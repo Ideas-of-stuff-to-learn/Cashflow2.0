@@ -1,4 +1,4 @@
-import { useApp } from '../AppContext';
+import { useAuth } from '../appState';
 
 const ROLE_COLORS = {
     owner: '#C4A227',
@@ -12,7 +12,7 @@ function capitalize(word) {
 }
 
 export default function RoleBadge() {
-    const { userRole } = useApp();
+    const { userRole } = useAuth();
 
     if (!userRole || !userRole.level) return null;
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signup } from '../api';
-import { useApp } from '../AppContext';
+import { useAuth } from '../appState';
 import '../styles/LoginScreen.css'; // reuse the same styles - identical layout
 import { POST_LOGIN_ROUTE } from '../config/routes';
 
@@ -11,7 +11,7 @@ export default function SignupScreen() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const { completeLogin } = useApp();
+    const { completeLogin } = useAuth();
     const navigate = useNavigate();
 
     async function handleSignup(e) {

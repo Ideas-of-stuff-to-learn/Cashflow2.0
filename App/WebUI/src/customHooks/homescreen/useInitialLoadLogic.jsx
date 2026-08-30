@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { getDateRangeInfo } from '../../utils/homescreen/homescreenUtils';
-import { useApp } from '../../AppContext';
+import { useTransactions } from '../../appState';
 
 export function useInitialLoadLogic() {
-    const { transactions, uploadCount, refetchUploadCount, retryInitialLoad } = useApp();
+    const { transactions, uploadCount, refetchUploadCount, retryInitialLoad } = useTransactions();
 
     const dateRangeInfo = useMemo(() => getDateRangeInfo(transactions), [transactions]);
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login, getMe } from '../api';
-import { useApp } from '../AppContext';
+import { useAuth } from '../appState';
 import '../styles/LoginScreen.css'
 import { POST_LOGIN_ROUTE } from '../config/routes';
 
@@ -69,7 +69,7 @@ export default function LoginScreen() {
     const wakeupStartRef = useRef(null);
     const progressRafRef = useRef(null);
     const stageIntervalRef = useRef(null);
-    const { completeLogin } = useApp();
+    const { completeLogin } = useAuth();
     const navigate = useNavigate();
 
     // No local token to check for existence anymore - the cookie is

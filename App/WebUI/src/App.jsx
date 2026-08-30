@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AppProvider } from './AppContext';
+import { AppStateProvider } from './appState';
 import RequireAuth from './components/RequiresAuth';
 import ResponsiveGate from './components/ResponsiveGate';
 import Layout from './components/Layout';
@@ -14,7 +14,7 @@ import SignupScreen from './screens/SignupScreen';
 
 export default function App() {
   return (
-    <AppProvider>
+    <AppStateProvider>
       <ManualReviewGate />
       <BrowserRouter basename={import.meta.env.PROD ? '/Cashflow2.0' : '/'}>
         <Routes>
@@ -32,6 +32,6 @@ export default function App() {
           </Route>
         </Routes>
       </BrowserRouter>
-    </AppProvider>
+    </AppStateProvider>
   );
 }

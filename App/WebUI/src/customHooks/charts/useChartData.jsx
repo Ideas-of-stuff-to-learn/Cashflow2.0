@@ -1,12 +1,14 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useStackOrder } from './useStackOrder';
 import { useChartWindows } from './useChartWindows';
-import { useApp } from '../../AppContext';
+import { useTransactions, useProcessing, useChartFilter } from '../../appState';
 import { toggleItem, selectAll } from '../../utils/charts/chartUtils';
 import { buildStackDataFromEntries, buildIncomeDataFromEntries } from '../../utils/charts/buildStackData';
 
 export function useChartData() {
-    const { categoryNames, categoryColors, processingStage, chartSummary } = useApp();
+    const { categoryNames, categoryColors } = useTransactions();
+    const { processingStage } = useProcessing();
+    const { chartSummary } = useChartFilter();
 
     const summary = chartSummary;
     const {

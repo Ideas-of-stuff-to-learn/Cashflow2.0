@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useApp } from '../AppContext';
+import { useTransactions, useProcessing, useChartFilter } from '../appState';
 import { useChartData } from '../customHooks/charts/useChartData';
 import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartReveal';
 
@@ -12,18 +12,9 @@ import '../styles/chartStyles.css';
 
 export default function ChartsScreen() {
     const navigate = useNavigate();
-    const {
-        categorising,
-        initialLoading,
-        processingStage,
-        categoryColors,
-        // NEW - this screen's OWN independent filter state, per
-        // today's design: shared only with ContentsScreen-at-mobile-
-        // width, never with Dashboard/FilterPane's contentsSelectedCategories.
-        mobileSelectedCategories,
-        toggleMobileCategory,
-        toggleAllMobileCategories,
-    } = useApp();
+    const { initialLoading, categoryColors } = useTransactions();
+    const { categorising, processingStage } = useProcessing();
+    const { mobileSelectedCategories, toggleMobileCategory, toggleAllMobileCategories } = useChartFilter();
 
     const {
         hasData, selectedSegment,
