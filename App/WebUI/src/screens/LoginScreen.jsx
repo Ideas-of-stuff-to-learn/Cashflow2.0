@@ -14,16 +14,19 @@ function wakeupProgress(elapsedSeconds) {
     return 90 + Math.min(3, (elapsedSeconds - 35) * 0.15);           // 90→93%, crawl
 }
 
-// Maps progress % to a real phase description of what Render is doing.
-function wakeupStage(pct) {
-    if (pct < 15)  return 'Starting up server process…';
-    if (pct < 35)  return 'Booting application workers…';
-    if (pct < 55)  return 'Initialising database connection pool…';
-    if (pct < 72)  return 'Loading application modules…';
-    if (pct < 88)  return 'Running pre-request checks…';
-    if (pct < 100) return 'Almost ready…';
-    return 'Done';
-}
+// Ordered boot stage messages — cycle through on a timer, independent of the bar.
+const WAKEUP_STAGES = [
+    'Spinning up server process…',
+    'Forking gunicorn worker processes…',
+    'Loading Python application modules…',
+    'Connecting to database…',
+    'Initialising connection pool (up to 10 connections)…',
+    'Running startup checks…',
+    'Configuring JWT authentication…',
+    'Loading categorisation pipeline…',
+    'Warming up request handlers…',
+    'Almost ready — waiting for first response…',
+];
 
 export default function LoginScreen() {
     const [username, setUsername] = useState('');
@@ -36,8 +39,10 @@ export default function LoginScreen() {
     const [progress, setProgress] = useState(0);
     const [spinnerFading, setSpinnerFading] = useState(false);
     const [completing, setCompleting] = useState(false);
+    const [stageIndex, setStageIndex] = useState(0);
     const wakeupStartRef = useRef(null);
     const progressRafRef = useRef(null);
+    const stageIntervalRef = useRef(null);
     const { completeLogin } = useApp();
     const navigate = useNavigate();
 
@@ -55,6 +60,7 @@ export default function LoginScreen() {
         setProgress(0);
         setSpinnerFading(false);
         setCompleting(false);
+        setStageIndex(0);
 
         // After 3.5s with no response, transition to wakeup UI
         const slowTimer = setTimeout(() => {
@@ -72,6 +78,10 @@ export default function LoginScreen() {
                     progressRafRef.current = requestAnimationFrame(tick);
                 }
                 progressRafRef.current = requestAnimationFrame(tick);
+                // Cycle stage text every 3.5s
+                stageIntervalRef.current = setInterval(() => {
+                    setStageIndex(i => Math.min(i + 1, WAKEUP_STAGES.length - 1));
+                }, 3500);
             }, 400); // wait for spinner fade-out animation
         }, 3500);
 
@@ -100,6 +110,7 @@ export default function LoginScreen() {
             } finally {
                 clearTimeout(slowTimer);
                 if (progressRafRef.current) cancelAnimationFrame(progressRafRef.current);
+                if (stageIntervalRef.current) clearInterval(stageIntervalRef.current);
             }
         }
 
@@ -108,6 +119,7 @@ export default function LoginScreen() {
             cancelled = true;
             clearTimeout(slowTimer);
             if (progressRafRef.current) cancelAnimationFrame(progressRafRef.current);
+            if (stageIntervalRef.current) clearInterval(stageIntervalRef.current);
         };
     }, [retryCount]);
 
@@ -157,7 +169,7 @@ export default function LoginScreen() {
                             </div>
                             <span className="login-progress-pct">{Math.round(progress)}%</span>
                         </div>
-                        <p className="login-progress-stage">{wakeupStage(progress)}</p>
+                        <p key={stageIndex} className="login-progress-stage">{WAKEUP_STAGES[stageIndex]}</p>
                     </div>
                 ) : (
                     <div className="login-loading-wrap">
