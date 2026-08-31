@@ -75,7 +75,7 @@ export default function ChartWindowSection({
         <>
             <div className="chart-header-row">
                 <p className="section-label">
-                    {mode === 'year' ? 'Spending by year' : 'Spending by month'} — tap a segment for details
+                    {mode === 'year' ? 'Spending by year' : 'Spending by month'} — hover over a segment for details
                 </p>
                 <ChartWindowToggle mode={mode} setMode={setMode} />
             </div>
