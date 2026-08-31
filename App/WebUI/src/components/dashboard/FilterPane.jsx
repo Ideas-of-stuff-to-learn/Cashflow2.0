@@ -55,6 +55,7 @@ export default function FilterPane({
         <div className={`filter-pane filter-pane-right${minimized ? ' filter-pane-collapsed' : ''}`}>
             <div className="filter-pane-header">
                 <span className="filter-pane-title">Filters</span>
+                {/*
                 <button
                     className="filter-pane-icon-btn"
                     onClick={() => setMinimized(m => !m)}
@@ -62,6 +63,7 @@ export default function FilterPane({
                 >
                     {minimized ? '▼' : '▲'}
                 </button>
+                */}
             </div>
 
             {!minimized && (
