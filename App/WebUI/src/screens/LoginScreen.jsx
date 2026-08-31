@@ -172,7 +172,7 @@ export default function LoginScreen() {
     if (checkingStoredSession) {
         return (
             <div className="login-container">
-                <h1 className="login-title">Transaction Categorizer</h1>
+                <h1 className="login-title">Spending Pattern Visualisation Tool</h1>
                 {error ? (
                     <>
                         <p className="login-error" style={{ textAlign: 'center', marginTop: 24 }}>{error}</p>
