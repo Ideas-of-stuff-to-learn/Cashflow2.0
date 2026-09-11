@@ -1,7 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import '../../styles/filterPaneStyles.css';
-
-const MINIMIZED_KEY = 'dashboardFilterPaneMinimized';
 
 export default function FilterPane({
     availableCategories,
@@ -17,16 +15,8 @@ export default function FilterPane({
     persist,
     togglePersist,
 }) {
-    const [minimized, setMinimized] = useState(() => {
-        try { return localStorage.getItem(MINIMIZED_KEY) === 'true'; }
-        catch { return false; }
-    });
     const [dragIndex, setDragIndex] = useState(null);
     const [dragOverIndex, setDragOverIndex] = useState(null);
-
-    useEffect(() => {
-        try { localStorage.setItem(MINIMIZED_KEY, String(minimized)); } catch {}
-    }, [minimized]);
 
     // Displayed top-to-bottom, so the row a person sees at the top is
     // the top (last-drawn) segment of the stacked bar - the reverse of
@@ -52,21 +42,11 @@ export default function FilterPane({
     const allSelected = availableCategories.every(cat => contentsSelectedCategories.has(cat));
 
     return (
-        <div className={`filter-pane filter-pane-right${minimized ? ' filter-pane-collapsed' : ''}`}>
+        <div className="filter-pane filter-pane-right">
             <div className="filter-pane-header">
                 <span className="filter-pane-title">Filters</span>
-                {/*
-                <button
-                    className="filter-pane-icon-btn"
-                    onClick={() => setMinimized(m => !m)}
-                    title={minimized ? 'Expand' : 'Collapse'}
-                >
-                    {minimized ? '▼' : '▲'}
-                </button>
-                */}
             </div>
 
-            {!minimized && (
             <div className="filter-pane-section">
                 <p className="filter-pane-section-title">
                     Categories {isCustomOrder ? '(custom order)' : ''}
@@ -124,7 +104,6 @@ export default function FilterPane({
                     )}
                 </div>
             </div>
-            )}
         </div>
     );
 }
