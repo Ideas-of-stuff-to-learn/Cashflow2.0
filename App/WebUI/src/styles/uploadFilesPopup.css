@@ -1,6 +1,7 @@
 .upload-files-trigger-wrap {
     position: relative;
-    display: inline-block;
+    display: block;
+    width: 100%;
 }
 
 .upload-files-trigger {
@@ -14,9 +15,11 @@
     top: 100%;
     left: 0;
     margin-top: 6px;
-    width: 240px;
+    width: 100%;
+    box-sizing: border-box;
     max-height: 180px;
     overflow-y: auto;
+    overflow-x: hidden;
     background: #fff;
     border: 1px solid #ddd;
     border-radius: 8px;
@@ -36,6 +39,7 @@
     color: #333;
     padding: 4px 6px;
     border-bottom: 1px solid #f0f0f0;
+    overflow-wrap: anywhere;
 }
 
 .upload-files-popup-item:last-child {
