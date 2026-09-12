@@ -7,7 +7,7 @@ import { useStalenessResync } from './useStalenessResync';
 
 export function useContentsData() {
     const {
-        transactions, setTransactions, categoryNames,
+        transactions, setTransactions, categoryNames, categoryColors,
         initialLoading, setCategories,
         initialLoadError, setInitialLoadError, retryInitialLoad,
     } = useTransactions();
@@ -77,6 +77,7 @@ export function useContentsData() {
         closeModal,
 
         selectableCategories: categoryNames,
+        categoryColors,
 
         onToggle, onOpenPicker, onEnterSelectionMode,
     };

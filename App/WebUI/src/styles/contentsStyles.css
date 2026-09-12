@@ -63,6 +63,62 @@
 .selection-button-text-primary { color: #2E5C8A; font-size: 12px; font-weight: 700; }
 .selection-button-text-danger { color: #fff; font-size: 12px; font-weight: 700; }
 
+/* ============================================================
+   Contents screen — desktop layout (cs-* namespace)
+   ============================================================ */
+
+.cs-container { display: flex; flex-direction: column; height: 100%; background: #fff; overflow: hidden; }
+
+/* Topbar */
+.cs-topbar { display: flex; align-items: center; gap: 12px; padding: 9px 18px; background: #fff; border-bottom: 1px solid #eee; flex-shrink: 0; }
+.cs-back-btn { border: 1px solid #2E5C8A; color: #2E5C8A; background: none; border-radius: 6px; font-size: 12px; font-weight: 700; padding: 4px 10px; cursor: pointer; white-space: nowrap; }
+.cs-back-btn:hover { background: #ebf1f8; }
+.cs-page-title { font-size: 15px; font-weight: 800; color: #222; }
+.cs-meta { font-size: 12px; color: #999; margin-left: auto; }
+
+/* Body: sidebar + main */
+.cs-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+
+/* Sidebar */
+.cs-sidebar { width: 196px; flex-shrink: 0; border-right: 1px solid #eee; background: #fafafa; display: flex; flex-direction: column; overflow-y: auto; }
+.cs-sidebar-offset { height: 86px; flex-shrink: 0; }
+.cs-sidebar-head { font-size: 9px; font-weight: 800; color: #aaa; text-transform: uppercase; letter-spacing: 0.6px; padding: 12px 16px 6px; }
+.cs-cat-item { display: flex; align-items: center; gap: 7px; padding: 6px 12px; background: none; border: none; cursor: pointer; width: 100%; text-align: left; }
+.cs-cat-item:hover { background: #f0f4f8; }
+.cs-cat-item-active { background: #ebf1f8; }
+.cs-cat-item-active:hover { background: #dde9f5; }
+.cs-cat-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.cs-cat-name { font-size: 12px; color: #333; flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-cat-count { font-size: 10px; color: #bbb; flex-shrink: 0; }
+
+/* Main content area */
+.cs-main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.cs-search-wrap { padding: 8px 14px; border-bottom: 1px solid #eee; flex-shrink: 0; height: 52px; box-sizing: border-box; }
+.cs-search { width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 8px 10px; font-size: 13px; color: #333; background: #f7f7f7; outline: none; }
+.cs-search:focus { border-color: #2E5C8A; background: #fff; }
+
+/* Count row (normal mode) */
+.cs-count-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 14px; background: #fafafa; border-bottom: 1px solid #eee; flex-shrink: 0; height: 34px; box-sizing: border-box; }
+.cs-count-text { font-size: 12px; color: #888; }
+.cs-select-link { font-size: 12px; color: #2E5C8A; font-weight: 600; background: none; border: none; cursor: pointer; }
+
+/* Selection bar (replaces count row in selection mode) */
+.cs-sel-bar { display: flex; align-items: center; gap: 8px; padding: 6px 14px; background: #ebf1f8; border-bottom: 1px solid #c5d9ee; flex-shrink: 0; height: 34px; box-sizing: border-box; }
+.cs-sel-count { font-size: 12px; font-weight: 700; color: #2E5C8A; white-space: nowrap; }
+.cs-sel-divider { width: 1px; height: 16px; background: #c5d9ee; flex-shrink: 0; }
+.cs-sel-btn-ghost { background: #fff; border: 1px solid #c5d9ee; border-radius: 5px; padding: 4px 10px; font-size: 11px; font-weight: 600; color: #2E5C8A; cursor: pointer; white-space: nowrap; }
+.cs-sel-btn-ghost:hover:not(:disabled) { background: #dde9f5; }
+.cs-sel-btn-primary { background: #2E5C8A; border: none; border-radius: 5px; padding: 4px 12px; font-size: 11px; font-weight: 700; color: #fff; cursor: pointer; white-space: nowrap; }
+.cs-sel-btn-primary:hover:not(:disabled) { background: #245075; }
+.cs-sel-btn-danger { background: none; border: 1px solid #e53e3e; border-radius: 5px; padding: 4px 10px; font-size: 11px; font-weight: 700; color: #e53e3e; cursor: pointer; white-space: nowrap; }
+.cs-sel-btn-danger:hover:not(:disabled) { background: #fff5f5; }
+.cs-sel-btn-off { opacity: 0.4; cursor: not-allowed; }
+.cs-sel-btn-cancel { margin-left: auto; background: none; border: none; font-size: 11px; font-weight: 600; color: #888; cursor: pointer; white-space: nowrap; }
+.cs-sel-btn-cancel:hover { color: #444; }
+
+/* Table scroll container */
+.cs-table { flex: 1; overflow-y: auto; }
+
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 1000; }
 .modal-card { background: #fff; border-radius: 12px; padding: 16px; max-height: 70%; overflow: hidden; display: flex; flex-direction: column;   justify-content: center; /* Horizontal center */
   align-items: center;}
