@@ -80,8 +80,9 @@ When you discover something that should persist:
 | Session state / recent changes | `context/handoff.md` |
 
 After updating Markdown, sync to SQLite:
-```python
-python .ai/rebuild_db.py  # if it exists; otherwise update manually
+```bash
+python .ai/sync_context.py   # fast — only re-syncs changed context/*.md docs
+python .ai/rebuild_db.py     # full rebuild — use when file index/deps/constraints change
 ```
 
 ---
@@ -96,11 +97,14 @@ When a change is substantial enough to count as its own milestone: promote the e
 
 ## Git Workflow
 
+- **Trigger word:** `"push"` — when the owner says this, commit and push current work
 - Direct to `main` by default (no PR unless owner requests one)
 - Never auto-merge
-- `git pull --rebase` before pushing if behind origin
+- Branch workflow (`ai/<desc>`) only when owner explicitly requests a PR; after merge: `git checkout main && git pull origin main`
+- `git pull --rebase` before pushing if behind origin; `git stash -u` first if uncommitted changes exist
 - Commit attribution: end all commit messages with `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>`
 - Bot commits (`Backup log:`, `Keep-alive ping:`) appear in git log — ignore them
+- Full git workflow stored in SQLite: `SELECT workflow, notes FROM git_configuration WHERE id = 1;`
 
 ---
 

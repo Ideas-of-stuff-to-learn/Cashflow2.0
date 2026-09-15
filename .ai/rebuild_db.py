@@ -70,12 +70,15 @@ CREATE TABLE IF NOT EXISTS realignment (
     git_doc              TEXT,
     notes                TEXT
 );
-CREATE TABLE IF NOT EXISTS git_configuration (
+DROP TABLE IF EXISTS git_configuration;
+CREATE TABLE git_configuration (
     id            INTEGER PRIMARY KEY,
     upstream      TEXT,
     base_branch   TEXT,
     auto_merge    INTEGER DEFAULT 0,
     branch_prefix TEXT,
+    trigger_word  TEXT,
+    workflow      TEXT,
     notes         TEXT
 );
 """)
@@ -505,9 +508,17 @@ c.executemany(
 
 # ── Git Config ────────────────────────────────────────────────────────────────
 c.execute("""
-INSERT OR REPLACE INTO git_configuration (id, upstream, base_branch, auto_merge, branch_prefix, notes)
-VALUES (1, 'https://github.com/Ideas-of-stuff-to-learn/Cashflow2.0.git', 'main', 0, 'ai/',
-'Direct to main by default. PR only if owner requests. Bot commits (Backup log, Keep-alive ping) appear in git log — ignore them.')
+INSERT OR REPLACE INTO git_configuration (id, upstream, base_branch, auto_merge, branch_prefix, trigger_word, workflow, notes)
+VALUES (
+    1,
+    'https://github.com/Ideas-of-stuff-to-learn/Cashflow2.0.git',
+    'main',
+    0,
+    'ai/',
+    'push',
+    'implement locally → npm run build → owner says "push" → git add <files> → commit → git pull --rebase → git push origin main. Branch workflow (ai/<desc>) only when owner explicitly requests a PR. Never auto-merge. After PR merge: git checkout main + git pull origin main.',
+    'Bot commits (Backup log, Keep-alive ping) appear in git log — ignore them. stash -u before pull --rebase if uncommitted changes exist.'
+)
 """)
 
 # ── Realignment Record ────────────────────────────────────────────────────────

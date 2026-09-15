@@ -1,18 +1,92 @@
 # Cashflow2.0 — Git Context
 
-## Repository
+## Repository Configuration
 
 ```yaml
-upstream: https://github.com/Ideas-of-stuff-to-learn/Cashflow2.0.git
-base_branch: main
-auto_merge: false
+upstream:      https://github.com/Ideas-of-stuff-to-learn/Cashflow2.0.git
+base_branch:   main
+branch_prefix: ai/
+auto_merge:    false
+trigger_word:  "push"
 ```
 
-## Current Workflow
+**Trigger word:** When the owner says `"push"` (or equivalent — "push it", "push all", "push to main"), that is the signal to commit and push the current work.
 
-The project owner pushes directly to `main` for most changes (no PR required unless the owner explicitly requests one). Claude Code follows the owner's direction: implement locally, build to verify, then push to main when the owner says "push" or equivalent.
+---
 
-Do NOT auto-merge anything. Do NOT open a PR unless the owner explicitly asks for one.
+## Workflow
+
+### Normal (default) — direct to main
+
+```text
+implement locally
+    ↓
+npm run build (verify)
+    ↓
+owner says "push"
+    ↓
+git add <specific files>
+    ↓
+git commit -m "..." (with attribution)
+    ↓
+git pull --rebase (if behind origin)
+    ↓
+git push origin main
+```
+
+Do NOT auto-merge. Do NOT open a PR unless the owner explicitly asks for one.
+
+### Branch workflow — only when owner requests a PR or branch
+
+```text
+git checkout main
+    ↓
+git pull origin main
+    ↓
+git checkout -b ai/<short-description>
+    ↓
+implement changes
+    ↓
+npm run build (verify)
+    ↓
+git add <specific files>
+    ↓
+git commit -m "..."
+    ↓
+git push origin ai/<short-description>
+    ↓
+gh pr create ...
+    ↓
+WAIT — owner reviews and merges
+    ↓
+git checkout main
+git pull origin main
+```
+
+Never silently work on main when a branch was requested, and never silently work on a branch when direct-to-main is the current mode.
+
+---
+
+## Local vs Remote State
+
+```text
+Local:   git checkout main → working copy on disk
+Remote:  origin/main       → GitHub
+
+Sync:    git pull --rebase  (fetch + rebase local commits on top)
+         git push origin main
+```
+
+Always run `git pull --rebase` before pushing if there's a chance the remote has moved (bot commits happen nightly).
+
+If local has uncommitted changes before a pull:
+```text
+git stash -u
+git pull --rebase
+git stash pop
+```
+
+---
 
 ## Commit Attribution
 
@@ -21,14 +95,16 @@ All commits must end with:
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 ```
 
-## Branch Naming (if a branch is ever requested)
+---
+
+## Branch Naming
 
 ```
 ai/<short-description>
 ```
-Example: `ai/fix-auth-refresh`
+Examples: `ai/fix-auth-refresh`, `ai/contents-redesign`, `ai/sentinel-sync`
 
-Only create a branch if the owner explicitly requests it. Default is direct-to-main.
+---
 
 ## Automated Bot Commits
 
@@ -36,23 +112,23 @@ Two GitHub Actions workflows auto-commit to main:
 - `supabase-backup.yml` → appends to `DBbackupLog.txt` (nightly)
 - `supabase-keep-alive.yml` → appends to `DBaliveLog.txt` (nightly/periodic)
 
-These bot commits appear in `git log` with messages like `"Backup log: SUCCESS (2026-09-12 07:49 UTC)"`. They are not human changes.
+These appear in `git log` as `"Backup log: SUCCESS ..."` and `"Keep-alive ping: SUCCESS ..."`. They are not human changes — ignore them when reading history.
+
+---
 
 ## Pre-Push Checklist
 
 1. `npm run build` passes in `App/WebUI/`
-2. No unintended files staged (check `git status`)
-3. Commit message describes the actual change (not just "update files")
-4. `git pull --rebase` before push if behind origin (stash changes first if needed)
+2. `git status` — no unintended files staged, no secrets
+3. Commit message describes the actual change
+4. `git pull --rebase` if behind origin
 
-## Key Branches
-
-- `main` — the only permanent branch; all work lands here
+---
 
 ## GitHub Actions
 
 | Workflow | Trigger | Effect |
 |---|---|---|
-| `autoDeployFrontend.yml` | Push to main | Deploys web frontend |
+| `autoDeployFrontend.yml` | Push to main | Deploys web frontend to Render |
 | `supabase-backup.yml` | Nightly schedule | `pg_dump` → artifact + `DBbackupLog.txt` commit |
 | `supabase-keep-alive.yml` | Periodic schedule | Ping DB + `DBaliveLog.txt` commit |

@@ -1034,7 +1034,21 @@ SQLite reflects new information
 ```
 
 The database should not drift indefinitely from the Markdown.
-The system should support re-indexing/rebuilding when necessary (`python .ai/rebuild_db.py`).
+Two sync modes:
+
+**Incremental sync** — after editing one or more `context/*.md` files, run:
+```bash
+python .ai/sync_context.py
+```
+This re-hashes each context doc, updates `updated_at` and `content_hash` for any that changed, and leaves the file index, dependencies, constraints, and all other tables untouched.
+
+**Full rebuild** — after changing the file index, dependencies, constraints, decisions, problems, failed solutions, or git config:
+```bash
+python .ai/rebuild_db.py
+```
+This drops and recreates all rows in all tables from scratch.
+
+Use incremental sync for context/*.md edits. Use full rebuild when the structured data changes.
 
 ---
 
@@ -1177,15 +1191,19 @@ initialize/read repository intelligence system
 
 If a Git upstream already exists, use `context/gitContext.md` and its corresponding SQLite configuration.
 
-Example:
+The `git_configuration` table in SQLite stores:
 
 ```yaml
-upstream:
-trigger_word:
-base_branch: main
+upstream:      <repo URL>
+base_branch:   main
 branch_prefix: ai/
-auto_merge: false
+auto_merge:    false
+trigger_word:  <the word/phrase that means "commit and push now">
+workflow:      <description of the full local→remote flow>
+notes:         <gotchas, bot commits, stash pattern, etc.>
 ```
+
+The trigger word is the owner's signal to commit and push. When it is used, execute the full workflow stored in the `workflow` field.
 
 ---
 
