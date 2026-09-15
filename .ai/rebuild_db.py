@@ -97,6 +97,8 @@ context_docs = [
     ("handoff",          "context/handoff.md",          "Session handoff: recent changes, open work, notes for next session",      "handoff,session,recent"),
     ("realignment",      "context/realignment.md",      "Recovery map: how to reconstruct project understanding from scratch",     "realignment,recovery,onboarding"),
     ("gitContext",       "context/gitContext.md",        "Git repo URL, workflow rules, CI/CD summary",                            "git,workflow,ci,deploy"),
+    ("revert-state",     "context/revert-state.md",      "Safe-point commit hashes recorded before each task for instant revert",   "git,revert,safety"),
+    ("savings-log",      "context/savings-log.md",       "Running log of sessions using the intelligence system vs cold-scanning",  "meta,savings,log"),
 ]
 c.executemany(
     "INSERT OR REPLACE INTO context_documents (name, path, description, tags, updated_at) VALUES (?, ?, ?, ?, date('now'))",

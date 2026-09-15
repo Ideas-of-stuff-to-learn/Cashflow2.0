@@ -1085,7 +1085,38 @@ Token counts are not tracked here because Claude has no access to its own token 
 
 ---
 
-## 39. Ghost Test (Mental Dry-Run)
+## 39. Revert State — Safe Points
+
+Before touching any code, record the current commit hash as a safe-point in `context/revert-state.md`.
+
+```bash
+git rev-parse HEAD
+```
+
+Log format:
+```
+YYYY-MM-DD | task: <description> | safe-point: <hash> | status: in-progress
+```
+
+Update status to `complete` or `reverted` when the task ends.
+
+If something goes wrong:
+```bash
+git reset --hard <hash>   # local only — discards all changes since safe-point
+git revert <hash>         # already pushed — creates a new commit undoing changes
+```
+
+This is mandatory before every non-trivial code change. It costs one command and enables instant recovery.
+The ghost test and revert state work together:
+
+```text
+ghost test          → catch problems before touching files
+revert safe-point   → catch everything the ghost test missed
+```
+
+---
+
+## 40. Ghost Test (Mental Dry-Run)
 
 Before executing a code change, the AI must perform a ghost test: a mental simulation of the change to verify understanding before touching any files.
 
@@ -1132,7 +1163,7 @@ Never skip the ghost test to save time. A wrong change caught during ghost testi
 
 ---
 
-## 40. Verification
+## 41. Verification
 
 After modifying code:
 
@@ -1178,7 +1209,7 @@ Never declare success merely because the code appears correct.
 
 ---
 
-## 41. Evidence Hierarchy
+## 42. Evidence Hierarchy
 
 When information conflicts, use:
 
@@ -1201,7 +1232,7 @@ Do not invent missing information.
 
 ---
 
-## 42. Git Bootstrap
+## 43. Git Bootstrap
 
 If the working folder is completely empty and has no Git repository/upstream:
 Ask: What repository HTTP URL should I clone and configure?
@@ -1220,7 +1251,7 @@ initialize/read repository intelligence system
 
 ---
 
-## 43. Existing Git Repository
+## 44. Existing Git Repository
 
 If a Git upstream already exists, use `context/gitContext.md` and its corresponding SQLite configuration.
 
@@ -1240,7 +1271,7 @@ The trigger word is the owner's signal to commit and push. When it is used, exec
 
 ---
 
-## 44. Git Trigger Workflow
+## 45. Git Trigger Workflow
 
 When the configured trigger word is explicitly used, perform the defined Git workflow.
 Conceptually:
@@ -1267,7 +1298,7 @@ The commit message must meaningfully describe the changes.
 
 ---
 
-## 45. Git Branching
+## 46. Git Branching
 
 AI work should occur on a dedicated branch when the configured workflow requires it.
 Example: `ai/fix-auth-refresh`
@@ -1275,7 +1306,7 @@ Do not silently perform the workflow directly on `main`.
 
 ---
 
-## 46. No Automatic Merge
+## 47. No Automatic Merge
 
 Default: `auto_merge: false`
 Do not automatically merge the Pull Request into `main`.
@@ -1283,7 +1314,7 @@ After pushing and creating the PR, wait for the user to merge it.
 
 ---
 
-## 47. Normal Task Lifecycle
+## 48. Normal Task Lifecycle
 
 The complete normal workflow is:
 
@@ -1337,7 +1368,7 @@ Task complete
 
 ---
 
-## 48. New Session Lifecycle
+## 49. New Session Lifecycle
 
 A new session should begin with the persistent knowledge system rather than assuming conversational memory exists.
 
@@ -1365,7 +1396,7 @@ Continue
 
 ---
 
-## 49. Migration Lifecycle
+## 50. Migration Lifecycle
 
 If the repository already has context:
 
@@ -1405,7 +1436,7 @@ Do not lose information during migration.
 
 ---
 
-## 50. The Roles of Each Component
+## 51. The Roles of Each Component
 
 Keep these distinctions clear.
 
@@ -1446,7 +1477,7 @@ Git
 
 ---
 
-## 51. What the AI Should NOT Do
+## 52. What the AI Should NOT Do
 
 Do not:
 
@@ -1469,7 +1500,7 @@ Do not:
 
 ---
 
-## 52. Final System Mental Model
+## 53. Final System Mental Model
 
 The complete system should be understood as:
 

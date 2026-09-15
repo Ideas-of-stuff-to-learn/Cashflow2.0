@@ -83,6 +83,15 @@ When you discover something that should persist:
 | Active task state | `context/current-task.md` |
 | Session state / recent changes | `context/handoff.md` |
 | Intelligence system usage | `context/savings-log.md` |
+| Revert safe-points | `context/revert-state.md` |
+
+**Before touching any code**, record the current commit hash in `context/revert-state.md`:
+```bash
+git rev-parse HEAD  # copy this hash into the log
+```
+Format: `YYYY-MM-DD | task: <description> | safe-point: <hash> | status: in-progress`
+Update status to `complete` or `reverted` when done.
+If changes are still local: `git reset --hard <hash>`. If already pushed: `git revert <hash>`.
 
 At the end of every session, append one line to `context/savings-log.md`:
 ```

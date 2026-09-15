@@ -28,6 +28,8 @@ CONTEXT_DOCS = {
     "handoff":          "context/handoff.md",
     "realignment":      "context/realignment.md",
     "gitContext":       "context/gitContext.md",
+    "revert-state":    "context/revert-state.md",
+    "savings-log":     "context/savings-log.md",
 }
 
 def file_hash(path):
