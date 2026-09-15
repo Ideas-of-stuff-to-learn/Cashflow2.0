@@ -1626,3 +1626,42 @@ The resulting system is:
 ```
 
 Its purpose is to turn Claude Code from an AI that repeatedly reconstructs a project's understanding from whatever happens to fit into its current context window into an AI agent that operates over a persistent, searchable, structured and continuously improving model of the repository.
+
+---
+
+## 54. Progress Updates During Tasks
+
+For any task — small or large — the AI must give the owner regular inline progress updates in the chat UI as it works. The owner should never be left wondering how far along a task is or what step is currently happening.
+
+### Rule
+
+After completing each meaningful sub-step of a task, output a one-to-two line progress update directly in the chat. Include a rough percentage of the overall task in brackets.
+
+**Format:**
+```
+✓ <what was just done> [~X% complete]
+```
+Or for a blocker/decision point:
+```
+→ <current step / what's next> [~X% complete]
+```
+
+### What counts as a sub-step
+
+- Reading or querying a file/DB to gather context
+- Completing a ghost test / planning phase
+- Finishing edits to one file or one logical group of files
+- Completing a sync, build, or verification step
+- Hitting a notable decision point or unexpected finding
+
+### What percentage means
+
+The percentage is rough and relative to the whole task as understood at that moment. It does not need to be precise — it is a pulse for the owner. If the scope expands mid-task, the percentage should reset or acknowledge the expansion ("scope grew — resetting to ~30%").
+
+### This applies to all task sizes
+
+Even a small two-file change should have a brief mid-task update (e.g., "reading constraints, about to edit" → "done"). Large multi-file tasks should have an update after each file group or logical phase.
+
+### Never front-load the whole plan
+
+Do not output a long upfront plan and then go silent while executing. Give updates as you go, not all at once at the start or end.

@@ -127,6 +127,21 @@ When a change is substantial enough to count as its own milestone: promote the e
 
 ---
 
+## Progress Updates
+
+After each meaningful sub-step of any task — reading context, finishing a file edit, completing a sync, hitting a decision point — output a one-to-two line update in chat with a rough overall completion percentage:
+
+```
+✓ <what was just done> [~X% complete]
+→ <what's next / current step> [~X% complete]
+```
+
+- Applies to every task, small or large
+- Percentage is a rough pulse, not a precise figure; reset or note if scope expands
+- Do not front-load a full plan and then go silent — give updates as work progresses
+
+---
+
 ## Hard Constraints (Quick Reference)
 
 - **Owner badge must always be top-right** — Layout.jsx 3-column grid enforces this

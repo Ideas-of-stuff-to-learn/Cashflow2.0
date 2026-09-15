@@ -62,6 +62,13 @@ Schema changes go directly to Supabase via hand-applied SQL. `App/API/schema.sql
 **No auto-merge.**
 Never auto-merge PRs. The owner manually merges after testing. Do not enable auto-merge via GitHub settings or `gh` commands.
 
+## AI Behavior
+
+**Progress updates are mandatory for every task.**
+After each meaningful sub-step (context read, file edit, sync, decision point), output a one-to-two line update in the chat UI with a rough percentage:
+`✓ <done> [~X%]` or `→ <next> [~X%]`
+Never go silent mid-task. Never front-load the full plan and then execute silently. Applies to small and large tasks equally.
+
 ## Routing
 
 **ResponsiveGate owns the mobile/desktop routing split.**
