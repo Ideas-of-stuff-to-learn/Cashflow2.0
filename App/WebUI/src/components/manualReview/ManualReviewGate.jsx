@@ -13,6 +13,7 @@ export default function ManualReviewGate() {
     const pendingResolutionsRef = useRef([]);
     const [flushError, setFlushError] = useState(false);
     const [flushing, setFlushing] = useState(false);
+    const [exitConfirmPending, setExitConfirmPending] = useState(false);
 
     // Page-unload safety net: if the user closes the tab mid-sequential,
     // sendBeacon resolves whatever is still NEEDS_MANUAL_REVIEW in the DB
@@ -46,16 +47,29 @@ export default function ManualReviewGate() {
         }
     }
 
+    const MR_STORAGE_KEY = 'mr_pending_picks';
+
+    function savePendingToStorage(picks) {
+        try { sessionStorage.setItem(MR_STORAGE_KEY, JSON.stringify(picks)); } catch (_) {}
+    }
+
+    function clearPendingStorage() {
+        try { sessionStorage.removeItem(MR_STORAGE_KEY); } catch (_) {}
+    }
+
     function handleSequentialPick(category) {
         const current = manualReviewFlow.needsReviewItems[0];
         if (!current) return;
 
-        pendingResolutionsRef.current.push({
+        const resolution = {
             description: current.description,
             date: current.date,
             amount: current.amount,
             category,
-        });
+        };
+
+        pendingResolutionsRef.current.push(resolution);
+        savePendingToStorage(pendingResolutionsRef.current);
 
         setTransactions(prev => prev.map(t =>
             (t.description === current.description && t.date === current.date && t.amount === current.amount)
@@ -79,12 +93,37 @@ export default function ManualReviewGate() {
             await resolveCategories(pendingResolutionsRef.current);
             bumpChartDataVersion();
             pendingResolutionsRef.current = [];
+            clearPendingStorage();
             closeManualReviewFlow();
         } catch (e) {
             console.warn('Failed to flush resolutions:', e.message);
             setFlushError(true);
         } finally {
             setFlushing(false);
+        }
+    }
+
+    async function handleExitConfirm() {
+        setFlushing(true);
+        setFlushError(false);
+        try {
+            if (pendingResolutionsRef.current.length > 0) {
+                await resolveCategories(pendingResolutionsRef.current);
+                pendingResolutionsRef.current = [];
+                clearPendingStorage();
+            }
+            await resolveRemainingToOther();
+            setTransactions(prev => prev.map(t =>
+                t.category === NEEDS_MANUAL_REVIEW ? { ...t, category: 'Other' } : t
+            ));
+            bumpChartDataVersion();
+            closeManualReviewFlow();
+        } catch (e) {
+            console.warn('Failed to exit manual review:', e.message);
+            setFlushError(true);
+        } finally {
+            setFlushing(false);
+            setExitConfirmPending(false);
         }
     }
 
@@ -111,7 +150,11 @@ export default function ManualReviewGate() {
                 flushError={flushError}
                 flushing={flushing}
                 isDone={isDone}
-                onRetry={flushPendingResolutions}
+                onRetry={() => {}}
+                onExit={() => setExitConfirmPending(true)}
+                exitConfirmPending={exitConfirmPending}
+                onExitConfirm={handleExitConfirm}
+                onExitCancel={() => setExitConfirmPending(false)}
             />
         );
     }

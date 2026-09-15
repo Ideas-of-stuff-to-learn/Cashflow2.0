@@ -138,3 +138,15 @@ justify-content: center; /* Horizontal center */
 .modal-info p {
     margin: 0;
 }
+
+.modal-exit-row { display: flex; justify-content: flex-end; margin-top: 12px; }
+.modal-exit-btn { background: #D94F4F; color: #fff; border: none; border-radius: 6px; padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.modal-exit-btn:hover { background: #b83c3c; }
+
+.modal-exit-confirm-body { font-size: 14px; color: #444; line-height: 1.6; margin: 12px 0 20px; }
+.modal-exit-confirm-buttons { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.modal-exit-confirm-btn { padding: 12px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; }
+.modal-exit-confirm-btn-danger { background: #D94F4F; color: #fff; }
+.modal-exit-confirm-btn-danger:hover { background: #b83c3c; }
+.modal-exit-confirm-btn-secondary { background: #eee; color: #333; }
+.modal-exit-confirm-btn-secondary:hover { background: #ddd; }

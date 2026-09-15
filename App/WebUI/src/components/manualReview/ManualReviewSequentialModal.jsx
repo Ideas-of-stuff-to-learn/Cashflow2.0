@@ -5,12 +5,13 @@ import '../../styles/contentsStyles.css';
 export default function ManualReviewSequentialModal({
     current, remainingCount, selectableCategories, onPick,
     flushError, flushing, isDone, onRetry,
+    onExit, exitConfirmPending, onExitConfirm, onExitCancel,
 }) {
     if (flushing || isDone) {
         return (
             <div className="modal-backdrop">
                 <div className="modal-card">
-                    <p className="modal-desc">{flushing ? 'Saving your categories…' : 'All done!'}</p>
+                    <p className="modal-desc">{flushing ? 'Saving…' : 'All done!'}</p>
                 </div>
             </div>
         );
@@ -24,6 +25,29 @@ export default function ManualReviewSequentialModal({
                     <button className="modal-option" onClick={onRetry}>
                         <span className="modal-option-text">Retry</span>
                     </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (exitConfirmPending) {
+        return (
+            <div className="modal-backdrop">
+                <div className="modal-card">
+                    <h1 className="modal-title">Exit manual categorisation?</h1>
+                    <p className="modal-exit-confirm-body">
+                        Exiting gives you access to the rest of the app. Since incomplete data should not be shown,
+                        your current picks will be saved and the remaining {remainingCount} transaction{remainingCount !== 1 ? 's' : ''} will
+                        be placed in <strong>Other</strong>.
+                    </p>
+                    <div className="modal-exit-confirm-buttons">
+                        <button className="modal-exit-confirm-btn modal-exit-confirm-btn-danger" onClick={onExitConfirm}>
+                            Confirm exit
+                        </button>
+                        <button className="modal-exit-confirm-btn modal-exit-confirm-btn-secondary" onClick={onExitCancel}>
+                            Go back to categorising
+                        </button>
+                    </div>
                 </div>
             </div>
         );
@@ -55,6 +79,9 @@ export default function ManualReviewSequentialModal({
                             <span className="modal-option-text">{cat}</span>
                         </button>
                     ))}
+                </div>
+                <div className="modal-exit-row">
+                    <button className="modal-exit-btn" onClick={onExit}>Exit</button>
                 </div>
             </div>
         </div>

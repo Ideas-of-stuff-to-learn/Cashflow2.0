@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
-import { getCategories, getUploadCount, getUploadBreakdown, getTransactionHistory } from '../api';
+import { getCategories, getUploadCount, getUploadBreakdown, getTransactionHistory, resolveCategories } from '../api';
 import { useAuth } from './AuthContext';
 import { useProcessing } from './ProcessingContext';
 
@@ -89,9 +89,34 @@ export function TransactionsProvider({ children }) {
 
                 if (!cancelled) {
                     setAllTransactionsLoaded(true);
+
+                    // If the user reloaded mid-manual-review, flush any picks they
+                    // had accumulated in sessionStorage before showing the flow count.
+                    let flushedPicks = [];
+                    try {
+                        const stored = sessionStorage.getItem('mr_pending_picks');
+                        if (stored) {
+                            flushedPicks = JSON.parse(stored);
+                            sessionStorage.removeItem('mr_pending_picks');
+                            if (flushedPicks.length > 0) {
+                                await resolveCategories(flushedPicks);
+                            }
+                        }
+                    } catch (_) {}
+
                     setTransactions(current => {
-                        startManualReviewFlowIfNeeded(current);
-                        return current;
+                        // Reflect flushed picks locally so the flow count is accurate
+                        const resolvedMap = new Map(
+                            flushedPicks.map(p => [`${p.description}|${p.date}|${p.amount}`, p.category])
+                        );
+                        const corrected = flushedPicks.length > 0
+                            ? current.map(t => {
+                                const key = `${t.description}|${t.date}|${t.amount}`;
+                                return resolvedMap.has(key) ? { ...t, category: resolvedMap.get(key) } : t;
+                            })
+                            : current;
+                        startManualReviewFlowIfNeeded(corrected);
+                        return corrected;
                     });
                 }
             } catch (e) {
