@@ -972,6 +972,24 @@ Current investigation state
 Do not force the LLM to carry permanent knowledge inside every context window.
 Retrieve it when needed.
 
+**The context window must stay light at all times — including within an ongoing session.**
+Do not accumulate knowledge in the context window just because it is convenient.
+When you need to know something specific, query SQLite for it rather than holding everything in memory.
+Pull in exactly what the current task requires, nothing more.
+
+```text
+Need to know which files relate to X?
+    → SELECT path, description FROM files WHERE tags LIKE '%X%';
+
+Need to know what constraints apply?
+    → SELECT title, description FROM constraints WHERE severity = 'hard';
+
+Need to know what's been tried before?
+    → SELECT title, lesson FROM failed_solutions WHERE area = 'X';
+```
+
+This is not just for new sessions. It applies continuously throughout every session.
+
 ---
 
 ## 35. Knowledge Promotion

@@ -8,6 +8,10 @@ Personal-finance transaction tracker: users upload bank statement CSV/Excel file
 
 This repository uses a persistent intelligence system. Do not reconstruct project understanding from scratch by scanning the whole repo — use the knowledge system instead.
 
+### Keep the Context Window Light
+
+Query SQLite for exactly what the current task needs — do not load everything upfront, and do not accumulate knowledge in the context window just because it is convenient. This applies continuously throughout every session, not only at the start.
+
 ### Entry Point
 
 **SQLite database:** `.ai/knowledge.db`
