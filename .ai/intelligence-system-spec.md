@@ -1132,7 +1132,7 @@ Never skip the ghost test to save time. A wrong change caught during ghost testi
 
 ---
 
-## 39. Verification
+## 40. Verification
 
 After modifying code:
 
@@ -1178,7 +1178,7 @@ Never declare success merely because the code appears correct.
 
 ---
 
-## 40. Evidence Hierarchy
+## 41. Evidence Hierarchy
 
 When information conflicts, use:
 
@@ -1201,7 +1201,7 @@ Do not invent missing information.
 
 ---
 
-## 41. Git Bootstrap
+## 42. Git Bootstrap
 
 If the working folder is completely empty and has no Git repository/upstream:
 Ask: What repository HTTP URL should I clone and configure?
@@ -1220,7 +1220,7 @@ initialize/read repository intelligence system
 
 ---
 
-## 42. Existing Git Repository
+## 43. Existing Git Repository
 
 If a Git upstream already exists, use `context/gitContext.md` and its corresponding SQLite configuration.
 
@@ -1240,7 +1240,7 @@ The trigger word is the owner's signal to commit and push. When it is used, exec
 
 ---
 
-## 43. Git Trigger Workflow
+## 44. Git Trigger Workflow
 
 When the configured trigger word is explicitly used, perform the defined Git workflow.
 Conceptually:
@@ -1267,7 +1267,7 @@ The commit message must meaningfully describe the changes.
 
 ---
 
-## 44. Git Branching
+## 45. Git Branching
 
 AI work should occur on a dedicated branch when the configured workflow requires it.
 Example: `ai/fix-auth-refresh`
@@ -1275,7 +1275,7 @@ Do not silently perform the workflow directly on `main`.
 
 ---
 
-## 45. No Automatic Merge
+## 46. No Automatic Merge
 
 Default: `auto_merge: false`
 Do not automatically merge the Pull Request into `main`.
@@ -1283,7 +1283,7 @@ After pushing and creating the PR, wait for the user to merge it.
 
 ---
 
-## 46. Normal Task Lifecycle
+## 47. Normal Task Lifecycle
 
 The complete normal workflow is:
 
@@ -1337,7 +1337,7 @@ Task complete
 
 ---
 
-## 47. New Session Lifecycle
+## 48. New Session Lifecycle
 
 A new session should begin with the persistent knowledge system rather than assuming conversational memory exists.
 
@@ -1365,7 +1365,7 @@ Continue
 
 ---
 
-## 48. Migration Lifecycle
+## 49. Migration Lifecycle
 
 If the repository already has context:
 
@@ -1405,7 +1405,7 @@ Do not lose information during migration.
 
 ---
 
-## 49. The Roles of Each Component
+## 50. The Roles of Each Component
 
 Keep these distinctions clear.
 
@@ -1446,7 +1446,7 @@ Git
 
 ---
 
-## 50. What the AI Should NOT Do
+## 51. What the AI Should NOT Do
 
 Do not:
 
@@ -1469,7 +1469,7 @@ Do not:
 
 ---
 
-## 51. Final System Mental Model
+## 52. Final System Mental Model
 
 The complete system should be understood as:
 
