@@ -18,4 +18,4 @@ Use `git revert` when changes have already been pushed to origin.
 | Date | Task | Safe-point commit | Status |
 |---|---|---|---|
 | 2026-09-15 | Intelligence system build | a155128 | complete — no revert needed |
-| 2026-09-15 | Manual review reload persistence + exit button | 49c97b1 | in-progress |
+| 2026-09-15 | Manual review reload persistence + exit button | 49c97b1 | complete — no revert needed |

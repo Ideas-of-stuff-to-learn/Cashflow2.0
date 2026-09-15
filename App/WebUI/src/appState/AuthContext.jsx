@@ -29,6 +29,12 @@ export function AuthProvider({ children }) {
         setIsLoggedIn(false);
     }, []);
 
+    useEffect(() => {
+        function handleExpired() { setIsLoggedIn(false); }
+        window.addEventListener('auth:session-expired', handleExpired);
+        return () => window.removeEventListener('auth:session-expired', handleExpired);
+    }, []);
+
     return (
         <AuthContext.Provider value={{ isLoggedIn, userRole, completeLogin, endSession }}>
             {children}

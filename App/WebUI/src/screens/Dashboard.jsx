@@ -18,13 +18,17 @@ import '../styles/dashboardStyles.css';
 export default function DashboardScreen() {
     const navigate = useNavigate();
     const { transactions, initialLoadError, retryInitialLoad, allTransactionsLoaded, categoryColors, uploadBreakdown, refetchUploadBreakdown } = useTransactions();
-    const { categorising } = useProcessing();
+    const { categorising, manualReviewFlow } = useProcessing();
     const { contentsSelectedCategories, toggleContentsCategory, toggleAllContentsCategories } = useChartFilter();
     const { dateRangeInfo, refetchUploadCount } = useInitialLoadLogic();
     const { handleLogout } = useLogout();
-    const { pickFiles, selectedFiles, status, setStatus, error, setError } = useFilePicker();
+    const { pickFiles, selectedFiles, setSelectedFiles, status, setStatus, error, setError } = useFilePicker();
     const { processFiles, loading, progress } = useFileProcessor(setStatus, setError, selectedFiles);
     const notYetCategorisedCount = transactions.filter(t => t.category === NOT_YET_CATEGORISED).length;
+
+    useEffect(() => {
+        if (!manualReviewFlow) setSelectedFiles([]);
+    }, [manualReviewFlow, setSelectedFiles]);
 
     async function handleCategorisePress() {
         await processFiles();

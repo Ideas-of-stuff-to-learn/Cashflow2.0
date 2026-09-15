@@ -5,7 +5,7 @@ import '../../styles/contentsStyles.css';
 export default function ManualReviewSequentialModal({
     current, remainingCount, selectableCategories, onPick,
     flushError, flushing, isDone, onRetry,
-    onExit, exitConfirmPending, onExitConfirm, onExitCancel,
+    onExit, exitConfirmPending, exitFailed, onExitConfirm, onExitCancel,
 }) {
     if (flushing || isDone) {
         return (
@@ -31,9 +31,30 @@ export default function ManualReviewSequentialModal({
     }
 
     if (exitConfirmPending) {
+        if (exitFailed) {
+            return (
+                <div className="modal-backdrop">
+                    <div className="modal-card modal-card-narrow">
+                        <h1 className="modal-title">Something went wrong</h1>
+                        <p className="modal-exit-confirm-body">
+                            Could not save your picks or move remaining transactions. Please check your connection and try again.
+                        </p>
+                        <div className="modal-exit-confirm-buttons">
+                            <button className="modal-exit-confirm-btn modal-exit-confirm-btn-danger" onClick={onExitConfirm}>
+                                Retry exit
+                            </button>
+                            <button className="modal-exit-confirm-btn modal-exit-confirm-btn-secondary" onClick={onExitCancel}>
+                                Go back to categorising
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
         return (
             <div className="modal-backdrop">
-                <div className="modal-card">
+                <div className="modal-card modal-card-narrow">
                     <h1 className="modal-title">Exit manual categorisation?</h1>
                     <p className="modal-exit-confirm-body">
                         Exiting gives you access to the rest of the app. Since incomplete data should not be shown,

@@ -14,6 +14,7 @@ export default function ManualReviewGate() {
     const [flushError, setFlushError] = useState(false);
     const [flushing, setFlushing] = useState(false);
     const [exitConfirmPending, setExitConfirmPending] = useState(false);
+    const [exitFailed, setExitFailed] = useState(false);
 
     // Page-unload safety net: if the user closes the tab mid-sequential,
     // sendBeacon resolves whatever is still NEEDS_MANUAL_REVIEW in the DB
@@ -105,7 +106,7 @@ export default function ManualReviewGate() {
 
     async function handleExitConfirm() {
         setFlushing(true);
-        setFlushError(false);
+        setExitFailed(false);
         try {
             if (pendingResolutionsRef.current.length > 0) {
                 await resolveCategories(pendingResolutionsRef.current);
@@ -120,10 +121,9 @@ export default function ManualReviewGate() {
             closeManualReviewFlow();
         } catch (e) {
             console.warn('Failed to exit manual review:', e.message);
-            setFlushError(true);
+            setExitFailed(true);
         } finally {
             setFlushing(false);
-            setExitConfirmPending(false);
         }
     }
 
@@ -150,11 +150,12 @@ export default function ManualReviewGate() {
                 flushError={flushError}
                 flushing={flushing}
                 isDone={isDone}
-                onRetry={() => {}}
-                onExit={() => setExitConfirmPending(true)}
+                onRetry={flushPendingResolutions}
+                onExit={() => { setExitConfirmPending(true); setExitFailed(false); }}
                 exitConfirmPending={exitConfirmPending}
+                exitFailed={exitFailed}
                 onExitConfirm={handleExitConfirm}
-                onExitCancel={() => setExitConfirmPending(false)}
+                onExitCancel={() => { setExitConfirmPending(false); setExitFailed(false); }}
             />
         );
     }

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useTransactions, useProcessing } from '../appState';
 import { useInitialLoadLogic } from '../customHooks/homescreen/useInitialLoadLogic';
 import { useLogout } from '../customHooks/homescreen/useLogout';
@@ -11,11 +12,15 @@ import '../styles/shared.css'
 
 export default function HomeScreen() {
     const { transactions, initialLoadError, retryInitialLoad, allTransactionsLoaded, uploadBreakdown, refetchUploadBreakdown } = useTransactions();
-    const { categorising } = useProcessing();
+    const { categorising, manualReviewFlow } = useProcessing();
     const { dateRangeInfo, refetchUploadCount } = useInitialLoadLogic();
     const { handleLogout } = useLogout();
-    const { pickFiles, selectedFiles, status, setStatus, error, setError } = useFilePicker();
+    const { pickFiles, selectedFiles, setSelectedFiles, status, setStatus, error, setError } = useFilePicker();
     const { processFiles, loading, progress } = useFileProcessor(setStatus, setError, selectedFiles);
+
+    useEffect(() => {
+        if (!manualReviewFlow) setSelectedFiles([]);
+    }, [manualReviewFlow, setSelectedFiles]);
 
     const notYetCategorisedCount = transactions.filter(t => t.category === NOT_YET_CATEGORISED).length;
 

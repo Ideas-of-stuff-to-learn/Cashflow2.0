@@ -2,9 +2,23 @@
 
 ## Status (2026-09-15)
 
-No active task. Clean main branch. Last completed work: ContentsScreen/Transactions page full redesign.
+No active task. Clean main branch.
 
 ## What Was Just Done
+
+**Manual review UX fixes** (2026-09-15):
+- Reload persistence: picks accumulated mid-review are stored in `localStorage` (`mr_pending_picks`); on reload `TransactionsContext` flushes them to DB before triggering the flow, so remaining count is accurate and completed picks aren't lost
+- Exit button: small red "Exit" bottom-right of each categoriser popup; opens confirmation overlay explaining remaining go to Other; Confirm exit / Go back options
+- Exit-confirm error recovery: if save fails, shows "Something went wrong — Retry exit / Go back" instead of a dead end
+- Retry wiring: sequential flush error Retry button now correctly retries the flush (was wired to no-op)
+- Auto-logout: `api.jsx` fires `auth:session-expired` custom event when refresh token is rejected; `AuthContext` listens and calls `endSession()` — kicks to login screen instead of looping with errors
+- File list clears: selected file names under "Choose CSV files" clear automatically when manual review flow resolves (both `HomeScreen` and `Dashboard`)
+- Progress update rule: added to CLAUDE.md, constraints.md, and spec section 54
+
+**DB reset SQL fix** (2026-09-15):
+- Old pattern (DELETE + INSERT users) created a new user_id, invalidating the JWT cookie — caused "parsing failed" loop until manual logout
+- Correct pattern: `UPDATE users SET password_hash = '...' WHERE username = 'owner'` preserves user_id; `TRUNCATE transactions, category_records, uploaded_files, merchants`
+- In-memory global cache (`_global_records_cache` in `cache.py`) must be cleared by restarting the Flask process after a DB reset
 
 **ContentsScreen redesign** (commit a155128, 2026-09-15):
 - New sidebar layout: category filter (196px) on left, transaction table on right

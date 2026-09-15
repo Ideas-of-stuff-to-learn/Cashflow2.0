@@ -120,8 +120,8 @@
 .cs-table { flex: 1; overflow-y: auto; }
 
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 1000; }
-.modal-card { background: #fff; border-radius: 12px; padding: 16px; max-height: 70%; overflow: hidden; display: flex; flex-direction: column;   justify-content: center; /* Horizontal center */
-  align-items: center;}
+.modal-card { background: #fff; border-radius: 12px; padding: 16px; max-height: 70%; overflow: hidden; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+.modal-card-narrow { max-width: 380px; width: 100%; }
 .modal-title-row { display: flex; justify-content: space-between; align-items: flex-start; }
 .modal-title { font-size: 30px; font-weight: 700; margin-bottom: 4px; padding-right: 8px; }
 .modal-remaining-count { font-size: 12px; font-weight: 700; color: #D94F4F; background: rgba(217,79,79,0.1); padding: 3px 8px; border-radius: 10px; }
@@ -144,7 +144,7 @@ justify-content: center; /* Horizontal center */
 .modal-exit-btn:hover { background: #b83c3c; }
 
 .modal-exit-confirm-body { font-size: 14px; color: #444; line-height: 1.6; margin: 12px 0 20px; }
-.modal-exit-confirm-buttons { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.modal-exit-confirm-buttons { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 320px; align-self: center; }
 .modal-exit-confirm-btn { padding: 12px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; }
 .modal-exit-confirm-btn-danger { background: #D94F4F; color: #fff; }
 .modal-exit-confirm-btn-danger:hover { background: #b83c3c; }

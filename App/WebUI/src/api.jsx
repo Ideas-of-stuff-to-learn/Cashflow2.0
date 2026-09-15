@@ -156,6 +156,10 @@ async function tryRefreshAccessToken() {
         if (response.ok) {
             const data = await response.json();
             csrfAccessToken = data.csrf_access_token;
+        } else {
+            // Refresh token itself was rejected — session is genuinely dead.
+            // Signal the app to kick the user to the login screen.
+            window.dispatchEvent(new CustomEvent('auth:session-expired'));
         }
         return response.ok;
     })();
