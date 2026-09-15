@@ -1,60 +1,81 @@
 # Cashflow2.0 — Constraints
 
-## Hard Constraints
+Hard invariants. Violations cause bugs, data inconsistency, or security issues.
 
-**The Owner badge must always appear in the top-right corner of every screen.**  
-The Layout.jsx 3-column grid header enforces this. Never remove or reposition the `<RoleBadge />` element, and never change the header layout in a way that breaks its right-anchor.
+## UI / Layout
 
-**`context/overview.html` must not be read or edited unless explicitly instructed.**  
-It is a client/developer-facing progress report, not AI engineering context. It follows a specific milestone structure and should only be updated at the end of a substantial task, when asked.
+**Owner badge always top-right.**
+Layout.jsx 3-column grid header enforces this. The `<RoleBadge />` is always the last child in the header grid and uses `justify-self: end`. Never reposition it.
 
-**Generated local config files must not be hand-edited.**  
-`App/.env` and `App/NativeAppUI/generatedLocalConfig.js` are regenerated on every `start-all.bat` run. Manual edits are silently overwritten.
+**Do not read `context/overview.html` unless explicitly told to.**
+It's a client-facing progress-report artifact, not coding context. Edit it only at the end of substantial tasks, when asked.
 
-**The `NEEDS_MANUAL_REVIEW` sentinel string must remain consistent across all three definitions.**  
-`App/shared/checkingName.js`, `App/NativeAppUI/checkingName.js`, `App/WebUI/src/checkingName.jsx` — any change to the sentinel value must be applied to all three files simultaneously.
+## Data / Logic
 
-**Admin CLI always talks to the production backend.**  
-`App/adminClI/adminCliCommon.py` has `BASE_URL` hardcoded to `https://cashflow2-0.onrender.com`. Do not run admin CLI scripts when the intention is to test against local data without first changing this constant (and changing it back afterward).
+**Both sentinels must stay in sync across all 4 files.**
+There are TWO sentinel constants:
+- `NEEDS_MANUAL_REVIEW = "MANUALLY CATEGORISE"` — user must pick a category; surfaced in manual review flow
+- `NOT_YET_CATEGORISED = "NOT YET CATEGORISED"` — timed out / not yet processed; should retry; never shown to user
 
-**No automated test suite exists anywhere.**  
-There are no unit tests, integration tests, or test scripts in the Flask backend, Web UI, or RN app. Verification is manual only (build checks + visual inspection). Do not claim a change is verified purely from test results — they do not exist.
+Both must be identical in all 4 locations:
+1. `App/shared/checkingName.js` (canonical)
+2. `App/WebUI/src/checkingName.jsx`
+3. `App/NativeAppUI/checkingName.js`
+4. `App/API/checkingName.py`
 
-**`App/NativeAppUI/AGENTS.md` carries a live Expo SDK warning.**  
-Expo's API surface changed meaningfully around SDK 54. Before writing RN code that touches Expo APIs, check the versioned docs at `docs.expo.dev/versions/v54.0.0/`.
+Change all 4 or none.
 
-## Behavioral Invariants
+**Re-upload must be a no-op.**
+The `dedup_key` mechanism prevents duplicate rows. Do not break it.
 
-**Re-uploading the same bank statement must be a safe no-op.**  
-The `dedup_key` mechanism in the upload pipeline ensures this. Do not break deduplication logic.
+**Manual review must use a single flush.**
+Picks are batched client-side. One API call when the user finishes manual review. Never per-item API calls.
 
-**Manual review flush must be a single atomic API call, not N per-transaction calls.**  
-Picks are batched client-side. The server receives one request. Do not revert to per-item API calls.
+**Empty `selectedCategories` = show nothing.**
+`buildStackData` (web and shared) must show an empty chart when the filter set is empty. Do not add a `size === 0` guard that shows all categories.
 
-**"Put in Other" for all NEEDS_MANUAL_REVIEW must be one SQL UPDATE, not a per-item loop.**  
-Performance constraint. The single `UPDATE ... WHERE category = NEEDS_MANUAL_REVIEW` scales to any number of transactions.
+**RN popup is NOT config-driven.**
+`App/NativeAppUI/config/popupChartConfig.js` exists as vocabulary/reference only. `App/NativeAppUI/components/charts/ChartWindowSection.js` has a hardcoded modal popup. Changing the config file has no effect on behavior.
 
-**Chart segment visibility: empty selectedCategories set must show nothing, not everything.**  
-A previous bug treated empty set as "show all." The fix in `buildStackData.jsx` must not be reverted.
+## Auth / Security
 
-**`App/NativeAppUI/` is the current mobile app directory (renamed from `App/UI/`).**  
-All scripts and configs (`start-all.bat`, `start-rn.bat`, `.gitignore`, `metro.config.js`) reference `NativeAppUI`. `App/UI/` no longer exists. Ignore any documentation that references `App/UI` or `App/API/oldCLI`.
+**Web auth must use httpOnly cookie.**
+JWT must not be accessible to JavaScript on the web side. No localStorage-based auth.
 
-## Scope Constraints
+**RN auth uses expo-secure-store.**
+Not cookies. Not localStorage.
 
-**This project is not built for public signup at scale.**  
-User management is via admin CLI only. There is no self-registration flow.
+## Infrastructure / Build
 
-**No ORM — schema changes are hand-applied SQL.**  
-There is no migration framework. `schema.sql` is the schema source of truth but changes must be applied directly to the Supabase DB.
+**Do not hand-edit generated configs.**
+`App/.env` and `App/NativeAppUI/generatedLocalConfig.js` are overwritten every time the dev start script runs. Edit the templates/scripts, not the generated outputs.
 
-**No auto-merge of PRs.**  
-The owner manually reviews and merges all pull requests. Claude Code must not auto-merge.
+**Admin CLI always targets production.**
+`BASE_URL` in adminClI scripts is hardcoded to `https://cashflow2-0.onrender.com`. Run with intent. Never run bulk-delete or destructive admin operations without owner authorization.
 
-## Security Constraints
+**No automated tests.**
+There is no test suite anywhere in the project. Verification is build + visual inspection only. Do not set up a test framework without explicit instruction.
 
-**Web auth must use httpOnly cookies.**  
-The JWT must not be accessible to JavaScript on the web client. Do not move to localStorage or any JS-accessible storage.
+**No ORM.**
+Schema changes go directly to Supabase via hand-applied SQL. `App/API/schema.sql` is the source of truth. Do not introduce SQLAlchemy or any migration framework.
 
-**Payment/financial data — no external services receive transaction data except Gemini (LLM tier).**  
-Gemini receives transaction descriptions for categorization only, not amounts or identifying user info beyond what's in the description text.
+**No auto-merge.**
+Never auto-merge PRs. The owner manually merges after testing. Do not enable auto-merge via GitHub settings or `gh` commands.
+
+## Routing
+
+**ResponsiveGate owns the mobile/desktop routing split.**
+`App/WebUI/src/components/ResponsiveGate.jsx` is the single place that decides mobile→/home+/charts vs desktop→/dashboard. Do not add routing logic to other components that duplicates or overrides this.
+
+## Mobile
+
+**Check Expo SDK 54 docs before any Expo API work.**
+`App/NativeAppUI/AGENTS.md` has the warning. Any Expo API change must be verified against `docs.expo.dev/versions/v54.0.0/`.
+
+## State Architecture
+
+**Web AppState is 4 separate contexts, not one.**
+`AuthContext`, `ProcessingContext`, `TransactionsContext`, `ChartFilterContext` — composed via `AppStateProvider` in `appState/index.jsx`. Do not conflate them into a single context.
+
+**RN AppState is one combined context.**
+`AppContext.js` with `useApp()` hook. This is intentional and mirrors how earlier RN versions were structured — it has not been split like the web.

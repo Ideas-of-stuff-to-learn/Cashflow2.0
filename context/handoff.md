@@ -43,7 +43,11 @@ No active task. Clean main branch. Last completed work: ContentsScreen/Transacti
 See `context/architecture.md` for full detail. Key points:
 - Backend: Flask + raw psycopg2, no ORM, no automated tests
 - Web: React 19 + Vite, plain CSS, no TypeScript
-- Categorization: 5-tier pipeline, NEEDS_MANUAL_REVIEW sentinel = string constant in 3 files
+- Web AppState = **4 split contexts** (Auth/Processing/Transactions/ChartFilter) — NOT a single AppContext
+- RN AppState = **single AppContext.js** with useApp() hook
+- Two sentinels: `NEEDS_MANUAL_REVIEW` (user picks) + `NOT_YET_CATEGORISED` (timed-out, retry later) — both in all 4 files
+- ResponsiveGate: mobile→/home+/charts (phone mimic), desktop→/dashboard — re-evaluates live on resize
+- RN popup hardcoded — popupChartConfig.js is vocabulary only, has no effect on behavior
 - Auth: web = httpOnly JWT cookie; RN = expo-secure-store
 
 ## Previous Significant Sessions (Archived)

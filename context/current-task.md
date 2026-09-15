@@ -1,40 +1,42 @@
 # Cashflow2.0 — Current Task
 
-## Goal
+## Status (2026-09-15)
 
-No active task. Most recent completed work: ContentsScreen/Transactions page redesign (sidebar layout, polished header, Owner badge fix).
+No active task. Intelligence system rebuild complete.
 
-## Recently Completed (2026-09-15)
+## Recently Completed
 
-- Full redesign of web ContentsScreen with sidebar layout (category filter left / transaction table right)
-- Slim single-row SelectionBar replacing old dark banner
-- Owner badge anchor fixed: Layout.jsx now uses 3-column CSS grid header, badge always top-right
-- Back button + page title moved into Layout header for /contents route; cs-topbar removed from ContentsScreen
-- Sidebar "Filter by category" label aligned with DATE column header via offset spacer
-- All changes committed and pushed to main (commit a155128)
+**Persistent Repository Intelligence System (full coverage):**
+- `CLAUDE.md` — entry point pointing to `.ai/knowledge.db` and context docs
+- `context/architecture.md` — full layer diagram, 4-context AppState split, both sentinels, ResponsiveGate routing, ChartsScreen/HomeScreen roles, RN vs web differences
+- `context/constraints.md` — both sentinels in 4 files, RoleBadge position, ResponsiveGate ownership, popup config warning, 4-context invariant
+- `context/known-problems.md` — sentinel quadruplication, COLOR_PALETTE triplication, RN popup not wired, no tests
+- `context/dependencies.md` — inter-file relationships, context composition chain, sentinel duplication map, routing chain
+- `context/decisions.md` — engineering decisions with rationale
+- `context/failed-solutions.md` — 10 failed approaches with lessons
+- `context/realignment.md` — recovery procedure, never-do list
+- `context/handoff.md` — session state
+- `context/overview.md` — project purpose and tech stack
+- `.ai/rebuild_db.py` — generates SQLite index of all ~150 source files across WebUI, NativeAppUI, API, and shared
 
-## System State
+**ContentsScreen redesign (2026-09-15):**
+- Sidebar layout for ContentsScreen
+- Layout.jsx 3-column grid header
+- Owner badge always top-right
 
-- Git: clean main branch, all changes pushed
-- Build: passing (`✓ built in ~2s`)
-- No open PRs
+## Open Work (Not Blocking)
 
-## Open Questions / Potential Next Work
+- RN popup wiring: popupChartConfig.js vocabulary exists but ChartWindowSection.js has hardcoded popup
+- FilterPane RN drag animation (cosmetic)
+- COLOR_PALETTE triplication (adminClI/web/RN can drift)
+- Root README.md placeholder
 
-- RN popup config wiring (popupChartConfig.js not yet wired into ChartWindowSection.js)
-- FilterPane RN drag animation (PanResponder reorders on release, not animated live)
-- COLOR_PALETTE sync across three files (adminClI/adminCliCommon.py may drift)
-- Root README.md is still just a placeholder
-- context/overview.html may need updating to reflect ContentsScreen redesign milestone
+## Next Session Guidance
 
-## Known Blockers
-
-None.
-
-## Next Recommended Investigation
-
-If starting a new task touching the transaction table: read `context/architecture.md` (ContentsScreen section) and `App/WebUI/src/screens/ContentsScreen.jsx`.
-
-If starting a task touching charts: read `context/architecture.md` (Chart Data Flow) and `App/WebUI/src/utils/charts/buildStackData.jsx`.
-
-If starting a task touching auth/permissions: read `context/architecture.md` (Auth & Permissions) and `App/API/permissions.py`.
+Start with realignment.md → overview.md → architecture.md. Key non-obvious things to know:
+1. Web AppState = 4 separate contexts (not one) — `appState/index.jsx` composes them
+2. Two sentinels, not one: NEEDS_MANUAL_REVIEW (user picks) + NOT_YET_CATEGORISED (retry, hidden from user)
+3. ResponsiveGate: mobile→/home+/charts, desktop→/dashboard — re-evaluates live on resize
+4. ChartsScreen.jsx at /charts is the "phone mimic" for mobile-width web users
+5. RN uses single AppContext.js (useApp hook) — not split like web
+6. RN popup is hardcoded — popupChartConfig.js has no effect there

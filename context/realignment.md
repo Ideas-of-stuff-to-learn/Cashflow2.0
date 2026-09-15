@@ -83,6 +83,8 @@ SELECT * FROM dependencies WHERE target LIKE '%buildStackData%';
 - Don't move Owner badge from top-right
 - Don't read `context/overview.html` unless explicitly told to
 - Don't hand-edit `App/.env` or `App/NativeAppUI/generatedLocalConfig.js`
-- Don't change NEEDS_MANUAL_REVIEW sentinel in only one of the three files
+- Don't change NEEDS_MANUAL_REVIEW or NOT_YET_CATEGORISED sentinel in fewer than all 4 files (shared/web/RN/Python)
 - Don't run admin CLI scripts against production without intent
 - Don't auto-merge PRs
+- Don't describe web AppState as a single AppContext — it's 4 split contexts (Auth/Processing/Transactions/ChartFilter)
+- Don't assume RN popup follows popupChartConfig.js — it's hardcoded in ChartWindowSection.js

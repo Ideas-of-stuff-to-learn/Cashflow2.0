@@ -1,56 +1,55 @@
 # Cashflow2.0 — Known Problems
 
-## Backend
+Issues that are documented but not yet fixed. Useful before starting work in an area.
 
-**No automated tests anywhere.**  
-Flask API, categorization pipeline, and permission logic have zero test coverage. All verification is manual. Risk: silent regressions are possible on any change to pipeline or auth logic.
+## Cross-cutting
 
-**No ORM / no migration framework.**  
-Schema changes are hand-applied to Supabase. No rollback mechanism. If a bad migration runs, recovery requires manual SQL.
+**No automated tests anywhere.**
+No unit, integration, or end-to-end tests exist in any part of the project (backend, web, RN). Verification is build + visual only. This is the biggest quality risk.
 
-**Admin CLI BASE_URL hardcoded to production.**  
-`App/adminClI/adminCliCommon.py` always targets `https://cashflow2-0.onrender.com`. No env var or flag to redirect to local dev. Running admin scripts in development requires manually changing and then reverting this constant.
+**Two sentinels defined in 4 files with no shared runtime import.**
+`NEEDS_MANUAL_REVIEW = "MANUALLY CATEGORISE"` and `NOT_YET_CATEGORISED = "NOT YET CATEGORISED"` are each defined in:
+- `App/shared/checkingName.js` (canonical JS)
+- `App/WebUI/src/checkingName.jsx`
+- `App/NativeAppUI/checkingName.js`
+- `App/API/checkingName.py`
 
-**Sample/scratch CSVs committed inside the API directory.**  
-`App/API/categorised.csv` and `App/API/TransactionHistory.csv` appear to be working/scratch data rather than structured test fixtures. They are not referenced by any test (since tests don't exist).
+The Python backend can't import JS. The RN metro config aliases `App/shared/` but that alias must be maintained. If any of the 4 files drifts, categorization logic silently breaks across platforms.
 
-## Admin CLI
+**`COLOR_PALETTE` triplicated.**
+`App/WebUI/src/utils/charts/chartUtils.jsx`, `App/NativeAppUI/utils/charts/chartUtils.js`, and `App/adminClI/colours/setColorAdmin.py` each define or reference the color list independently. If a category color changes in one, it won't match the others.
 
-**`COLOR_PALETTE` is manually duplicated in three places.**  
-`App/adminClI/adminCliCommon.py` duplicates the palette from `App/WebUI/src/utils/charts/chartUtils.jsx` and `App/NativeAppUI/utils/charts/chartUtils.js`. The comment in `adminCliCommon.py` even references a stale path (`App/utils/charts/chartUtils.js`). No sync mechanism exists — they can drift silently.
+## Web
 
-**Inconsistent package structure in adminClI.**  
-`adminClI/categories/` and `adminClI/permissions/` lack `__init__.py`. `adminClI/colours/` and `adminClI/users/` have one. Not breaking (Python 3 namespace packages), but inconsistent.
+**Web AppState often misdocumented as monolithic.**
+New sessions or tools sometimes incorrectly document the state as a single `AppContext.jsx`. It is 4 separate contexts: `AuthContext`, `ProcessingContext`, `TransactionsContext`, `ChartFilterContext`.
 
-## Web UI
+**sendBeacon gap on tab close.**
+If the user closes the browser tab while categorization is still in progress (in-flight batch not flushed), those picks are lost. Only fully-staged items survive. Mitigation is complex; flagged for awareness.
 
-**No TypeScript, no automated tests.**  
-Large components (chart windowing, manual review flow, FilterPane, ContentsScreen) have no test coverage.
+## Mobile (RN)
 
-**NEEDS_MANUAL_REVIEW sentinel is duplicated in three files.**  
-`App/shared/checkingName.js`, `App/NativeAppUI/checkingName.js`, `App/WebUI/src/checkingName.jsx`. Changing the sentinel in one place without updating the others breaks the entire review flow silently.
+**RN popup not config-driven.**
+`App/NativeAppUI/config/popupChartConfig.js` is vocabulary-only. `ChartWindowSection.js` has a hardcoded modal popup. Changing the config has no visible effect. The web version is fully wired; RN is not.
 
-**`App/WebUI/README.md` is the default Vite template.**  
-Not project-specific. Ignore it.
+**FilterPane drag has no live animation.**
+RN FilterPane uses PanResponder. Items reorder on finger release, not animated live under the finger. HTML5 DnD on web has smoother behavior. Low priority, cosmetic.
 
-## Mobile (App/NativeAppUI)
+**RN ContentsScreen uses FlatList.**
+`ContentsScreen.js` uses FlatList with `CategoryChipRow` (chips above the list) rather than a virtualized sidebar layout like the web version. For very large transaction lists, this may be slower.
 
-**RN chart popup is not config-driven.**  
-`App/NativeAppUI/config/popupChartConfig.js` declares the four popup-placement names for vocabulary consistency, but `ChartWindowSection.js` has a fully hardcoded modal-with-backdrop-dismiss implementation that does not read the config. Changing `POPUP_VARIANT` in the config file has no effect on RN behavior. Wiring it up (and defining what "floating" or "below chart" means on a touchscreen) is unstarted work.
+## Backend / Admin
 
-**FilterPane drag-to-reorder is not animated on RN.**  
-The custom `PanResponder` implementation reorders on finger release, not live under the finger. `react-native-gesture-handler` + `react-native-reanimated` are already installed and could provide a fully animated version if that polish is wanted.
+**AdminCLI hardcoded to production.**
+`BASE_URL` in the admin CLI scripts always points to `https://cashflow2-0.onrender.com`. There is no dev/staging mode. Running any admin script hits the live database.
 
-**Expo SDK 54 API surface warning.**  
-`App/NativeAppUI/AGENTS.md` explicitly warns that Expo's API changed around SDK 54. Check `docs.expo.dev/versions/v54.0.0/` before touching any Expo-specific API in the RN app.
+**No ORM, no migration system.**
+Schema changes are hand-applied to Supabase. `schema.sql` is the human-maintained record. There are no rollbacks.
 
-## Cross-Cutting
+**Scratch CSVs in API dir.**
+Test/scratch CSV files may exist in `App/API/`. They are gitignored (`*.csv`) but could confuse file explorers.
 
-**Root README.md is a placeholder.**  
-`README.md` at repo root contains only `# Cashflow2.0` (13 bytes). Not a problem to ship with, but misleading to anyone landing on the GitHub page.
+## Docs
 
-**`App/handoffFiles/chatLog.txt` is a raw 15,500-line session transcript.**  
-Not a reading assignment. Only useful as a last-resort dig for historical context. Do not process it unless specifically needed.
-
-**`pagehide` + `sendBeacon` safety net has a gap.**  
-If the user has submitted picks (batched in the client ref) but the flush API call is still in-flight when they close the tab, those in-flight picks are lost. The beacon only protects fully-staged but not yet flushed items. This is an accepted limitation.
+**Root README is a placeholder.**
+`README.md` at the repo root contains only `# Cashflow2.0`. Anyone landing on the GitHub page sees nothing useful.

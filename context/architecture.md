@@ -1,198 +1,223 @@
 # Cashflow2.0 — Architecture
 
-## Layers
+## System Layers
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  Web Frontend (React/Vite)  │  Mobile (Expo/RN)     │
-│  App/WebUI/                 │  App/NativeAppUI/      │
-└────────────────────┬────────┴──────────┬────────────┘
-                     │   HTTP + JWT       │
-                     ▼                   ▼
-         ┌───────────────────────────────────┐
-         │       Flask API (App/API/)        │
-         │  backend.py → extensions.py       │
-         │  routes/ | categorise/ | matching/│
-         └─────────────────┬─────────────────┘
-                           │  psycopg2 (raw SQL)
-                           ▼
-         ┌───────────────────────────────────┐
-         │        Postgres (Supabase)        │
-         └───────────────────────────────────┘
-                           +
-         ┌───────────────────────────────────┐
-         │         Gemini API                │
-         │  (LLM categorization tier only)   │
-         └───────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│  Web (React/Vite)        Mobile (Expo/RN)        │
+│  App/WebUI/              App/NativeAppUI/         │
+│  ─ 4 split contexts      ─ single AppContext.js  │
+│  ─ react-virtual         ─ FlatList              │
+│  ─ react-router-dom      ─ react-navigation      │
+│  ─ httpOnly cookie auth  ─ expo-secure-store auth│
+│  ─ ResponsiveGate        ─ single phone layout   │
+└────────────────┬────────────────────────────────┘
+                 │ REST API (fetch + httpOnly cookie / secure-store)
+┌────────────────▼────────────────────────────────┐
+│  Flask Backend              App/API/             │
+│  ─ no ORM (raw psycopg2)                        │
+│  ─ JWT revocation                               │
+│  ─ tiered categorization pipeline               │
+│  ─ Aho-Corasick + rapidfuzz + Gemini            │
+└────────────────┬────────────────────────────────┘
+        ┌────────┴────────┐
+        ▼                 ▼
+   Postgres           Gemini API
+   (Supabase)         (google-genai)
 ```
 
 ## Backend Components
 
-### Entry Point
-- `App/API/backend.py` — Flask app creation, imports `extensions.py` and all route blueprints
-- `App/API/extensions.py` — shared Flask app instance, JWT manager, rate limiter (imported by all other modules to avoid circular imports)
+**Entry point:** `App/API/backend.py` — creates Flask app, registers all route blueprints
+**Shared state:** `App/API/extensions.py` — single Flask app + JWT manager + rate limiter instance shared by all modules to avoid circular imports
 
-### Routes (`App/API/routes/`)
-| File | Responsibility |
-|---|---|
-| `auth.py` | Login, logout, token refresh, JWT revocation |
-| `uploads.py` | CSV/Excel upload, parse, dedup, trigger pipeline |
-| `transactions/` | CRUD, upload orchestration, categorization routes, shared helpers |
-| `categories.py` | Category management |
-| `charts.py` | Aggregated chart-summary data endpoint |
-| `admin.py` | User/role/permission management, impersonation, JWT revocation |
-| `health.py` | Keep-alive ping |
+**Routes:**
+| File | Path | Purpose |
+|---|---|---|
+| `routes/auth.py` | `/api/login`, `/api/logout`, `/api/me`, `/api/refresh` | JWT cookie auth + revocation |
+| `routes/transactions/upload.py` | `POST /api/upload` | Parses CSV/Excel, deduplicates by dedup_key, triggers categorization |
+| `routes/transactions/crud.py` | `/api/transactions/*` | Read/delete transactions |
+| `routes/transactions/categorisation_routes.py` | `/api/categorise/*` | Manual review resolution, put-in-Other endpoint |
+| `routes/categories.py` | `/api/categories` | Category CRUD |
+| `routes/charts.py` | `/api/charts` | Server-side aggregations (yearly/monthly rollups) |
+| `routes/admin.py` | `/api/admin/*` | User/role/permission management, impersonation |
+| `routes/health.py` | `/api/health` | Keep-alive ping |
 
-### Categorization Pipeline (`App/API/categorise/`)
-Tiers executed cheapest-first. Each tier returns a result or passes through to the next.
+**Categorization pipeline** (`App/API/categorise/`):
+1. `exact_tier.py` — exact match against `category_records` (user's own prior categorizations)
+2. `merchant_tier.py` — Aho-Corasick substring match on merchant name
+3. `similarity_tier.py` — rapidfuzz fuzzy scoring
+4. `llm_tier/orchestrator.py` — batched Gemini API call (tier 4, fallback)
+5. Sentinel: if even Gemini can't categorize → `NEEDS_MANUAL_REVIEW = "MANUALLY CATEGORISE"` (manual fallback) or `NOT_YET_CATEGORISED = "NOT YET CATEGORISED"` (timed-out batch, will retry — never surfaced to user)
 
+**Sentinel files (must stay in sync):**
+- Canonical JS: `App/shared/checkingName.js`
+- Web JSX: `App/WebUI/src/checkingName.jsx`
+- RN JS: `App/NativeAppUI/checkingName.js`
+- Python: `App/API/checkingName.py`
+
+**Auth & permissions:** `App/API/permissions.py` — `@require_permission` decorator, role/permission lookup from DB on every authenticated request, checks `revoked_tokens` table.
+
+**Database:** `App/API/database.py` — psycopg2 connection helpers. No migrations; schema changes are hand-applied to Supabase and documented in `App/API/schema.sql`.
+
+## Web Frontend
+
+**Entry:** `App/WebUI/src/main.jsx` → `App.jsx`
+
+**Global State — 4 split contexts composed via AppStateProvider:**
+
+`App/WebUI/src/appState/index.jsx` wraps them in this order (outer → inner):
 ```
-pipeline.py (orchestrator)
-  ↓
-exact_tier.py          — match against category_records (user's own history)
-  ↓
-merchant_tier.py       — Aho-Corasick substring match on merchant list
-  ↓
-similarity_tier.py     — rapidfuzz fuzzy similarity
-  ↓
-llm_tier/              — Gemini LLM (batch + recheck + empty_result handling)
-  ↓
-NEEDS_MANUAL_REVIEW    — sentinel placed on unresolved transactions
-```
-
-### Matching Layer (`App/API/matching/`)
-- `categories.py` — category list utilities
-- `fuzzy_index.py` — rapidfuzz index management
-- `similarity.py` — similarity scoring
-- `gemini.py` — Gemini API call wrapper
-- `merchants/` — merchant name normalization, Aho-Corasick storage, matcher, cache state
-
-### Auth & Permissions
-- `permissions.py` — `@require_permission` decorator, role/permission lookup
-- Three-tier role hierarchy: **owner > admin > user**
-- Tables: `roles`, `permissions`, `role_permissions`, `user_permission_overrides`
-- Token revocation via `revoked_tokens` table
-- Impersonation logged in `impersonation_log`
-
-### Database
-- Raw SQL via psycopg2, no ORM
-- Schema source of truth: `App/API/schema.sql` (heavily commented with design rationale)
-- Key tables: `transactions`, `category_records`, `uploaded_files`, `users`, `roles`, `permissions`, `role_permissions`, `user_permission_overrides`, `revoked_tokens`, `impersonation_log`
-
-## Frontend Architecture (Web)
-
-### Global State
-`App/WebUI/src/AppContext.jsx` — React Context holding:
-- `transactions`, `categories`, `categoryColors`
-- `selectedCategories` (filter Set)
-- Chart summary data
-- Manual review flow state
-- Auth/role
-
-### Screen/Component Structure
-```
-App/WebUI/src/
-├── screens/
-│   ├── LoginScreen.jsx
-│   ├── DashboardScreen.jsx    — charts + FilterPane
-│   ├── ContentsScreen.jsx     — transaction table (virtualized)
-│   └── ChartsScreen.jsx       — phone-mimic chart view
-├── components/
-│   ├── dashboard/             — FilterPane, chart popup, summary stats
-│   ├── contents/              — TransactionRow, TableHeader, SelectionBar, StatusBanners, CategoryResolveModal
-│   ├── charts/                — ChartSection, ChartFootnote
-│   ├── homepage/              — upload flow, manual review modals
-│   ├── manualReview/
-│   └── loading/
-├── customHooks/               — per-screen data hooks
-├── config/
-│   └── popupChartConfig.jsx   — chart popup placement + interaction mode (fully wired)
-└── styles/                    — plain CSS per component/screen (cs-* namespace for ContentsScreen)
+AuthContext → ProcessingContext → TransactionsContext → ChartFilterContext
 ```
 
-### Layout Structure (Web, post-redesign)
-- `Layout.jsx` — shell with 3-column grid header (back btn left / title center / Owner badge right)
-- Dashboard: `DashboardScreen` with side-by-side `FilterPane` + chart area
-- ContentsScreen: `cs-container` flex column → `cs-body` flex row (sidebar + main)
+| Context | File | What it holds |
+|---|---|---|
+| `AuthContext` | `appState/AuthContext.jsx` | isLoggedIn, userRole, login/logout |
+| `ProcessingContext` | `appState/ProcessingContext.jsx` | categorising, processingStage, manualReviewFlow. Watches for NEEDS_MANUAL_REVIEW and triggers manual review sequence. |
+| `TransactionsContext` | `appState/TransactionsContext.jsx` | transactions[], categories[], categoryColors, uploadCount, uploadBreakdown. Loads from API on login. |
+| `ChartFilterContext` | `appState/ChartFilterContext.jsx` | chartSummary, chartDataVersion, contentsSelectedCategories, mobileSelectedCategories, effectiveOrder (FilterPane stack order) |
 
-### Data Flow (Web)
+**Routing — two layers:**
+
+1. `RequiresAuth` — redirects unauthenticated users to /login
+2. `ResponsiveGate` — reads `useIsMobile()` hook and routes:
+   - **Mobile width** → `/home` (HomeScreen) + `/charts` (ChartsScreen) — the "phone mimic" routes
+   - **Desktop width** → `/dashboard` (Dashboard)
+   - Re-evaluated live on every resize — no stale orientation lock
+
+**Screens:**
+
+| Screen | Route | Width | Purpose |
+|---|---|---|---|
+| `LoginScreen.jsx` | `/login` | all | Login form |
+| `SignupScreen.jsx` | `/signup` | all | Signup form |
+| `Dashboard.jsx` | `/dashboard` | desktop | Charts + FilterPane sidebar + upload + stats |
+| `HomeScreen.jsx` | `/home` | mobile | Upload flow + charts (mobile equivalent of Dashboard) |
+| `ChartsScreen.jsx` | `/charts` | mobile | FilterPane + ChartWindowSection + ChartFootnote. Called "phone mimic" — mirrors what RN shows. |
+| `ContentsScreen.jsx` | `/contents` | all | Transaction table with sidebar, virtualization, search, SelectionBar |
+
+**Layout:** `App/WebUI/src/components/Layout.jsx` — 3-column CSS grid header:
+- Left col: `← Dashboard` button on /contents; `Cashflow` title on /dashboard; spacer otherwise
+- Center col: `Transactions` title on /contents; empty otherwise
+- Right col: `<RoleBadge />` always (justify-self: end)
+
+**Chart data flow:**
 ```
-AppContext (transactions/categories/chart data)
-  ↓
-Screen-level data hooks (useContentsData, useChartData, etc.)
-  ↓
-Component render
-  ↓
-api.js (fetch wrapper with client-side timeout)
-  ↓
-Flask API
+/api/charts ──► ChartFilterContext.chartSummary
+                     │
+                     ▼
+            ChartFilterContext.effectiveOrder + selectedCategories
+                     │
+                     ▼
+             buildStackData.jsx (empty set = show nothing)
+                     │
+                     ▼
+             SpendingStackedChart ──► recharts
 ```
 
-## Frontend Architecture (Mobile — App/NativeAppUI/)
+**FilterPane** (`components/dashboard/FilterPane.jsx`): category checkboxes + drag-to-reorder (HTML5 DnD on web). Used by both Dashboard (right sidebar) and ChartsScreen (inline above chart). Empty selection = chart shows nothing.
 
-Mirrors the web structure with platform-specific implementations:
-- `AppContext.js` — same role as web AppContext.jsx
-- Auth via `expo-secure-store` instead of httpOnly cookie
-- Charts via `react-native-gifted-charts` instead of recharts
-- Drag-to-reorder in FilterPane via `PanResponder` (not HTML5 DnD)
-- RN chart popup is hardcoded, not wired to `popupChartConfig.js` (known issue — see known-problems.md)
+**Manual review flow:**
+1. Upload completes → ProcessingContext finds NEEDS_MANUAL_REVIEW items in response
+2. ManualReviewGate blocks navigation
+3. ManualReviewStatsModal: stats popup, offers "Categorise Now" or "Put in Other"
+4. ManualReviewSequentialModal: steps through items one by one, batches picks client-side
+5. Single API call on completion (not per-item)
+
+**Popup config** (`config/popupChartConfig.jsx`): POPUP_VARIANT (none / floatingInChart / modalInChart / belowChart) + INTERACTION_MODE. Fully wired on web — changing the config changes behavior.
+
+## Mobile Frontend (React Native / Expo)
+
+**Entry:** `App/NativeAppUI/index.js` → `App.js`
+
+**Global State — single combined context:**
+`AppContext.js` holds ALL state (auth + transactions + categories + chart data + processing + manual review) in one place. Accessed via `useApp()` hook. This is different from the web's 4-context split.
+
+**Navigation:** react-navigation Stack.Navigator
+
+**Key differences from web:**
+
+| Feature | Web | RN |
+|---|---|---|
+| State management | 4 split contexts | Single AppContext.js + useApp() |
+| List rendering | react-virtual (virtualized) | FlatList |
+| Routing | react-router-dom + ResponsiveGate | react-navigation Stack |
+| Chart library | recharts | react-native-gifted-charts |
+| FilterPane drag | HTML5 DnD | PanResponder (reorders on release, not live-animated) |
+| Category filter | Sidebar (ContentsScreen) | CategoryChipRow above FlatList |
+| Auth token | httpOnly cookie | expo-secure-store |
+| Popup config | Fully wired (popupChartConfig.jsx) | NOT wired (hardcoded modal in ChartWindowSection.js) |
+
+**Screens:**
+- `HomeScreen.js` — upload + charts combined (covers both Dashboard + HomeScreen web concepts)
+- `ChartsScreen.js` — FilterPane + charts
+- `ContentsScreen.js` — FlatList transaction table + CategoryChipRow
+
+**Metro resolver alias:** `metro.config.js` maps `App/shared/` so RN can import shared JS utils by path.
+
+**Expo warning:** Before modifying any Expo API, read `App/NativeAppUI/AGENTS.md` for the SDK 54 compatibility note.
+
+## Shared Utils
+
+`App/shared/` — platform-neutral JS utilities imported by both web and RN via:
+- Web: standard import path
+- RN: metro.config.js resolver alias
+
+Includes: `checkingName.js` (canonical sentinel source), `buildStackData.js`, `chartUtils.js`, `chartWindowConfig.js`, `contentsUtils.js`, `homescreenUtils.js`, `monthWindow.js`, `yearWindow.js`, `yearlyChartUtils.js`.
 
 ## Upload + Data Flow
 
 ```
-User picks file (CSV/Excel)
-  ↓
-useFilePicker / useFileProcessor hook
-  ↓
-POST to upload endpoint
-  ↓
-Parse rows → compute dedup_key per row
-  ↓
-INSERT into transactions (unique per user+dedup_key — re-upload is a no-op)
-  ↓
-Record source filename in uploaded_files (only if genuinely new rows)
-  ↓
-Categorization pipeline (5 tiers)
-  ↓
-transactions updated with category / NEEDS_MANUAL_REVIEW sentinel
-  ↓
-Frontend manual-review gate (if any NEEDS_MANUAL_REVIEW remain)
-  ↓
-ManualReviewStatsModal → ManualReviewSequentialModal
-  ↓
-Picks batched client-side → single flush API call
+User selects file(s)
+       │
+       ▼
+[Web] useFileProcessor.jsx / [RN] useFileProcessor.js
+       │  POST /api/upload (multipart)
+       ▼
+routes/transactions/upload.py
+  → parse CSV/Excel → dedup by dedup_key → INSERT new rows
+  → trigger categorization pipeline per new transaction
+       │
+       ▼
+categorise/pipeline.py — runs tiers in order, returns first match
+  tier 1: exact match → category_records table
+  tier 2: Aho-Corasick merchant match
+  tier 3: rapidfuzz fuzzy scoring
+  tier 4: Gemini LLM (batched)
+  fallback: NEEDS_MANUAL_REVIEW sentinel → manual review flow
+  timeout: NOT_YET_CATEGORISED sentinel → retry later (not shown to user)
+       │
+       ▼
+Response contains results + any NEEDS_MANUAL_REVIEW items
+       │
+       ▼
+ProcessingContext detects NEEDS_MANUAL_REVIEW → triggers manual review gate
 ```
 
 ## Chart Data Flow
 
 ```
-charts endpoint (server-side aggregates, filtered by user_id)
-  ↓
-useChartData / useChartWindows / useChartFilters hooks
-  ↓
-buildStackData.jsx — builds stacked-bar segments filtered by selectedCategories
-  ↓
-recharts (web) / react-native-gifted-charts (RN)
-  ↓
-popupChartConfig.jsx (web) — controls popup placement + hover/click interaction
+[Web] ChartFilterContext ──► /api/charts ──► chartSummary
+[RN]  AppContext         ──► /api/charts ──► chartSummary
+       │
+       ▼
+FilterPane: user selects categories, drags to reorder
+       │
+       ▼
+buildStackData: filters + stacks by effectiveOrder
+  (empty selectedCategories → empty chart, not show-all)
+       │
+       ▼
+SpendingStackedChart (web: recharts, RN: react-native-gifted-charts)
 ```
 
 ## Admin Flow
 
-```
-App/adminClI/ standalone Python scripts
-  ↓
-HTTP requests to production backend (hardcoded to cashflow2-0.onrender.com)
-  ↓
-Flask admin routes (require owner-level permission)
-  ↓
-Postgres
-```
+`App/adminClI/` — standalone Python CLI scripts. `BASE_URL` in each script hardcoded to `https://cashflow2-0.onrender.com` (production). Never run against prod without intent.
+
+Categories: colours/setColorAdmin.py, users/, permissions/
 
 ## CI/CD
 
-```
-Push to main → GitHub Actions autoDeployFrontend.yml → deploy web frontend
-Nightly         → supabase-backup.yml → pg_dump → artifact + append DBbackupLog.txt
-Nightly         → supabase-keep-alive.yml → ping DB → append DBaliveLog.txt
-```
+GitHub Actions runs on push to main. Likely: `npm run build` (web) + deploy to Render (backend) + Expo EAS build (mobile). See `.github/workflows/` for exact steps.
