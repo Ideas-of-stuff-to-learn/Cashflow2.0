@@ -91,13 +91,13 @@ export function TransactionsProvider({ children }) {
                     setAllTransactionsLoaded(true);
 
                     // If the user reloaded mid-manual-review, flush any picks they
-                    // had accumulated in sessionStorage before showing the flow count.
+                    // had accumulated in localStorage before showing the flow count.
                     let flushedPicks = [];
                     try {
-                        const stored = sessionStorage.getItem('mr_pending_picks');
+                        const stored = localStorage.getItem('mr_pending_picks');
                         if (stored) {
                             flushedPicks = JSON.parse(stored);
-                            sessionStorage.removeItem('mr_pending_picks');
+                            localStorage.removeItem('mr_pending_picks');
                             if (flushedPicks.length > 0) {
                                 await resolveCategories(flushedPicks);
                             }

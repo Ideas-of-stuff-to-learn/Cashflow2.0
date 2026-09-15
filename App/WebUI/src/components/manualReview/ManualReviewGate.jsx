@@ -50,11 +50,11 @@ export default function ManualReviewGate() {
     const MR_STORAGE_KEY = 'mr_pending_picks';
 
     function savePendingToStorage(picks) {
-        try { sessionStorage.setItem(MR_STORAGE_KEY, JSON.stringify(picks)); } catch (_) {}
+        try { localStorage.setItem(MR_STORAGE_KEY, JSON.stringify(picks)); } catch (_) {}
     }
 
     function clearPendingStorage() {
-        try { sessionStorage.removeItem(MR_STORAGE_KEY); } catch (_) {}
+        try { localStorage.removeItem(MR_STORAGE_KEY); } catch (_) {}
     }
 
     function handleSequentialPick(category) {
