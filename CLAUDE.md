@@ -82,6 +82,12 @@ When you discover something that should persist:
 | Failed approach | `context/failed-solutions.md` |
 | Active task state | `context/current-task.md` |
 | Session state / recent changes | `context/handoff.md` |
+| Intelligence system usage | `context/savings-log.md` |
+
+At the end of every session, append one line to `context/savings-log.md`:
+```
+YYYY-MM-DD | task: <what was done> | SQLite queries: <N> | context docs loaded: <N> | full repo scan avoided: yes/no | notes
+```
 
 After updating Markdown, sync to SQLite:
 ```bash

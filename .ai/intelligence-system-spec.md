@@ -1070,7 +1070,22 @@ Use incremental sync for context/*.md edits. Use full rebuild when the structure
 
 ---
 
-## 38. Ghost Test (Mental Dry-Run)
+## 38. Savings Log
+
+At the end of every session, append one line to `context/savings-log.md`.
+
+Format:
+```
+YYYY-MM-DD | task: <what was done> | SQLite queries: <N> | context docs loaded: <N> | full repo scan avoided: yes/no | notes
+```
+
+This is a qualitative proxy — exact token counts are not available to the model. Over time it shows how often the system was used instead of cold-scanning the repository.
+
+Token counts are not tracked here because Claude has no access to its own token usage mid-session. The log captures intent and behaviour, not precise measurements.
+
+---
+
+## 39. Ghost Test (Mental Dry-Run)
 
 Before executing a code change, the AI must perform a ghost test: a mental simulation of the change to verify understanding before touching any files.
 
