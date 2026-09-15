@@ -139,6 +139,7 @@ After each meaningful sub-step of any task — reading context, finishing a file
 - Applies to every task, small or large
 - Percentage is a rough pulse, not a precise figure; reset or note if scope expands
 - Do not front-load a full plan and then go silent — give updates as work progresses
+- **For large tasks**: two levels of update — granular sub-step updates within each phase/chunk, **plus** a one-to-two line chunk-complete summary when that major phase finishes (e.g. "✓ Backend changes complete — all 3 files updated [~50%]")
 
 ---
 

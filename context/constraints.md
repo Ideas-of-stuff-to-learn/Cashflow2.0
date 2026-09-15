@@ -68,6 +68,7 @@ Never auto-merge PRs. The owner manually merges after testing. Do not enable aut
 After each meaningful sub-step (context read, file edit, sync, decision point), output a one-to-two line update in the chat UI with a rough percentage:
 `✓ <done> [~X%]` or `→ <next> [~X%]`
 Never go silent mid-task. Never front-load the full plan and then execute silently. Applies to small and large tasks equally.
+For large tasks specifically: two update levels — granular sub-step updates within each major phase, **plus** a one-to-two line chunk-complete summary each time a major phase finishes.
 
 ## Routing
 

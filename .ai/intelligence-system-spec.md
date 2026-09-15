@@ -1662,6 +1662,21 @@ The percentage is rough and relative to the whole task as understood at that mom
 
 Even a small two-file change should have a brief mid-task update (e.g., "reading constraints, about to edit" → "done"). Large multi-file tasks should have an update after each file group or logical phase.
 
+### Two-level updates for large tasks
+
+For large multi-phase tasks, two levels of update are required:
+
+1. **Sub-step level** — granular updates within each phase (reading a file, editing a group, running sync), as described above
+2. **Chunk level** — a one-to-two line summary when a major phase/chunk completes, regardless of how many sub-steps it contained
+
+Example chunk-complete update:
+```
+✓ Backend changes complete — pipeline.py, checkingName.py, schema.sql updated [~50%]
+→ Starting frontend (WebUI + NativeAppUI) [~50%]
+```
+
+The chunk-complete update is in addition to, not a replacement for, the sub-step updates within that chunk.
+
 ### Never front-load the whole plan
 
 Do not output a long upfront plan and then go silent while executing. Give updates as you go, not all at once at the start or end.
