@@ -515,8 +515,8 @@ VALUES (
     'main',
     0,
     'ai/',
-    'push',
-    'implement locally → npm run build → owner says "push" → git add <files> → commit → git pull --rebase → git push origin main. Branch workflow (ai/<desc>) only when owner explicitly requests a PR. Never auto-merge. After PR merge: git checkout main + git pull origin main.',
+    'ship',
+    'implement locally → npm run build → owner says "ship" → git add <files> → commit → git pull --rebase → git push origin main. Branch workflow (ai/<desc>) only when owner explicitly requests a PR. Never auto-merge. After PR merge: git checkout main + git pull origin main.',
     'Bot commits (Backup log, Keep-alive ping) appear in git log — ignore them. stash -u before pull --rebase if uncommitted changes exist.'
 )
 """)

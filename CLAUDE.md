@@ -97,7 +97,7 @@ When a change is substantial enough to count as its own milestone: promote the e
 
 ## Git Workflow
 
-- **Trigger word:** `"push"` — when the owner says this, commit and push current work
+- **Trigger word:** `"ship"` — when the owner says this, commit and push current work
 - Direct to `main` by default (no PR unless owner requests one)
 - Never auto-merge
 - Branch workflow (`ai/<desc>`) only when owner explicitly requests a PR; after merge: `git checkout main && git pull origin main`

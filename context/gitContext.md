@@ -7,10 +7,10 @@ upstream:      https://github.com/Ideas-of-stuff-to-learn/Cashflow2.0.git
 base_branch:   main
 branch_prefix: ai/
 auto_merge:    false
-trigger_word:  "push"
+trigger_word:  "ship"
 ```
 
-**Trigger word:** When the owner says `"push"` (or equivalent — "push it", "push all", "push to main"), that is the signal to commit and push the current work.
+**Trigger word:** When the owner says `"ship"` (or equivalent — "ship it", "ship all", "ship to main"), that is the signal to commit and push the current work.
 
 ---
 
