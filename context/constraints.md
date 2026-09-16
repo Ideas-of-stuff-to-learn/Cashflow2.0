@@ -62,6 +62,9 @@ Schema changes go directly to Supabase via hand-applied SQL. `App/API/schema.sql
 **No auto-merge.**
 Never auto-merge PRs. The owner manually merges after testing. Do not enable auto-merge via GitHub settings or `gh` commands.
 
+**Ghost test / verification temp files must be deleted.**
+Any scratch scripts, test outputs, or debug files created during a ghost test or local verification step must be completely removed before the task is done. Never commit them or leave them in the working directory.
+
 ## AI Behavior
 
 **Progress updates are mandatory for every task.**

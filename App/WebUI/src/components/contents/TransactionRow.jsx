@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, forwardRef } from 'react';
 import { NEEDS_MANUAL_REVIEW, NOT_YET_CATEGORISED } from '../../checkingName';
 import '../../styles/contentsStyles.css';
 import { ROW_HEIGHT } from '../../utils/contentsscreen/contentsUtils';
@@ -21,7 +21,7 @@ import { ROW_HEIGHT } from '../../utils/contentsscreen/contentsUtils';
 // the parent needing to create a per-item callback that would itself be
 // a new reference on every render.
 
-const TransactionRow = memo(function TransactionRow({
+const TransactionRow = memo(forwardRef(function TransactionRow({
     item,
     index,
     isSelected,
@@ -30,7 +30,8 @@ const TransactionRow = memo(function TransactionRow({
     onOpenPicker,
     onEnterSelectionMode,
     style,
-}) {
+}, ref) {
+
     const isManual = item.category === NEEDS_MANUAL_REVIEW;
     const isFailed = item.category === NOT_YET_CATEGORISED;
     const isWaiting = !item.category;
@@ -61,6 +62,8 @@ const TransactionRow = memo(function TransactionRow({
 
     return (
         <button
+            ref={ref}
+            data-index={index}
             style={style}
             className={[
                 'row',
@@ -97,6 +100,6 @@ const TransactionRow = memo(function TransactionRow({
             </span>
         </button>
     );
-});
+}));
 
 export default TransactionRow;

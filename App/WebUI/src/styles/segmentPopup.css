@@ -40,7 +40,9 @@
     border-radius: 8px;
     padding: 8px 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
+    max-width: min(260px, calc(100vw - 32px));
     z-index: 5;
     margin-top: -8px;
 }

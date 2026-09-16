@@ -17,7 +17,7 @@ export default function ChartsScreen() {
     const { mobileSelectedCategories, toggleMobileCategory, toggleAllMobileCategories } = useChartFilter();
 
     const {
-        hasData, selectedSegment,
+        hasData,
         effectiveOrder, isCustomOrder, updateOrder, resetOrder, persist, togglePersist,
         availableCategories, setSelectedCategories: setChartSelectedCategories,
         monthBounds, yearBounds,
@@ -45,14 +45,11 @@ export default function ChartsScreen() {
 
     return (
         <div className="charts-container">
-            <div className="charts-scroll-content">
-                <StatusBanners initialLoading={initialLoading} processingStage={processingStage} />
-
-                {/* Same combined category-selection + drag-to-reorder
-                    pane as Dashboard's FilterPane, just laid out full-width
-                    inline instead of as a docked sidebar (see
-                    .charts-filter-wrap override in chartStyles.css). */}
-                <div className="charts-filter-wrap">
+            <div className="charts-body">
+                {/* Sidebar: filter pane — on desktop it's the existing full-width
+                    inline block; on mobile (≤700px) it becomes a narrow fixed
+                    sidebar matching the transactions screen layout. */}
+                <div className="charts-sidebar">
                     <FilterPane
                         availableCategories={availableCategories}
                         contentsSelectedCategories={mobileSelectedCategories}
@@ -68,46 +65,37 @@ export default function ChartsScreen() {
                     />
                 </div>
 
-                <ChartWindowSection
-                    ready={chartReady}
-                    hasData={hasData}
-                    monthWindow={monthWindow}
-                    yearWindowEntries={yearWindowEntries}
-                    scrollMonthWindow={scrollMonthWindow}
-                    scrollYearWindow={scrollYearWindow}
-                    jumpMonthWindowToYear={jumpMonthWindowToYear}
-                    canScrollMonthBack={canScrollMonthBack}
-                    canScrollMonthForward={canScrollMonthForward}
-                    canScrollYearBack={canScrollYearBack}
-                    canScrollYearForward={canScrollYearForward}
-                    setMonthWindowByIndex={setMonthWindowByIndex}
-                    setYearWindowByIndex={setYearWindowByIndex}
-                    monthSliderMaxIndex={monthSliderMaxIndex}
-                    monthSliderCurrentIndex={monthSliderCurrentIndex}
-                    yearSliderMaxIndex={yearSliderMaxIndex}
-                    yearSliderCurrentIndex={yearSliderCurrentIndex}
-                    monthSliderTrackMax={monthSliderTrackMax}
-                    yearSliderTrackMax={yearSliderTrackMax}
-                    buildStackDataFromEntries={buildStackDataFromEntries}
-                    incomeForEntries={incomeForEntries}
-                    monthBounds={monthBounds}
-                    yearBounds={yearBounds}
-                />
+                <div className="charts-scroll-content">
+                    <StatusBanners initialLoading={initialLoading} processingStage={processingStage} />
 
-                {selectedSegment && (
-                    <p className="tapped-value-text">
-                        {selectedSegment.month
-                            ? `${selectedSegment.year}/${selectedSegment.month} — `
-                            : `${selectedSegment.year} — `}
-                        {selectedSegment.category}: £{selectedSegment.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </p>
-                )}
+                    <ChartWindowSection
+                        ready={chartReady}
+                        hasData={hasData}
+                        monthWindow={monthWindow}
+                        yearWindowEntries={yearWindowEntries}
+                        scrollMonthWindow={scrollMonthWindow}
+                        scrollYearWindow={scrollYearWindow}
+                        jumpMonthWindowToYear={jumpMonthWindowToYear}
+                        canScrollMonthBack={canScrollMonthBack}
+                        canScrollMonthForward={canScrollMonthForward}
+                        canScrollYearBack={canScrollYearBack}
+                        canScrollYearForward={canScrollYearForward}
+                        setMonthWindowByIndex={setMonthWindowByIndex}
+                        setYearWindowByIndex={setYearWindowByIndex}
+                        monthSliderMaxIndex={monthSliderMaxIndex}
+                        monthSliderCurrentIndex={monthSliderCurrentIndex}
+                        yearSliderMaxIndex={yearSliderMaxIndex}
+                        yearSliderCurrentIndex={yearSliderCurrentIndex}
+                        monthSliderTrackMax={monthSliderTrackMax}
+                        yearSliderTrackMax={yearSliderTrackMax}
+                        buildStackDataFromEntries={buildStackDataFromEntries}
+                        incomeForEntries={incomeForEntries}
+                        monthBounds={monthBounds}
+                        yearBounds={yearBounds}
+                    />
 
-                <ChartFootnote />
-
-                <button className="charts-button" onClick={() => navigate(-1)}>
-                    Back to Home
-                </button>
+                    <ChartFootnote />
+                </div>
             </div>
         </div>
     );

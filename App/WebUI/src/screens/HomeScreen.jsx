@@ -16,7 +16,7 @@ export default function HomeScreen() {
     const { dateRangeInfo, refetchUploadCount } = useInitialLoadLogic();
     const { handleLogout } = useLogout();
     const { pickFiles, selectedFiles, setSelectedFiles, status, setStatus, error, setError } = useFilePicker();
-    const { processFiles, loading, progress } = useFileProcessor(setStatus, setError, selectedFiles);
+    const { processFiles, loading, progress, duplicateNotice, clearDuplicateNotice } = useFileProcessor(setStatus, setError, selectedFiles);
 
     useEffect(() => {
         if (!manualReviewFlow) setSelectedFiles([]);
@@ -26,6 +26,7 @@ export default function HomeScreen() {
 
     async function handleCategorisePress() {
         await processFiles();
+        setSelectedFiles([]);
         refetchUploadCount();
         refetchUploadBreakdown();
     }
@@ -57,6 +58,8 @@ export default function HomeScreen() {
                     allTransactionsLoaded={allTransactionsLoaded}
                     handleLogout={handleLogout}
                     showGoToCharts
+                    duplicateNotice={duplicateNotice}
+                    onDismissDuplicateNotice={clearDuplicateNotice}
                 />
             </div>
         </div>

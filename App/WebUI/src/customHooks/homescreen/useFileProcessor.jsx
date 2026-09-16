@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { parseCSVFiles } from '../../api';
 import { useTransactions, useProcessing, useChartFilter } from '../../appState';
 import { mergeById } from '../../utils/homescreen/homescreenUtils';
@@ -9,12 +9,21 @@ import { runLlmTier } from './llmTierRunner';
 export function useFileProcessor(setStatus, setError, selectedFiles) {
     const [loading, setLoading] = useState(false);
     const [progress, setProgress] = useState({ current: 0, total: 0, phase: '' });
+    const [duplicateNotice, setDuplicateNotice] = useState(null);
+
+    // If manual review needs to start but we're showing the upload
+    // summary popup first, we park the processed transactions here and
+    // fire startManualReviewFlowIfNeeded only when the user dismisses
+    // the notice — so the upload summary always precedes manual review.
+    const pendingManualReviewItems = useRef(null);
 
     const { transactions, setTransactions } = useTransactions();
     const { setCategorising, setProcessingStage, startManualReviewFlowIfNeeded } = useProcessing();
     const { bumpChartDataVersion } = useChartFilter();
 
-    async function categorizeTransactions(itemsNeedingCategorization, runLabel = 'Categorise') {
+    // autoTriggerManualReview: true for retry runs (no upload notice will
+    // follow), false for new-file uploads (notice must appear first).
+    async function categorizeTransactions(itemsNeedingCategorization, runLabel = 'Categorise', autoTriggerManualReview = true) {
         setProcessingStage('checkingCache');
         setCategorising(true);
 
@@ -29,19 +38,23 @@ export function useFileProcessor(setStatus, setError, selectedFiles) {
             setStatus, setError, setTransactions, bumpChartDataVersion, setProcessingStage, setProgress, runLabel,
         });
 
-        // The categorisation run has now GENUINELY finished (cache
-        // tiers + LLM tier both done) - this is the one correct point
-        // to check whether the blocking manual-review flow needs to
-        // trigger, using the items exactly as this run left them
-        // (itemsNeedingCategorization's ids, looked up fresh from the
-        // now-current transactions state so we get their FINAL
-        // resolved categories, not the pre-run snapshot).
         const processedIds = new Set(itemsNeedingCategorization.map(t => t.id));
-        setTransactions(currentTransactions => {
-            const processedNow = currentTransactions.filter(t => processedIds.has(t.id));
-            startManualReviewFlowIfNeeded(processedNow);
-            return currentTransactions; // no actual change - just reading current state
-        });
+
+        if (autoTriggerManualReview) {
+            setTransactions(currentTransactions => {
+                const processedNow = currentTransactions.filter(t => processedIds.has(t.id));
+                startManualReviewFlowIfNeeded(processedNow);
+                return currentTransactions;
+            });
+        } else {
+            // Caller will show upload summary popup first; stash the
+            // processed items so clearDuplicateNotice can fire manual
+            // review after the user dismisses the notice.
+            setTransactions(currentTransactions => {
+                pendingManualReviewItems.current = currentTransactions.filter(t => processedIds.has(t.id));
+                return currentTransactions;
+            });
+        }
     }
 
     async function processFiles() {
@@ -58,12 +71,12 @@ export function useFileProcessor(setStatus, setError, selectedFiles) {
 
         try {
             if (notYetCategorisedItems.length > 0) {
-                await categorizeTransactions(notYetCategorisedItems, 'Retry');
+                await categorizeTransactions(notYetCategorisedItems, 'Retry', true);
             }
 
             if (selectedFiles.length > 0) {
                 setStatus('Parsing CSV files...');
-                const parsed = await parseCSVFiles(selectedFiles);
+                const { transactions: parsed, duplicateFilenames, duplicateContents, batchCopyDuplicates, successfulCount } = await parseCSVFiles(selectedFiles);
 
                 setTransactions(prev => mergeById(prev, parsed));
                 setCategorising(true);
@@ -71,7 +84,18 @@ export function useFileProcessor(setStatus, setError, selectedFiles) {
                 const needsCategorization = parsed.filter(t => t.category == null);
 
                 if (needsCategorization.length > 0) {
-                    await categorizeTransactions(needsCategorization, 'Categorise');
+                    // Don't auto-trigger manual review — show upload summary first
+                    await categorizeTransactions(needsCategorization, 'Categorise', false);
+                }
+
+                const hasDuplicateInfo = duplicateFilenames.length > 0 || duplicateContents.length > 0 || batchCopyDuplicates.length > 0;
+                if (hasDuplicateInfo || successfulCount > 0) {
+                    setDuplicateNotice({ filenames: duplicateFilenames, contents: duplicateContents, batchCopies: batchCopyDuplicates, successfulCount });
+                } else {
+                    // No notice to show — trigger manual review immediately
+                    const pending = pendingManualReviewItems.current;
+                    pendingManualReviewItems.current = null;
+                    if (pending) startManualReviewFlowIfNeeded(pending);
                 }
             }
         } catch (e) {
@@ -85,10 +109,20 @@ export function useFileProcessor(setStatus, setError, selectedFiles) {
         }
     }
 
+    function clearDuplicateNotice() {
+        setDuplicateNotice(null);
+        // Fire manual review now that the user has dismissed the upload summary
+        const pending = pendingManualReviewItems.current;
+        pendingManualReviewItems.current = null;
+        if (pending) startManualReviewFlowIfNeeded(pending);
+    }
+
     return {
         processFiles,
         loading,
         setLoading,
         progress,
+        duplicateNotice,
+        clearDuplicateNotice,
     };
 }

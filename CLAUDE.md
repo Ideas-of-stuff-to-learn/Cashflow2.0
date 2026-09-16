@@ -85,6 +85,8 @@ When you discover something that should persist:
 | Intelligence system usage | `context/savings-log.md` |
 | Revert safe-points | `context/revert-state.md` |
 
+**Ghost test / local verification cleanup:** any temporary files generated during a ghost test or local verification (scratch scripts, test outputs, debug files) must be fully deleted before the task is considered complete. Never commit or leave them in the working directory.
+
 **Before touching any code**, record the current commit hash in `context/revert-state.md`:
 ```bash
 git rev-parse HEAD  # copy this hash into the log

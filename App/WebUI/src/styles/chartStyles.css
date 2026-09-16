@@ -1,19 +1,76 @@
-.charts-container { height: 100%; background: #fff; overflow-y: auto; }
-.charts-scroll-content { padding: 20px; padding-bottom: 40px; }
+.charts-container { height: 100%; background: #fff; overflow-y: auto; overflow-x: clip; }
+.charts-body { display: flex; overflow-x: clip; }
+.charts-scroll-content { flex: 1; padding: 20px; padding-bottom: 40px; min-width: 0; overflow-x: clip; }
 .charts-title { font-size: 24px; font-weight: bold; margin-top: 24px; margin-bottom: 8px; }
 
-/* FilterPane normally lives in Dashboard's stretched, fixed-height
-   flex row (width: 220px, height: 100%). Here it's inline in a plain
-   scrolling page, so it needs to size to its own content instead. */
-.charts-filter-wrap {
-    margin: 16px 0;
-}
-.charts-filter-wrap .filter-pane {
-    width: 100%;
-    height: auto;
-}
-.charts-filter-wrap .filter-pane-scroll-list {
-    overflow-y: visible;
+/* Sidebar: hidden on desktop (filter renders inline in scroll content via charts-filter-wrap),
+   visible as narrow sidebar on mobile (≤700px). */
+.charts-sidebar { display: none; }
+
+/* On mobile: sidebar appears and the whole page scrolls as one unit */
+@media (max-width: 700px) {
+
+    .charts-container { height: auto; min-height: 100%; overflow-y: visible; }
+    .charts-body { align-items: flex-start; }
+
+    .charts-sidebar {
+        display: block;
+        width: 115px;
+        flex-shrink: 0;
+        border-right: 1px solid #eee;
+        background: #fafafa;
+        overflow: hidden;
+        position: sticky;
+        top: 48px; /* below the 48px app-header */
+        max-height: calc(100vh - 48px);
+        align-self: flex-start;
+        overflow-y: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .charts-sidebar::-webkit-scrollbar { display: none; }
+
+    /* Override FilterPane defaults so it sits flat inside the sidebar
+       with no internal scroll, no sticky, no fixed width/height */
+    .charts-sidebar .filter-pane {
+        width: 100%;
+        max-height: none;
+        overflow: visible;
+        position: static;
+        top: auto;
+        padding: 6px 0 6px 1px;
+        border-radius: 0;
+        border: none;
+        gap: 2px;
+    }
+    .charts-sidebar .filter-pane-scroll-list {
+        max-height: none;
+        overflow: visible;
+    }
+    .charts-sidebar .filter-pane-section {
+        margin-bottom: 6px;
+        padding-bottom: 6px;
+    }
+    .charts-sidebar .filter-pane-header {
+        margin-bottom: 4px;
+        padding-bottom: 4px;
+    }
+    .charts-sidebar .filter-pane-title { font-size: 11px; }
+    .charts-sidebar .filter-pane-section-title { font-size: 10px; margin-bottom: 3px; }
+    /* Align All + category rows flush left; clamp text so drag handle always fits */
+    .charts-sidebar .filter-pane-checkbox-row { font-size: 10px; gap: 3px; padding: 2px 0; }
+    /* Remove the transparent border that shifts category checkboxes right vs "All" */
+    .charts-sidebar .filter-pane-combined-row { gap: 0; border-left-width: 0; border-right-width: 0; border-bottom-width: 0; }
+    .charts-sidebar .filter-pane-combined-label { gap: 3px; min-width: 0; flex: 1; }
+    .charts-sidebar .filter-pane-combined-label span:last-child { overflow: hidden; text-overflow: ellipsis; min-width: 0; white-space: nowrap; }
+    .charts-sidebar .filter-pane-colour-dot { width: 6px; height: 6px; margin-right: 1px; }
+
+    /* Strip non-essential elements to save space */
+    .charts-sidebar .filter-pane-hint { display: none; }
+    .charts-sidebar .filter-pane-persist-row { display: none; }
+    .charts-sidebar .filter-pane-reset-btn { display: none; }
+    /* Keep drag handle — hold-to-drag works on mobile */
+    .charts-sidebar .filter-pane-drag-handle { font-size: 11px; padding: 0; }
 }
 .charts-button { background: #2E5C8A; padding: 12px 24px; border-radius: 8px; margin-bottom: 24px; color: #fff; font-size: 16px; font-weight: 600; border: none; cursor: pointer; width: 100%; text-align: center;margin-top: 24px; }
 
@@ -76,8 +133,9 @@
 }
 .chart-header-row {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
     margin-bottom: 4px;
 }
 

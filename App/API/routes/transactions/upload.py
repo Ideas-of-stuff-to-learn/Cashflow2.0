@@ -10,6 +10,7 @@ know or care which format the file originally was.
 
 import csv
 import io
+import re
 
 import openpyxl
 import xlrd
@@ -68,7 +69,44 @@ def parse_csv():
     # out to be pure re-uploads/subsets of what's already stored.
     file_dedup_keys = {}
 
+    # If the same batch contains both "file.csv" and "file - Copy.csv",
+    # prefer the original. Strip trailing copy suffixes to detect this.
+    _copy_pattern = re.compile(r'\s*-\s*copy(\s*\(\d+\))?\s*$', re.IGNORECASE)
+
+    def _base_name(fname):
+        stem, _, ext = fname.rpartition('.')
+        stem_stripped = _copy_pattern.sub('', stem).rstrip()
+        return f"{stem_stripped}.{ext}" if stem_stripped else fname
+
+    batch_base_names = {}  # base_name -> canonical filename already in this batch
+    batch_copy_duplicates = set()  # filenames identified as copies within this batch
     for file in uploaded_files:
+        fname = file.filename
+        base = _base_name(fname)
+        is_copy = base != fname  # True when fname had a copy suffix stripped
+
+        if base in batch_base_names:
+            existing = batch_base_names[base]
+            existing_is_copy = _base_name(existing) != existing
+            if is_copy:
+                # Incoming file is a copy — always discard it
+                batch_copy_duplicates.add(fname)
+            elif existing_is_copy:
+                # Incoming file is the original; the copy got there first — swap
+                batch_copy_duplicates.add(existing)
+                batch_base_names[base] = fname
+            else:
+                # Two non-copy files with the same effective name — keep first
+                batch_copy_duplicates.add(fname)
+        else:
+            batch_base_names[base] = fname
+
+    for file in uploaded_files:
+        # Skip files identified as copy-variants of another file in this
+        # same batch — they'll be reported as batch_copy_duplicates below.
+        if file.filename in batch_copy_duplicates:
+            continue
+
         filename_lower = file.filename.lower()
         is_csv = filename_lower.endswith('.csv')
         is_excel = filename_lower.endswith('.xlsx') or filename_lower.endswith('.xls')
@@ -220,6 +258,26 @@ def parse_csv():
                     template="(%s, %s)",
                 )
 
+            # Work out which submitted files were pure duplicates and why.
+            # pure_duplicate_filenames = file already in uploaded_files for this user (same name, same data seen before).
+            # pure_duplicate_contents  = new filename but every dedup_key already existed (different name, same data).
+            submitted_filenames = list(file_dedup_keys.keys())
+            pure_duplicates = [f for f in submitted_filenames if f not in files_with_new_data]
+
+            duplicate_filenames = []
+            duplicate_contents = []
+            if pure_duplicates:
+                cur.execute(
+                    "SELECT filename FROM uploaded_files WHERE user_id = %s AND filename = ANY(%s)",
+                    (current_user, pure_duplicates),
+                )
+                known_filenames = {row[0] for row in cur.fetchall()}
+                for f in pure_duplicates:
+                    if f in known_filenames:
+                        duplicate_filenames.append(f)
+                    else:
+                        duplicate_contents.append(f)
+
         conn.commit()
     except Exception as e:
         conn.rollback()
@@ -229,4 +287,10 @@ def parse_csv():
         release_connection(conn)
 
     app.logger.info(f"User {current_user} parsed {len(all_parsed_rows)} transactions from {len(uploaded_files)} file(s)")
-    return jsonify({"transactions": all_parsed_rows})
+    return jsonify({
+        "transactions": all_parsed_rows,
+        "duplicate_filenames": duplicate_filenames,
+        "duplicate_contents": duplicate_contents,
+        "batch_copy_duplicates": list(batch_copy_duplicates),
+        "successful_count": len(files_with_new_data),
+    })

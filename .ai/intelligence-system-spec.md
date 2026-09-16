@@ -1677,6 +1677,10 @@ Example chunk-complete update:
 
 The chunk-complete update is in addition to, not a replacement for, the sub-step updates within that chunk.
 
+### Ghost test and local verification cleanup
+
+Any temporary or extra files generated during a ghost test or local verification step (scratch scripts, test outputs, debug files, intermediate artifacts) must be completely deleted before the task is considered done. They are not part of the project and must never be committed or left in the working directory.
+
 ### Never front-load the whole plan
 
 Do not output a long upfront plan and then go silent while executing. Give updates as you go, not all at once at the start or end.

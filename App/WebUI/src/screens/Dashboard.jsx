@@ -23,7 +23,7 @@ export default function DashboardScreen() {
     const { dateRangeInfo, refetchUploadCount } = useInitialLoadLogic();
     const { handleLogout } = useLogout();
     const { pickFiles, selectedFiles, setSelectedFiles, status, setStatus, error, setError } = useFilePicker();
-    const { processFiles, loading, progress } = useFileProcessor(setStatus, setError, selectedFiles);
+    const { processFiles, loading, progress, duplicateNotice, clearDuplicateNotice } = useFileProcessor(setStatus, setError, selectedFiles);
     const notYetCategorisedCount = transactions.filter(t => t.category === NOT_YET_CATEGORISED).length;
 
     useEffect(() => {
@@ -32,6 +32,7 @@ export default function DashboardScreen() {
 
     async function handleCategorisePress() {
         await processFiles();
+        setSelectedFiles([]);
         refetchUploadCount();
         refetchUploadBreakdown();
     }
@@ -84,6 +85,8 @@ export default function DashboardScreen() {
                     notYetCategorisedCount={notYetCategorisedCount}
                     allTransactionsLoaded={allTransactionsLoaded}
                     handleLogout={handleLogout}
+                    duplicateNotice={duplicateNotice}
+                    onDismissDuplicateNotice={clearDuplicateNotice}
                 />
             </div>
 
