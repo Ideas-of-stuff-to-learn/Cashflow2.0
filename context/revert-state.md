@@ -21,3 +21,4 @@ Use `git revert` when changes have already been pushed to origin.
 | 2026-09-15 | Manual review reload persistence + exit button | 49c97b1 | complete — no revert needed |
 | 2026-09-16 | UserPreferences context, column resize persist, info popup, delete removal | c9c56ad | complete — no revert needed |
 | 2026-09-16 | Preferences sync lifecycle, virtualizer height fix, CSS breakpoint sync | c9c56ad | complete — shipping to main |
+| 2026-09-16 | Legal pages: /privacy, /terms, /accessibility, /cookies | 33ad764 | complete — no revert needed |

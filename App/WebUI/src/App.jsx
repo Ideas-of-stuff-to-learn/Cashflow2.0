@@ -10,6 +10,10 @@ import LoginScreen from './screens/LoginScreen';
 import SignupScreen from './screens/SignupScreen';
 import HomeScreen from './screens/HomeScreen';
 import DashboardScreen from './screens/Dashboard';
+import PrivacyScreen from './screens/PrivacyScreen';
+import TermsScreen from './screens/TermsScreen';
+import AccessibilityScreen from './screens/AccessibilityScreen';
+import CookiesScreen from './screens/CookiesScreen';
 
 const ChartsScreen = lazy(() => import('./screens/ChartsScreen'));
 const ContentsScreen = lazy(() => import('./screens/ContentsScreen'));
@@ -34,6 +38,10 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<LoginScreen />} />
             <Route path="/signup" element={<SignupScreen />} />
+            <Route path="/privacy" element={<PrivacyScreen />} />
+            <Route path="/terms" element={<TermsScreen />} />
+            <Route path="/accessibility" element={<AccessibilityScreen />} />
+            <Route path="/cookies" element={<CookiesScreen />} />
 
             <Route element={<ResponsiveGate />}>
               <Route path="/" element={null} />

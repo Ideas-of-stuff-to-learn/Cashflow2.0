@@ -1,6 +1,6 @@
 // components/Layout.jsx
 import { useState } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import RoleBadge from './RoleBadge';
 import { useIsMobile } from '../customHooks/useIsMobile';
 import '../styles/Layout.css';
@@ -66,6 +66,12 @@ export default function Layout() {
             <div className="app-content">
                 <Outlet />
             </div>
+            <footer className="app-footer">
+                <Link to="/privacy">Privacy</Link>
+                <Link to="/terms">Terms</Link>
+                <Link to="/accessibility">Accessibility</Link>
+                <Link to="/cookies">Cookies</Link>
+            </footer>
             {showInfo && <TransactionsInfoModal onClose={() => setShowInfo(false)} />}
         </div>
     );
