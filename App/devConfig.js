@@ -4,4 +4,4 @@
 // coldStartSimulatedSeconds: how long the fake delay lasts (30 = realistic Render cold start).
 
 export const simulateColdStart = false;
-export const coldStartSimulatedSeconds = 30;
+export const coldStartSimulatedSeconds = 15;
