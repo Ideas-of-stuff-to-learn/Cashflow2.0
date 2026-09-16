@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import '../styles/LegalPages.css';
+import { CONTACT_EMAIL } from '../config/legal';
 
 export default function TermsScreen() {
     return (
@@ -10,9 +11,9 @@ export default function TermsScreen() {
 
             <h2>Access</h2>
             <p>
-                Cashflow 2.0 is a private tool. Access is granted solely at the discretion of the
-                app owner. There is no public registration. Using this app means you have been
-                explicitly invited to do so.
+                Cashflow 2.0 is a free, publicly available tool. Anyone may create an account
+                via the sign-up page. By creating an account and using the app you agree to
+                these terms.
             </p>
 
             <h2>Acceptable use</h2>
@@ -40,14 +41,15 @@ export default function TermsScreen() {
 
             <h2>Limitation of liability</h2>
             <p>
-                The app owner is not liable for any loss or damage arising from use of this
-                application, including any errors in transaction categorisation or data loss.
+                To the fullest extent permitted by law, we are not liable for any loss or damage
+                arising from use of this application, including any errors in transaction
+                categorisation or data loss.
             </p>
 
             <h2>Termination</h2>
             <p>
-                Access may be revoked at any time at the owner's discretion. On termination, your
-                data may be deleted.
+                You may delete your account at any time by contacting us. We reserve the right
+                to suspend or terminate accounts that violate these terms.
             </p>
 
             <h2>Changes to these terms</h2>
@@ -58,7 +60,7 @@ export default function TermsScreen() {
 
             <h2>Contact</h2>
             <p>
-                Questions about these terms: <a href="mailto:khaitanarmaan@gmail.com">khaitanarmaan@gmail.com</a>
+                Questions about these terms: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
             </p>
         </div>
     );

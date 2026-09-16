@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import '../styles/LegalPages.css';
+import { CONTACT_EMAIL } from '../config/legal';
 
 export default function PrivacyScreen() {
     return (
@@ -11,8 +12,7 @@ export default function PrivacyScreen() {
             <h2>What this app is</h2>
             <p>
                 Cashflow 2.0 is a personal finance tool that helps you categorise bank transactions
-                and visualise spending. It is a private tool — access is by invitation only and no
-                public sign-up is available.
+                and visualise spending. Anyone can create a free account via the sign-up page.
             </p>
 
             <h2>What data we collect</h2>
@@ -46,13 +46,13 @@ export default function PrivacyScreen() {
             <h2>Data retention</h2>
             <p>
                 Your data is retained for as long as your account exists. You may request deletion
-                of your account and all associated data at any time by contacting the app owner.
+                of your account and all associated data at any time by contacting us.
             </p>
 
             <h2>Your rights</h2>
             <p>
                 You may request a copy of your data, correction of inaccurate data, or deletion of
-                your account by contacting <a href="mailto:khaitanarmaan@gmail.com">khaitanarmaan@gmail.com</a>.
+                your account by contacting <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
             </p>
 
             <h2>Changes to this policy</h2>

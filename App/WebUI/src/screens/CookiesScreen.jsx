@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import '../styles/LegalPages.css';
+import { CONTACT_EMAIL } from '../config/legal';
 
 export default function CookiesScreen() {
     return (
@@ -69,7 +70,7 @@ export default function CookiesScreen() {
 
             <h2>Contact</h2>
             <p>
-                Questions: <a href="mailto:khaitanarmaan@gmail.com">khaitanarmaan@gmail.com</a>
+                Questions: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
             </p>
         </div>
     );

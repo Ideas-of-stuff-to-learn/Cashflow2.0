@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import '../styles/LegalPages.css';
+import { CONTACT_EMAIL } from '../config/legal';
 
 export default function AccessibilityScreen() {
     return (
@@ -17,8 +18,8 @@ export default function AccessibilityScreen() {
 
             <h2>Current status</h2>
             <p>
-                Cashflow 2.0 is a private tool under active development. We have taken the
-                following steps to improve accessibility:
+                Cashflow 2.0 is under active development. We have taken the following steps to
+                improve accessibility:
             </p>
             <ul>
                 <li>Semantic HTML elements are used throughout (headings, lists, buttons, labels).</li>
@@ -41,7 +42,7 @@ export default function AccessibilityScreen() {
             <h2>Feedback</h2>
             <p>
                 If you encounter an accessibility barrier or have a suggestion, please contact
-                us at <a href="mailto:khaitanarmaan@gmail.com">khaitanarmaan@gmail.com</a>. We
+                us at <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. We
                 will do our best to address issues promptly.
             </p>
 
