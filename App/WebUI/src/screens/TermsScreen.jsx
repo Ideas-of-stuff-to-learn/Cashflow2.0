@@ -1,11 +1,12 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import '../styles/LegalPages.css';
 import { CONTACT_EMAIL } from '../config/legal';
 
 export default function TermsScreen() {
+    const navigate = useNavigate();
     return (
         <div className="legal-page">
-            <Link to="/login" className="legal-back">← Back</Link>
+            <button className="legal-back" onClick={() => navigate(-1)}>← Back</button>
             <h1>Terms of Use</h1>
             <p className="legal-date">Last updated: September 2026</p>
 

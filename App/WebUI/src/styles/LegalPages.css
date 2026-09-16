@@ -57,6 +57,11 @@
     color: var(--text-secondary, #666);
     text-decoration: none;
     margin-bottom: 32px;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
 }
 
 .legal-back:hover {
