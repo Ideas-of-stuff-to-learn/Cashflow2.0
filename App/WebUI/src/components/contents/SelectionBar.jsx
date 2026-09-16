@@ -6,8 +6,6 @@ export default function SelectionBar({
     onSelectAll,
     onDeselectAll,
     onChangeCategory,
-    onDelete,
-    deleting,
 }) {
     const hasSelection = selectedCount > 0;
 
@@ -30,13 +28,6 @@ export default function SelectionBar({
                 disabled={!hasSelection}
             >
                 Change category
-            </button>
-            <button
-                className={`cs-sel-btn-danger${(!hasSelection || deleting) ? ' cs-sel-btn-off' : ''}`}
-                onClick={onDelete}
-                disabled={!hasSelection || deleting}
-            >
-                {deleting ? 'Deleting…' : 'Delete'}
             </button>
             <button className="cs-sel-btn-cancel" onClick={onCancel}>✕ Cancel</button>
         </div>

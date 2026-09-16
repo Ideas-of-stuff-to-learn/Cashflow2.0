@@ -1,10 +1,24 @@
 # Cashflow2.0 — Current Task
 
-## Status (2026-09-15)
+## Status (2026-09-16)
 
 No active task. Clean main branch.
 
 ## Recently Completed
+
+**UserPreferences context + column resize persistence + info popup + delete removal + virtualizer fix (2026-09-16):**
+- New `UserPreferencesContext` (5th context, between Auth and Processing)
+- Column widths, stack order, MR picks — localStorage → React context → debounced server PUT (2s) + beforeunload keepalive flush
+- Single `serverGet()` on login; server authoritative over localStorage
+- New backend `App/API/routes/preferences.py` with JSONB partial merge; `preferences JSONB` column on users table
+- TableHeader drag-end saves to context + server; applied from context on mount
+- Delete button removed from SelectionBar
+- ℹ info popup added to Transactions header in Layout.jsx
+- Desktop ContentsScreen sidebar scrollbar hidden
+- CSS media query synced from 700px → 1023px to match JS `isMobile` breakpoint (1024px)
+- `.cs-container` height fixed: `calc(100vh - 48px)` instead of broken `height: 100%` chain — was rendering all 3700+ rows every mount, now virtualizer works correctly and navigation is instant
+
+**Previously (2026-09-15):**
 
 **Persistent Repository Intelligence System (full coverage):**
 - `CLAUDE.md` — entry point pointing to `.ai/knowledge.db` and context docs

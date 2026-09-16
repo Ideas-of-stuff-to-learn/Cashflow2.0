@@ -363,6 +363,19 @@ export async function logout() {
     csrfRefreshToken = null;
 }
 
+export async function getPreferences() {
+    const response = await authorizedFetch(`${BASE_URL}/preferences`, { method: 'GET' });
+    return response.json();
+}
+
+export async function putPreferences(patch) {
+    await authorizedFetch(`${BASE_URL}/preferences`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+    });
+}
+
 export async function categorizeCached(transactions, { timeoutMs, onTiming } = {}) {
     const response = await authorizedFetch(`${BASE_URL}/categorize/cached`, {
         method: 'POST',
@@ -536,7 +549,13 @@ export async function parseCSVFiles(files) {
     });
 
     const data = await parseJsonResponse(response, 'Failed to parse CSV');
-    return data.transactions;
+    return {
+        transactions: data.transactions,
+        duplicateFilenames: data.duplicate_filenames ?? [],
+        duplicateContents: data.duplicate_contents ?? [],
+        batchCopyDuplicates: data.batch_copy_duplicates ?? [],
+        successfulCount: data.successful_count ?? 0,
+    };
 }
 
 export async function categorizeTransactions(transactions) {

@@ -1,7 +1,8 @@
 import { useRef, useMemo } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useVirtualizer, useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useContentsData } from '../customHooks/contentsscreen/useContentsData';
 import { ROW_HEIGHT } from '../utils/contentsscreen/contentsUtils';
+import { useIsMobile } from '../customHooks/useIsMobile';
 import TransactionRow from '../components/contents/TransactionRow';
 import TableHeader from '../components/contents/TableHeader';
 import SelectionBar from '../components/contents/SelectionBar';
@@ -11,6 +12,7 @@ import '../styles/contentsStyles.css';
 
 export default function ContentsScreen() {
     const tableRef = useRef(null);
+    const isMobile = useIsMobile();
 
     const {
         transactions,
@@ -43,12 +45,23 @@ export default function ContentsScreen() {
         onToggle, onOpenPicker, onEnterSelectionMode,
     } = useContentsData();
 
-    const virtualizer = useVirtualizer({
-        count: filtered.length,
+    // On mobile: window scroll so the whole page scrolls as one unit.
+    // On desktop: internal table scroll (virtualiser needs a fixed container).
+    const desktopVirtualizer = useVirtualizer({
+        count: isMobile ? 0 : filtered.length,
         getScrollElement: () => tableRef.current,
         estimateSize: () => ROW_HEIGHT,
+        measureElement: el => el?.getBoundingClientRect().height,
         overscan: 5,
     });
+    const mobileVirtualizer = useWindowVirtualizer({
+        count: isMobile ? filtered.length : 0,
+        estimateSize: () => ROW_HEIGHT,
+        measureElement: el => el?.getBoundingClientRect().height,
+        overscan: 5,
+        scrollMargin: tableRef.current?.offsetTop ?? 0,
+    });
+    const virtualizer = isMobile ? mobileVirtualizer : desktopVirtualizer;
 
     const allCatsSelected = availableCategories.length > 0 &&
         availableCategories.every(cat => selectedCategories.has(cat));
@@ -119,8 +132,6 @@ export default function ContentsScreen() {
                             onSelectAll={selectAllFiltered}
                             onDeselectAll={deselectAll}
                             onChangeCategory={() => selectedIds.size > 0 && openBulkPicker()}
-                            onDelete={handleDeleteSelected}
-                            deleting={deleting}
                         />
                     ) : (
                         <div className="cs-count-row">
@@ -144,15 +155,17 @@ export default function ContentsScreen() {
                         <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
                             {virtualizer.getVirtualItems().map(virtualRow => {
                                 const item = filtered[virtualRow.index];
+                                const offsetTop = virtualRow.start - (isMobile ? (virtualizer.options.scrollMargin ?? 0) : 0);
                                 return (
                                     <TransactionRow
                                         key={item.id || `${item.date}-${item.description}-${item.amount}`}
+                                        ref={virtualizer.measureElement}
                                         style={{
                                             position: 'absolute',
                                             top: 0,
                                             left: 0,
                                             width: '100%',
-                                            transform: `translateY(${virtualRow.start}px)`,
+                                            transform: `translateY(${offsetTop}px)`,
                                         }}
                                         item={item}
                                         index={virtualRow.index}

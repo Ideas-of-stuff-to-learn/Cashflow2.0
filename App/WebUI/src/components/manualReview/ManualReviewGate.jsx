@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { useTransactions, useProcessing, useChartFilter } from '../../appState';
+import { useTransactions, useProcessing, useChartFilter, useUserPreferences } from '../../appState';
 import { resolveCategories, resolveRemainingToOther, beaconResolveRemainingToOther } from '../../api';
 import { NEEDS_MANUAL_REVIEW } from '../../checkingName';
 import ManualReviewStatsModal from './ManualReviewStatsModal';
@@ -8,6 +8,7 @@ import ManualReviewSequentialModal from './ManualReviewSequentialModal';
 export default function ManualReviewGate() {
     const { manualReviewFlow, setManualReviewFlow, enterSequentialReview, closeManualReviewFlow } = useProcessing();
     const { setTransactions, categoryNames } = useTransactions();
+    const { setMrPicks } = useUserPreferences();
     const { bumpChartDataVersion } = useChartFilter();
 
     const pendingResolutionsRef = useRef([]);
@@ -48,14 +49,12 @@ export default function ManualReviewGate() {
         }
     }
 
-    const MR_STORAGE_KEY = 'mr_pending_picks';
-
     function savePendingToStorage(picks) {
-        try { localStorage.setItem(MR_STORAGE_KEY, JSON.stringify(picks)); } catch (_) {}
+        setMrPicks(picks);
     }
 
     function clearPendingStorage() {
-        try { localStorage.removeItem(MR_STORAGE_KEY); } catch (_) {}
+        setMrPicks(null);
     }
 
     function handleSequentialPick(category) {
@@ -87,11 +86,20 @@ export default function ManualReviewGate() {
         }
     }
 
+    async function withOneRetry(fn, delayMs = 1500) {
+        try {
+            return await fn();
+        } catch (e) {
+            await new Promise(r => setTimeout(r, delayMs));
+            return await fn(); // second failure propagates to caller
+        }
+    }
+
     async function flushPendingResolutions() {
         setFlushing(true);
         setFlushError(false);
         try {
-            await resolveCategories(pendingResolutionsRef.current);
+            await withOneRetry(() => resolveCategories(pendingResolutionsRef.current));
             bumpChartDataVersion();
             pendingResolutionsRef.current = [];
             clearPendingStorage();
@@ -109,11 +117,11 @@ export default function ManualReviewGate() {
         setExitFailed(false);
         try {
             if (pendingResolutionsRef.current.length > 0) {
-                await resolveCategories(pendingResolutionsRef.current);
+                await withOneRetry(() => resolveCategories(pendingResolutionsRef.current));
                 pendingResolutionsRef.current = [];
                 clearPendingStorage();
             }
-            await resolveRemainingToOther();
+            await withOneRetry(() => resolveRemainingToOther());
             setTransactions(prev => prev.map(t =>
                 t.category === NEEDS_MANUAL_REVIEW ? { ...t, category: 'Other' } : t
             ));

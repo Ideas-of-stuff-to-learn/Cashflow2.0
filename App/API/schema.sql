@@ -205,6 +205,8 @@ CREATE TABLE IF NOT EXISTS user_permission_overrides (
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS role_id INTEGER REFERENCES roles(id);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS session_started_at TIMESTAMPTZ;
+-- Per-user UI preferences (column widths, stack order, manual review picks)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{}'::jsonb;
 
 INSERT INTO roles (name, level) VALUES
     ('owner', 100),

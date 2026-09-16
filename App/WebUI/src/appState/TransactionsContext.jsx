@@ -2,12 +2,14 @@ import { createContext, useContext, useState, useCallback, useEffect, useMemo } 
 import { getCategories, getUploadCount, getUploadBreakdown, getTransactionHistory, resolveCategories } from '../api';
 import { useAuth } from './AuthContext';
 import { useProcessing } from './ProcessingContext';
+import { useUserPreferences } from './UserPreferencesContext';
 
 const TransactionsContext = createContext();
 
 export function TransactionsProvider({ children }) {
     const { isLoggedIn } = useAuth();
     const { startManualReviewFlowIfNeeded } = useProcessing();
+    const { mrPicks, setMrPicks } = useUserPreferences();
 
     const [transactions, setTransactions] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -94,13 +96,10 @@ export function TransactionsProvider({ children }) {
                     // had accumulated in localStorage before showing the flow count.
                     let flushedPicks = [];
                     try {
-                        const stored = localStorage.getItem('mr_pending_picks');
-                        if (stored) {
-                            flushedPicks = JSON.parse(stored);
-                            localStorage.removeItem('mr_pending_picks');
-                            if (flushedPicks.length > 0) {
-                                await resolveCategories(flushedPicks);
-                            }
+                        if (mrPicks && mrPicks.length > 0) {
+                            flushedPicks = mrPicks;
+                            setMrPicks(null);
+                            await resolveCategories(flushedPicks);
                         }
                     } catch (_) {}
 

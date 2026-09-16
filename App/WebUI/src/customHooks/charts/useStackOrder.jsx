@@ -1,90 +1,63 @@
 // WebUI/src/customHooks/charts/useStackOrder.jsx
 import { useState, useEffect, useCallback } from 'react';
+import { useUserPreferences } from '../../appState/UserPreferencesContext';
 
-const STORAGE_KEY = 'chartStackOrder';
-const PERSIST_KEY = 'chartStackOrderPersist';
-
-// Manages the category stacking order for the charts. The "order" is
-// a list of category names - whatever index a name sits at is how high
-// it sits in the stacked bar (index 0 = bottom segment, last = top).
-// When null, the original categoryNames order from the backend is used.
-//
-// Web equivalent of the RN version - uses localStorage instead of
-// AsyncStorage. localStorage is synchronous, but the function
-// signatures below stay async-shaped (still return Promises) so
-// nothing calling this hook (StackOrderEditor.jsx, useChartData.jsx)
-// needs to change at all.
+// Manages the category stacking order for the charts.
+// State now lives in UserPreferencesContext (localStorage + server sync).
+// The hook's public API is unchanged so StackOrderEditor and useChartData
+// need no modifications.
 export function useStackOrder(categoryNames) {
-    const [stackOrder, setStackOrder] = useState(null);
-    const [persist, setPersist] = useState(false);
+    const { stackOrder: savedOrder, setStackOrder, stackPersist: savedPersist, setStackPersist } = useUserPreferences();
+
+    const [stackOrder, _setStackOrder] = useState(() => {
+        if (savedPersist && savedOrder) return savedOrder;
+        return null;
+    });
+    const [persist, _setPersist] = useState(savedPersist ?? false);
     const [loaded, setLoaded] = useState(false);
 
+    // Hydrate once from context (already read from localStorage/server)
     useEffect(() => {
-        try {
-            const savedOrder = localStorage.getItem(STORAGE_KEY);
-            const savedPersist = localStorage.getItem(PERSIST_KEY);
-
-            const shouldPersist = savedPersist === 'true';
-            setPersist(shouldPersist);
-
-            if (shouldPersist && savedOrder) {
-                const parsed = JSON.parse(savedOrder);
-                const currentSet = new Set(categoryNames);
-                const savedFiltered = parsed.filter(n => currentSet.has(n));
-                const savedSet = new Set(savedFiltered);
-                const newNames = categoryNames.filter(n => !savedSet.has(n));
-                setStackOrder([...savedFiltered, ...newNames]);
-            }
-        } catch (e) {
-            console.warn('Failed to load stack order:', e.message);
-        } finally {
-            setLoaded(true);
+        const shouldPersist = savedPersist === true;
+        _setPersist(shouldPersist);
+        if (shouldPersist && savedOrder) {
+            const currentSet = new Set(categoryNames);
+            const filtered = savedOrder.filter(n => currentSet.has(n));
+            const savedSet = new Set(filtered);
+            const newNames = categoryNames.filter(n => !savedSet.has(n));
+            _setStackOrder([...filtered, ...newNames]);
         }
+        setLoaded(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Write back to context whenever stackOrder or persist changes (after load)
     useEffect(() => {
         if (!loaded) return;
-        if (!persist || !stackOrder) return;
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(stackOrder));
-        } catch (e) {
-            console.warn('Failed to save stack order:', e.message);
-        }
-    }, [stackOrder, persist, loaded]);
+        if (persist && stackOrder) setStackOrder(stackOrder);
+    }, [stackOrder, persist, loaded, setStackOrder]);
 
     const effectiveOrder = stackOrder
         ? stackOrder.filter(n => categoryNames.includes(n))
         : categoryNames.filter(n => n !== 'Income');
 
     const updateOrder = useCallback((newOrder) => {
-        setStackOrder(newOrder);
+        _setStackOrder(newOrder);
     }, []);
 
     const togglePersist = useCallback(async (value) => {
-        setPersist(value);
-        try {
-            if (value && stackOrder) {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(stackOrder));
-                localStorage.setItem(PERSIST_KEY, 'true');
-            } else if (!value) {
-                localStorage.removeItem(STORAGE_KEY);
-                localStorage.setItem(PERSIST_KEY, 'false');
-            }
-        } catch (e) {
-            console.warn('Failed to update stack order persistence:', e.message);
-        }
-    }, [stackOrder]);
+        _setPersist(value);
+        setStackPersist(value);
+        if (value && stackOrder) setStackOrder(stackOrder);
+        else if (!value) setStackOrder(null);
+    }, [stackOrder, setStackOrder, setStackPersist]);
 
     const resetOrder = useCallback(async () => {
+        _setStackOrder(null);
+        _setPersist(false);
         setStackOrder(null);
-        setPersist(false);
-        try {
-            localStorage.removeItem(STORAGE_KEY);
-            localStorage.setItem(PERSIST_KEY, 'false');
-        } catch (e) {
-            console.warn('Failed to clear saved stack order:', e.message);
-        }
-    }, []);
+        setStackPersist(false);
+    }, [setStackOrder, setStackPersist]);
 
     const isCustomOrder = stackOrder !== null;
 

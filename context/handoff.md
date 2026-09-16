@@ -1,12 +1,45 @@
 # Cashflow2.0 — Handoff
 
-## Status (2026-09-15)
+## Status (2026-09-16)
 
-No active task. Clean main branch.
+No active task. Pending push to main.
 
 ## What Was Just Done
 
-**Manual review UX fixes** (2026-09-15):
+**UserPreferences context + column resize persistence + info popup + delete removal** (2026-09-16):
+
+- **New file: `App/WebUI/src/appState/UserPreferencesContext.jsx`** — unified preferences context consolidating column widths, stack order, stack persist flag, and manual review picks. Reads from localStorage on mount, hydrates from server on login (server is authoritative), and debounces server PUT (2s after last change).
+- **New file: `App/API/routes/preferences.py`** — `GET /preferences` + `PUT /preferences` (JWT required). Partial JSONB merge via `||` operator so only changed keys are overwritten.
+- **`App/API/schema.sql`** — added `ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{}'::jsonb`.
+- **`App/API/backend.py`** — added `import routes.preferences`.
+- **`App/WebUI/src/api.jsx`** — added `getPreferences()` and `putPreferences(patch)`.
+- **`App/WebUI/src/appState/index.jsx`** — added `UserPreferencesProvider` as 2nd level (inside AuthProvider, wrapping ProcessingProvider); exported `useUserPreferences`.
+- **`App/WebUI/src/customHooks/charts/useStackOrder.jsx`** — migrated stack order reads/writes to `useUserPreferences` context.
+- **`App/WebUI/src/components/manualReview/ManualReviewGate.jsx`** — migrated MR picks reads/writes to `useUserPreferences` context.
+- **`App/WebUI/src/appState/TransactionsContext.jsx`** — migrated MR picks reload-flush to `useUserPreferences` context.
+- **`App/WebUI/src/components/contents/TableHeader.jsx`** — column resize handles persist widths to context via `setColumnWidths` on drag end; applied saved widths from context on mount; console logs on mount and after drag (DevTools F12 → Console).
+- **`App/WebUI/src/components/contents/SelectionBar.jsx`** — removed Delete button and `onDelete`/`deleting` props.
+- **`App/WebUI/src/screens/ContentsScreen.jsx`** — removed `onDelete`/`deleting` props from SelectionBar usage.
+- **`App/WebUI/src/components/Layout.jsx`** — added ℹ button next to "Transactions" title; clicking it shows `TransactionsInfoModal` explaining page purpose, search, single/bulk category change, column resize, and sort.
+- **`App/WebUI/src/styles/Layout.css`** — added `.info-icon-btn`, `.info-modal-overlay`, `.info-modal`, and supporting styles.
+
+**Context chain for provider nesting:** `AuthProvider → UserPreferencesProvider → ProcessingProvider → TransactionsProvider → ChartFilterProvider`
+
+**Preferences sync lifecycle (final):**
+- Change → localStorage (instant) + React context (instant) + debounce 2s → server PUT
+- `beforeunload` → reads localStorage, cancels debounce, keepalive fetch → server PUT (all 4 keys incl. mrPicks)
+- Login (`isLoggedIn` false→true, every page load) → single `serverGet()` → overwrites localStorage + context (server authoritative)
+- `BASE_URL` imported from `frontendLocalConfig` directly in UserPreferencesContext (same source as api.jsx)
+
+**ContentsScreen virtualizer fix (2026-09-16):**
+- Root cause: `.cs-container { height: 100% }` resolved to `auto` because `.app-shell` uses `min-height: 100vh` not `height: 100vh` — broken height chain meant `useVirtualizer` had no bounded scroll container and rendered all 3700+ rows on every mount
+- Fix: `.cs-container { height: calc(100vh - 48px) }` — explicitly bounded, bypasses the broken chain
+- The `@media (max-width: 700px)` breakpoint for mobile CSS overrides was mismatched with the JS `isMobile` threshold of 1024px — at 700–1023px, window scroll was used (JS) but desktop CSS applied (no sticky sidebar, no overflow:visible). Fixed by changing media query to `max-width: 1023px`
+- Side effect of the height fix: navigation to `/contents` became instant (was rendering all rows = slow mount)
+
+## What Was Just Done (Previously)
+
+**Manual review UX fixes** (2026-09-15, previous session):
 - Reload persistence: picks accumulated mid-review are stored in `localStorage` (`mr_pending_picks`); on reload `TransactionsContext` flushes them to DB before triggering the flow, so remaining count is accurate and completed picks aren't lost
 - Exit button: small red "Exit" bottom-right of each categoriser popup; opens confirmation overlay explaining remaining go to Other; Confirm exit / Go back options
 - Exit-confirm error recovery: if save fails, shows "Something went wrong — Retry exit / Go back" instead of a dead end
