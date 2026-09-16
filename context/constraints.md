@@ -73,6 +73,17 @@ After each meaningful sub-step (context read, file edit, sync, decision point), 
 Never go silent mid-task. Never front-load the full plan and then execute silently. Applies to small and large tasks equally.
 For large tasks specifically: two update levels — granular sub-step updates within each major phase, **plus** a one-to-two line chunk-complete summary each time a major phase finishes.
 
+## CSS / Layout
+
+**Use `overflow-x: clip` not `overflow-x: hidden` on ancestors of sticky elements.**
+`overflow: hidden` creates a new scroll container, which breaks `position: sticky` on any descendant — the sticky element becomes stuck relative to that new scroll container rather than the viewport. `overflow-x: clip` clips visually without creating a scroll container, so sticky children behave correctly. This applies to sidebars (cs-sidebar, charts-sidebar), filter panes, and any other sticky-positioned element. Verified on: ChartsScreen, ContentsScreen, Dashboard.
+
+**`height: 100%` on a flex child does not reliably give a bounded height if the ancestor uses `min-height` instead of `height`.**
+`min-height: 100vh` on `.app-shell` does not establish a definite height for percentage resolution of descendants. A child with `height: 100%` resolves to `auto`, breaking any internal virtualizer or scroll container that depends on a fixed height. Fix: use an explicit `height: calc(100vh - <header-height>px)` on the component that needs a bounded height, bypassing the broken chain. Verified: `.cs-container { height: calc(100vh - 48px) }` fixed `useVirtualizer` rendering all rows instead of just the visible ones.
+
+**CSS media query breakpoints must match JS `isMobile` breakpoint.**
+The JS threshold is `MOBILE_BREAKPOINT_PX = 1024` (in `src/config/breakpoints.js`). CSS mobile override blocks must use `@media (max-width: 1023px)` to match. Mismatching (e.g. 700px) causes a range where JS uses window scroll but CSS applies desktop fixed-height layout — producing broken sticky sidebars and layout glitches at intermediate widths.
+
 ## Routing
 
 **ResponsiveGate owns the mobile/desktop routing split.**

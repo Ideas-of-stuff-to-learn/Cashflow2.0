@@ -319,6 +319,13 @@ Authentication behavior must remain compatible with existing clients.
 
 Constraints should receive high priority during reasoning.
 
+Constraints are not only about data safety or API contracts — subtle CSS/layout invariants belong here too when violating them silently causes hard-to-diagnose bugs. Examples that belong in `constraints.md`:
+- `overflow-x: clip` must be used instead of `overflow-x: hidden` on ancestors of sticky elements (hidden creates a scroll container, breaking sticky)
+- CSS media query breakpoints must stay in sync with JS breakpoint constants
+- `height: 100%` on a flex child does not resolve if the ancestor uses `min-height` instead of `height`
+
+When a fix reveals a non-obvious invariant like this — especially one that wasn't previously documented and caused a real bug — add it to `constraints.md` immediately, not just to `handoff.md`.
+
 ---
 
 ## 11. `known-problems.md`
