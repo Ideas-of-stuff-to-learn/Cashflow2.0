@@ -18,8 +18,8 @@ export default function AccessibilityScreen() {
 
             <h2>Current status</h2>
             <p>
-                Cashflow 2.0 is under active development. We have taken the following steps to
-                improve accessibility:
+                Cashflow 2.0 is under active development — this is the first public prototype.
+                We have taken the following steps to improve accessibility:
             </p>
             <ul>
                 <li>Semantic HTML elements are used throughout (headings, lists, buttons, labels).</li>

@@ -43,6 +43,16 @@ export default function PrivacyScreen() {
                 text is sent — no amounts, dates, or account details.
             </p>
 
+            <h2>Input sanitisation and security</h2>
+            <p>All user input is sanitised before being stored or processed:</p>
+            <ul>
+                <li>Every database query uses parameterised placeholders — SQL injection is not possible.</li>
+                <li>Transaction descriptions from uploaded files are stripped of leading formula characters (<code>=</code>, <code>+</code>, <code>-</code>, <code>@</code>) to prevent CSV formula injection if data is later exported to a spreadsheet.</li>
+                <li>The frontend is built with React, which escapes all dynamic content by default, protecting against cross-site scripting (XSS).</li>
+                <li>Passwords are hashed with bcrypt before storage — plain-text passwords are never written to the database.</li>
+                <li>Authentication tokens are stored in httpOnly cookies, inaccessible to JavaScript.</li>
+            </ul>
+
             <h2>Data retention</h2>
             <p>
                 Your data is retained for as long as your account exists. You may request deletion
