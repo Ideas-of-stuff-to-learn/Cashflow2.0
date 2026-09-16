@@ -103,6 +103,10 @@ def login():
 
         user_id, stored_hash = row
 
+        if not stored_hash or not stored_hash.startswith('$2'):
+            app.logger.error(f'Invalid password hash for user {user_id} — hash is missing or not bcrypt')
+            return jsonify({'error': 'Invalid credentials'}), 401
+
         if not bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8')):
             return jsonify({'error': 'Invalid credentials'}), 401
 
