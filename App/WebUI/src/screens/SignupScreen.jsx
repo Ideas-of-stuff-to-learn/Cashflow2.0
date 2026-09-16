@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { signup } from '../api';
 import { useAuth } from '../appState';
 import '../styles/LoginScreen.css'; // reuse the same styles - identical layout
@@ -83,6 +83,13 @@ export default function SignupScreen() {
             <button className="login-switch" onClick={() => navigate('/login')}>
                 Already have an account? Sign in
             </button>
+
+            <footer className="login-legal-footer">
+                <Link to="/privacy">Privacy</Link>
+                <Link to="/terms">Terms</Link>
+                <Link to="/accessibility">Accessibility</Link>
+                <Link to="/cookies">Cookies</Link>
+            </footer>
         </div>
     );
 }

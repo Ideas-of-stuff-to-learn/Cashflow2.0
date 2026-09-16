@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { login, getMe } from '../api';
 import { useAuth } from '../appState';
 import '../styles/LoginScreen.css'
@@ -239,6 +239,13 @@ export default function LoginScreen() {
             <button className="login-switch" onClick={() => navigate('/signup')}>
                 Don't have an account? Sign up
             </button>
+
+            <footer className="login-legal-footer">
+                <Link to="/privacy">Privacy</Link>
+                <Link to="/terms">Terms</Link>
+                <Link to="/accessibility">Accessibility</Link>
+                <Link to="/cookies">Cookies</Link>
+            </footer>
         </div>
     );
 }
