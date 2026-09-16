@@ -129,17 +129,18 @@ When a change is substantial enough to count as its own milestone: promote the e
 
 ## Progress Updates
 
-After each meaningful sub-step of any task — reading context, finishing a file edit, completing a sync, hitting a decision point — output a one-to-two line update in chat with a rough overall completion percentage:
+After each meaningful sub-step of any task — reading context, finishing a file edit, completing a sync, hitting a decision point — write a one-to-two line **visible text message to the user** with a rough overall completion percentage. This must appear as actual chat text the user can read, not as a tool call description or internal label.
 
 ```
 ✓ <what was just done> [~X% complete]
 → <what's next / current step> [~X% complete]
 ```
 
-- Applies to every task, small or large
+- Write these as plain text in the response, before or after tool calls, so the user sees them in the chat UI
+- Applies to every task, small or large, including when just reading files or querying SQLite
 - Percentage is a rough pulse, not a precise figure; reset or note if scope expands
 - Do not front-load a full plan and then go silent — give updates as work progresses
-- **For large tasks**: two levels of update — granular sub-step updates within each phase/chunk, **plus** a one-to-two line chunk-complete summary when that major phase finishes (e.g. "✓ Backend changes complete — all 3 files updated [~50%]")
+- **For large tasks**: two levels — granular sub-step updates within each phase, **plus** a one-to-two line chunk-complete summary when a major phase finishes (e.g. "✓ Backend changes complete — all 3 files updated [~50%]")
 
 ---
 
