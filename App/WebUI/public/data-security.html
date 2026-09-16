@@ -1,0 +1,574 @@
+<title>Data Security</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Inter:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --bg:        #f7f5f0;
+    --surface:   #ffffff;
+    --surface2:  #f0ede6;
+    --ink:       #1b2a3b;
+    --ink2:      #3d5068;
+    --ink3:      #6b7f93;
+    --accent:    #2d6a9f;
+    --accent-bg: #e8f0f8;
+    --safe:      #3a6b48;
+    --safe-bg:   #e6f2ea;
+    --warn:      #8a5a1a;
+    --warn-bg:   #fdf0db;
+    --rule:      #dbd8d0;
+    --tag-bg:    #dce8f3;
+    --tag-ink:   #1e4f7a;
+    --shadow:    0 1px 4px rgba(27,42,59,.08), 0 4px 16px rgba(27,42,59,.04);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:        #111820;
+      --surface:   #1a2535;
+      --surface2:  #212f42;
+      --ink:       #e8e4dc;
+      --ink2:      #a8b8c8;
+      --ink3:      #6a7f93;
+      --accent:    #5b9fd4;
+      --accent-bg: #162438;
+      --safe:      #5da872;
+      --safe-bg:   #122a1a;
+      --warn:      #d4983a;
+      --warn-bg:   #2a1e08;
+      --rule:      #2a3a4a;
+      --tag-bg:    #1a3050;
+      --tag-ink:   #7bbde8;
+      --shadow:    0 1px 4px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.2);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg:        #111820;
+    --surface:   #1a2535;
+    --surface2:  #212f42;
+    --ink:       #e8e4dc;
+    --ink2:      #a8b8c8;
+    --ink3:      #6a7f93;
+    --accent:    #5b9fd4;
+    --accent-bg: #162438;
+    --safe:      #5da872;
+    --safe-bg:   #122a1a;
+    --warn:      #d4983a;
+    --warn-bg:   #2a1e08;
+    --rule:      #2a3a4a;
+    --tag-bg:    #1a3050;
+    --tag-ink:   #7bbde8;
+    --shadow:    0 1px 4px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.2);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.7;
+    padding-inline: 20px;
+    padding-block: 48px;
+    margin: 0;
+  }
+
+  .doc {
+    max-width: 740px;
+    margin: 0 auto;
+  }
+
+  /* ── header ── */
+  .doc-header {
+    border-bottom: 2px solid var(--rule);
+    padding-bottom: 32px;
+    margin-bottom: 48px;
+  }
+
+  .doc-eyebrow {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 12px;
+  }
+
+  .doc-title {
+    font-family: 'Lora', Georgia, serif;
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--ink);
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+
+  .doc-lead {
+    font-size: 17px;
+    color: var(--ink2);
+    margin: 0;
+    max-width: 600px;
+    line-height: 1.65;
+  }
+
+  /* ── sections ── */
+  .section {
+    margin-bottom: 48px;
+  }
+
+  .section-title {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--ink);
+    margin: 0 0 4px;
+    text-wrap: balance;
+  }
+
+  .section-body {
+    color: var(--ink2);
+    margin: 0;
+  }
+
+  .section-body p {
+    margin: 0 0 14px;
+  }
+
+  .section-body p:last-child {
+    margin-bottom: 0;
+  }
+
+  /* ── cards ── */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 20px 22px;
+    box-shadow: var(--shadow);
+  }
+
+  .card-icon {
+    font-size: 22px;
+    margin-bottom: 10px;
+    display: block;
+    line-height: 1;
+  }
+
+  .card-title {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+    margin: 0 0 6px;
+  }
+
+  .card-body {
+    font-size: 14px;
+    color: var(--ink2);
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  /* ── callout boxes ── */
+  .callout {
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-top: 20px;
+  }
+
+  .callout-safe {
+    background: var(--safe-bg);
+    border-left: 3px solid var(--safe);
+  }
+
+  .callout-safe .callout-label {
+    color: var(--safe);
+  }
+
+  .callout-warn {
+    background: var(--warn-bg);
+    border-left: 3px solid var(--warn);
+  }
+
+  .callout-warn .callout-label {
+    color: var(--warn);
+  }
+
+  .callout-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .callout p {
+    margin: 0 0 10px;
+    font-size: 15px;
+    color: var(--ink2);
+    line-height: 1.6;
+  }
+
+  .callout p:last-child {
+    margin-bottom: 0;
+  }
+
+  /* ── data journey diagram ── */
+  .diagram-wrap {
+    overflow-x: auto;
+    margin: 24px 0;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    padding: 28px 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .diagram-wrap svg {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+  }
+
+  /* ── fact list ── */
+  .fact-list {
+    list-style: none;
+    margin: 16px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .fact-list li {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    font-size: 15px;
+    color: var(--ink2);
+    line-height: 1.55;
+  }
+
+  .fact-list .fi {
+    flex-shrink: 0;
+    font-size: 16px;
+    margin-top: 1px;
+  }
+
+  /* ── two-column comparison ── */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 20px;
+  }
+
+  @media (max-width: 520px) {
+    .compare { grid-template-columns: 1fr; }
+  }
+
+  .compare-col {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .compare-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin: 0 0 12px;
+    display: block;
+  }
+
+  .compare-col.can .compare-label  { color: var(--warn); }
+  .compare-col.cant .compare-label { color: var(--safe); }
+
+  .compare-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .compare-list li {
+    font-size: 14px;
+    color: var(--ink2);
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    line-height: 1.5;
+  }
+
+  .compare-list .ci {
+    flex-shrink: 0;
+    font-size: 14px;
+    margin-top: 1px;
+  }
+
+  /* ── divider ── */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--rule);
+    margin: 48px 0;
+  }
+
+  /* ── footer ── */
+  .doc-footer {
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-size: 13px;
+    color: var(--ink3);
+  }
+</style>
+
+<div class="doc">
+
+  <header class="doc-header">
+    <p class="doc-eyebrow">Cashflow 2.0 — Security Overview</p>
+    <h1 class="doc-title">Your data security,<br>explained plainly</h1>
+    <p class="doc-lead">
+      This document explains what protections are in place, what information
+      the developer can technically access, and why that limitation is an
+      unavoidable property of how cloud apps work — not a gap that was
+      overlooked.
+    </p>
+  </header>
+
+  <!-- ── The journey of your data ── -->
+  <section class="section">
+    <h2 class="section-title">The journey your data takes</h2>
+    <div class="section-body">
+      <p>Every time you log in, upload a file, or view your transactions,
+      your data moves between your browser and a server. Here is what
+      happens at each step.</p>
+    </div>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 660 200" width="660" height="200" xmlns="http://www.w3.org/2000/svg" style="font-family:'Inter',sans-serif;">
+
+        <!-- nodes -->
+        <!-- Browser -->
+        <rect x="10" y="70" width="120" height="60" rx="8" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.5"/>
+        <text x="70" y="96" text-anchor="middle" font-size="12" font-weight="600" fill="var(--accent)">Your Browser</text>
+        <text x="70" y="113" text-anchor="middle" font-size="10" fill="var(--ink3)">CSV file / login</text>
+
+        <!-- HTTPS arrow -->
+        <line x1="133" y1="100" x2="207" y2="100" stroke="var(--safe)" stroke-width="2" marker-end="url(#arrow-safe)"/>
+        <text x="170" y="92" text-anchor="middle" font-size="10" font-weight="600" fill="var(--safe)">HTTPS</text>
+        <text x="170" y="116" text-anchor="middle" font-size="9" fill="var(--ink3)">encrypted transit</text>
+
+        <!-- Server -->
+        <rect x="210" y="70" width="140" height="60" rx="8" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1.5"/>
+        <text x="280" y="93" text-anchor="middle" font-size="12" font-weight="600" fill="var(--accent)">Application</text>
+        <text x="280" y="109" text-anchor="middle" font-size="10" fill="var(--ink3)">validates · categorises</text>
+        <text x="280" y="122" text-anchor="middle" font-size="10" fill="var(--ink3)">sanitises input</text>
+
+        <!-- DB arrow -->
+        <line x1="353" y1="100" x2="427" y2="100" stroke="var(--accent)" stroke-width="2" marker-end="url(#arrow-blue)"/>
+        <text x="390" y="92" text-anchor="middle" font-size="10" font-weight="600" fill="var(--accent)">private</text>
+        <text x="390" y="116" text-anchor="middle" font-size="9" fill="var(--ink3)">server-only link</text>
+
+        <!-- Database -->
+        <rect x="430" y="60" width="130" height="80" rx="8" fill="var(--surface2)" stroke="var(--rule)" stroke-width="1.5"/>
+        <text x="495" y="89" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">Database</text>
+        <text x="495" y="106" text-anchor="middle" font-size="10" fill="var(--ink3)">transactions · prefs</text>
+        <text x="495" y="121" text-anchor="middle" font-size="10" fill="var(--ink3)">passwords: hashed ✓</text>
+
+        <!-- Gemini side arrow -->
+        <line x1="280" y1="131" x2="280" y2="162" stroke="var(--warn)" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrow-warn)"/>
+        <rect x="214" y="164" width="132" height="30" rx="6" fill="var(--warn-bg)" stroke="var(--warn)" stroke-width="1"/>
+        <text x="280" y="183" text-anchor="middle" font-size="10" fill="var(--warn)">Gemini API (descriptions only)</text>
+
+        <defs>
+          <marker id="arrow-safe" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="var(--safe)"/>
+          </marker>
+          <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="var(--accent)"/>
+          </marker>
+          <marker id="arrow-warn" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="var(--warn)"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ── The protections ── -->
+  <section class="section">
+    <h2 class="section-title">What is protected, and how</h2>
+    <div class="card-grid">
+
+      <div class="card">
+        <span class="card-icon">🔒</span>
+        <p class="card-title">Passwords are never stored</p>
+        <p class="card-body">Your password is run through <strong>bcrypt</strong> — a one-way
+        mathematical process — before anything is saved. The result is a fixed-length
+        string of scrambled characters that cannot be reversed back into your
+        original password. Not by code, not by the developer, not by anyone.</p>
+      </div>
+
+      <div class="card">
+        <span class="card-icon">🌐</span>
+        <p class="card-title">All traffic is encrypted</p>
+        <p class="card-body">Every connection between your browser and the server uses
+        <strong>HTTPS with TLS</strong>. Your transaction data and login details
+        are encrypted in transit — anyone intercepting the network traffic sees
+        only scrambled noise.</p>
+      </div>
+
+      <div class="card">
+        <span class="card-icon">🍪</span>
+        <p class="card-title">Login tokens stay out of reach</p>
+        <p class="card-body">After you log in, your session is tracked with a short-lived
+        <strong>httpOnly cookie</strong>. This means the token is invisible to
+        JavaScript — a malicious script on a compromised page cannot steal it.
+        Tokens expire after 24 hours; a longer-lived refresh token expires
+        after 30 days.</p>
+      </div>
+
+      <div class="card">
+        <span class="card-icon">🛡️</span>
+        <p class="card-title">Input is sanitised</p>
+        <p class="card-body">Every database query uses <strong>parameterised
+        placeholders</strong> — the standard method that makes SQL injection
+        impossible. Transaction descriptions are also stripped of characters
+        that could become spreadsheet formulas if the data were ever exported.</p>
+      </div>
+
+      <div class="card">
+        <span class="card-icon">⏱️</span>
+        <p class="card-title">Login attempts are rate-limited</p>
+        <p class="card-body">The login endpoint accepts at most
+        <strong>10 requests per minute</strong> per IP address. A brute-force
+        attack that tries thousands of passwords is blocked automatically.</p>
+      </div>
+
+      <div class="card">
+        <span class="card-icon">🤖</span>
+        <p class="card-title">AI categorisation is minimal</p>
+        <p class="card-body">When automatic matching cannot categorise a transaction,
+        only its <strong>description text</strong> is sent to Google's Gemini API.
+        No amounts, dates, or account details leave the server in that call.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ── The honest limitation ── -->
+  <section class="section">
+    <h2 class="section-title">What the developer can see</h2>
+    <div class="section-body">
+      <p>This is the part most apps leave out of their security pages.
+      It deserves a straight answer.</p>
+      <p>The app's data lives in a <strong>PostgreSQL database hosted on Supabase</strong>.
+      As the developer, direct administrative access to that database is available.
+      That means the following is technically possible.</p>
+    </div>
+
+    <div class="compare">
+      <div class="compare-col can">
+        <span class="compare-label">Developer can see</span>
+        <ul class="compare-list">
+          <li><span class="ci">⚠️</span> Transaction descriptions, amounts, and dates you have uploaded</li>
+          <li><span class="ci">⚠️</span> Your username</li>
+          <li><span class="ci">⚠️</span> Which categories you have assigned</li>
+          <li><span class="ci">⚠️</span> Names of files you have uploaded</li>
+        </ul>
+      </div>
+      <div class="compare-col cant">
+        <span class="compare-label">Developer cannot see</span>
+        <ul class="compare-list">
+          <li><span class="ci">✅</span> Your password — stored only as an irreversible hash</li>
+          <li><span class="ci">✅</span> Your active session token — short-lived, not persisted</li>
+          <li><span class="ci">✅</span> Any data from other apps or services — only what you upload here</li>
+          <li><span class="ci">✅</span> Your full account numbers — bank files typically only contain the last few digits</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-label">Honest note</span>
+      <p>This is the reality of any cloud-hosted application where the server
+      processes your data. The developer of Gmail can query your emails.
+      The developer of a cloud accounting tool can query your transactions.
+      The distinction worth noting is that this app is a personal tool — there
+      is no commercial incentive to look at your data, no advertising model,
+      and no third parties it is shared with.</p>
+    </div>
+  </section>
+
+  <!-- ── Why it can't be removed ── -->
+  <section class="section">
+    <h2 class="section-title">Why this limitation cannot be removed</h2>
+    <div class="section-body">
+      <p>The only technical way to prevent the server from ever reading your
+      data is <strong>client-side encryption</strong> — encrypting everything
+      in your browser before it is sent, so the server stores only ciphertext
+      it cannot read.</p>
+      <p>The problem: the server then cannot do anything useful with it.
+      Categorising transactions, running the matching pipeline, calling the
+      Gemini API — all of these require the server to actually read the
+      transaction descriptions. Encrypting the data before sending it would
+      mean the server processes nonsense, and the app stops working.</p>
+      <p>This is a fundamental property of server-side computation, not a design
+      choice. Any app that processes your data on a server — whether it is a
+      banking app, a budgeting tool, or a payroll system — has this same property.
+      The tradeoff is capability versus zero-knowledge: you cannot have both
+      at the same time.</p>
+    </div>
+
+    <div class="callout callout-safe">
+      <span class="callout-label">The practical reality</span>
+      <p>The meaningful protection here is not technical — it is contractual
+      and legal. The <a href="/privacy" style="color:var(--safe);font-weight:600;">Privacy Policy</a>
+      commits to not sharing or selling your data. Your transaction data is
+      not interesting to misuse: it contains spending patterns, not credentials
+      that could be used anywhere else. And the developer is personally
+      identifiable and accountable — this is not an anonymous service.</p>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ── Summary ── -->
+  <section class="section">
+    <h2 class="section-title">Summary</h2>
+    <ul class="fact-list">
+      <li><span class="fi">🔐</span> Passwords are protected by one-way hashing and cannot be recovered by anyone.</li>
+      <li><span class="fi">🌐</span> All data in transit is encrypted end-to-end with HTTPS.</li>
+      <li><span class="fi">🍪</span> Session cookies are httpOnly and short-lived — invisible to JavaScript.</li>
+      <li><span class="fi">🛡️</span> The database uses parameterised queries throughout — SQL injection is not possible.</li>
+      <li><span class="fi">⚠️</span> Transaction data stored in the database is readable by the developer as the database administrator — this is true of all cloud-hosted applications.</li>
+      <li><span class="fi">🚫</span> This cannot be removed without also removing the ability to process your data server-side.</li>
+      <li><span class="fi">🤝</span> No data is sold, shared with advertisers, or passed to third parties beyond the minimal Gemini API call for categorisation.</li>
+    </ul>
+  </section>
+
+  <footer class="doc-footer">
+    <p>Questions? Contact <a href="mailto:khaitanarmaan@gmail.com" style="color:var(--accent);">khaitanarmaan@gmail.com</a> &nbsp;·&nbsp;
+    <a href="/privacy" style="color:var(--accent);">Privacy Policy</a> &nbsp;·&nbsp;
+    <a href="/terms" style="color:var(--accent);">Terms of Use</a></p>
+  </footer>
+
+</div>
