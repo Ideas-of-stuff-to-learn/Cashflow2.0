@@ -1,9 +1,6 @@
 .legal-page {
     max-width: 720px;
     margin: 0 auto;
-    height: 100vh;
-    overflow-y: auto;
-    box-sizing: border-box;
     padding: 48px 24px 80px;
     color: var(--text-primary, #1a1a1a);
     font-size: 15px;
