@@ -1,56 +1,378 @@
 # Cashflow 2.0 — Task Backlog
 
-> Edit this file directly to update task status, add notes, or reprioritise.
-> Status: `[ ]` open · `[x]` done · `[-]` in progress · `[~]` blocked
+> **Status key:** `[ ]` open &nbsp;·&nbsp; `[-]` in progress &nbsp;·&nbsp; `[x]` done &nbsp;·&nbsp; `[~]` blocked  
+> **Priority key:** 🔴 P1 Critical &nbsp;·&nbsp; 🟠 P2 High &nbsp;·&nbsp; 🟡 P3 Medium &nbsp;·&nbsp; 🟢 P4 Low
 
 ---
 
-## UI / Bug Fixes
+## Quick Reference
 
-- [ ] **Category list vanishing on "Remember this order"**
-  Investigate why the category list disappears when the remember-order button is pressed. Likely a state update wiping the rendered list before the save completes.
-
-- [ ] **Font, size and colour palette audit**
-  Check consistency across all three surfaces — dashboard (web), phone mimic, and React Native. Document any mismatches and agree a single source of truth.
-
-- [ ] **Dashboard: no page scroll**
-  The dashboard should fit entirely within the viewport with zero window-level scroll. Includes making sure the legal page footer links do not push content out of the viewport.
-
----
-
-## Popups & Info
-
-- [ ] **Convert footnote box → "User Information" popup**
-  Replace the current footnote box with a popup modal triggered by a prominent `ℹ` symbol (similar to the one on the Transactions page but more visible). Label: *User Information*.
-
-- [ ] **Add "Data Security" popup**
-  Add a second popup triggered by a 🔒 lock symbol. Content: a copy of `docs/data-security.html` embedded or linked inside the modal, editable by the client on request. This popup (and the User Information popup) should also surface links to the legal pages (Privacy, Terms, Accessibility, Cookies).
-
----
-
-## React Native
-
-- [ ] **Bring React Native up to date**
-  Review dependencies against Expo SDK 54 docs (`docs.expo.dev/versions/v54.0.0/`). Update packages, resolve any breaking changes, and verify the app builds cleanly on iOS and Android.
-
-- [ ] **React Native: hard testing**
-  Full manual test of all React Native screens after the update. Cover: login, upload, categorisation flow, charts, manual review, edge cases (empty state, offline, large file).
+| # | Task | Priority | Effort | Complexity |
+|---|------|----------|--------|------------|
+| 1 | Isolate auth into shared service | 🔴 P1 | 2–3 weeks | Very High |
+| 2 | Company landing page | 🔴 P1 | 3–5 days | Medium |
+| 3 | Stripe billing integration | 🔴 P1 | 1–2 weeks | High |
+| 4 | Webhook listener (subscription sync) | 🔴 P1 | 3–5 days | High |
+| 5 | Per-tool JWT access gating | 🟠 P2 | 3–5 days | High |
+| 6 | Deployed subdomain linkage | 🟠 P2 | 2–3 days | Medium |
+| 7 | Free trial support | 🟠 P2 | 2–3 days | Medium |
+| 8 | Stripe Customer Portal (self-service) | 🟠 P2 | 1–2 days | Low |
+| 9 | Category list vanishing bug | 🟠 P2 | 0.5–1 day | Low |
+| 10 | Bring React Native up to date | 🟠 P2 | 3–5 days | Medium |
+| 11 | Dashboard: no page scroll | 🟡 P3 | 0.5–1 day | Low |
+| 12 | User Information popup | 🟡 P3 | 1–2 days | Low |
+| 13 | Data Security popup | 🟡 P3 | 1 day | Low |
+| 14 | Font, size and colour palette audit | 🟡 P3 | 2–3 days | Medium |
+| 15 | Hard testing (all surfaces) | 🟡 P3 | 3–5 days | Medium |
+| 16 | Full automated test suite | 🟢 P4 | 2–4 weeks | Very High |
 
 ---
 
-## Testing
+## 🔴 P1 — Critical (Do First · These Block Everything Else)
 
-- [ ] **Hard testing — dashboard, phone mimic, React Native**
-  Structured manual test pass across all three surfaces. Cover the golden path end-to-end plus known fragile areas: virtualiser, column resize, manual review flush, preferences persistence, cold-start spinner.
+---
 
-- [ ] **Full automated test suite**
-  Design and implement automated tests for the whole app. Agree scope first (unit, integration, E2E, or all three), tooling choices, and what counts as a passing suite before writing any tests.
-  > ⚠️ Note: no test framework currently exists — see `context/constraints.md`. This task requires explicit owner sign-off on scope before work begins.
+### 1 · Isolate auth into shared Auth & Billing Service
+
+**Priority:** 🔴 P1 — Critical  
+**Effort:** 2–3 weeks  
+**Complexity:** Very High  
+**Why first:** Every other task in this section depends on a single identity layer existing. Cashflow's current auth (login, signup, auto-login, JWT, bcrypt, refresh, revocation) needs to be extracted and deployed as a standalone service that any future tool can point at.
+
+**What it involves:**
+- Extract login, signup, logout, refresh, and `/auth/me` out of Cashflow's Flask backend into a new standalone service (new repo or clearly isolated sub-service)
+- New shared `users` table with: unique ID, email, username, bcrypt-hashed password
+- JWT issuance updated to include a `tools` claim — a list of tool IDs the user has active access to (starts with `["cashflow"]` for existing users)
+- Auto-login (silent re-auth on page load via refresh token) must continue to work post-extraction
+- Cashflow's backend stops owning auth — all auth routes delegate to, or are removed in favour of, the shared service
+- Decide: keep rolling own auth (current approach, works fine) vs. move to managed provider (Supabase Auth / Clerk) — spec recommends own at this scale
+- CORS, cookie domain, and cross-origin session strategy agreed before build
+
+**What it touches:**  
+`App/API/routes/auth.py` · `App/API/routes/preferences.py` · `App/WebUI/src/appState/AuthContext.jsx` · `App/WebUI/src/api.jsx` · `App/API/schema.sql` · `App/API/backend.py` · all JWT-dependent routes · deployment config on Render
+
+---
+
+### 2 · Company landing page
+
+**Priority:** 🔴 P1 — Critical  
+**Effort:** 3–5 days  
+**Complexity:** Medium  
+**Why first:** The shared service needs a home. This is the public-facing page users land on, see the product line, and are directed to login/subscribe. Must exist before subdomain linkage and Stripe flow can be tested end-to-end.
+
+**What it involves:**
+- Standalone site (separate from Cashflow) listing the company's tools with descriptions and subscribe/login CTAs
+- Links to each deployed tool (initially just Cashflow)
+- Login/signup redirects to the shared auth service, then back to the chosen tool
+- Design consistent with the overall brand
+- Deployed independently (its own Render service or static host)
+
+**What it touches:**  
+New repo / new deployment · shared auth service (redirect URLs) · Stripe Checkout URLs per tool
+
+---
+
+### 3 · Stripe billing integration
+
+**Priority:** 🔴 P1 — Critical  
+**Effort:** 1–2 weeks  
+**Complexity:** High  
+**Why first:** No money flows, no subscriptions exist, and the access-gating in task 5 has nothing to check until this is done. Needs to be live before any paying users can be onboarded.
+
+**What it involves:**
+- Create one Stripe account for the company
+- Create one Stripe Product + Price per tool (e.g. "Cashflow 2.0 — Monthly")
+- Add a `subscriptions` table to the shared service DB: `(user_id, tool_id, stripe_subscription_id, status, current_period_end)`
+- Implement Stripe Checkout session creation endpoint — called when user clicks "Subscribe" on a tool page
+- After successful payment, Stripe fires webhook → task 4 handles it
+- Stripe Customer Portal link for self-service management (task 8)
+- Decide trial policy (task 7) before build — affects Checkout config
+- Test full payment loop in Stripe test mode before going live
+
+**What it touches:**  
+New shared service: `routes/billing.py` (or equivalent) · `schema.sql` (subscriptions table) · Stripe dashboard · environment variables (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) · Render deployment config
+
+---
+
+### 4 · Webhook listener (subscription status sync)
+
+**Priority:** 🔴 P1 — Critical  
+**Effort:** 3–5 days  
+**Complexity:** High  
+**Why first:** Without this, Stripe payments succeed but nothing in the system knows about it. The webhook listener is the bridge between Stripe and the access layer — it must exist before any end-to-end payment test is possible.
+
+**What it involves:**
+- One POST endpoint on the shared service that receives all Stripe webhook events
+- Verify webhook signature (`stripe.Webhook.construct_event`) before processing — security critical
+- Handle events: `checkout.session.completed`, `invoice.payment_succeeded`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`
+- On each event: update `subscriptions` table status and `current_period_end`
+- Treat `trialing` the same as `active` (see task 7)
+- Register endpoint in Stripe dashboard; use Stripe CLI locally to replay events during development
+- Log unhandled event types but do not error — Stripe sends many event types
+
+**What it touches:**  
+Shared service: `routes/webhooks.py` · `subscriptions` table · Stripe dashboard webhook config · environment secrets
+
+---
+
+## 🟠 P2 — High (Build After Foundation Is Live)
+
+---
+
+### 5 · Per-tool JWT access gating
+
+**Priority:** 🟠 P2 — High  
+**Effort:** 3–5 days  
+**Complexity:** High  
+**Why:** Once auth is isolated and billing exists, each tool needs to gate its features based on whether the user has an active subscription for that tool. This is the mechanism that makes the whole architecture pay off.
+
+**What it involves:**
+- Update JWT payload on login/refresh to include `"tools": ["cashflow", ...]` — the list of tool IDs with active/trialing subscriptions for that user
+- Cashflow's backend verifies the token and checks `"cashflow"` is in the `tools` claim before serving protected routes
+- If not subscribed: return a 402 or redirect to the Stripe Checkout for Cashflow's product
+- Frontend shows "Subscribe" CTA rather than the app when access is denied
+- Existing Cashflow users need their subscriptions seeded — decide: grandfather them in free, or require them to subscribe
+
+**What it touches:**  
+Shared auth service: JWT issuance · `App/API/` JWT verification middleware · `App/WebUI/src/appState/AuthContext.jsx` · `App/WebUI/src/components/RequiresAuth.jsx` · all protected routes
+
+---
+
+### 6 · Deployed subdomain linkage
+
+**Priority:** 🟠 P2 — High  
+**Effort:** 2–3 days  
+**Complexity:** Medium  
+**Why:** Getting the cookie and redirect flow working across subdomains is a prerequisite to testing the real user journey. Easiest if all tools sit under one parent domain so a single cookie scoped to `.company.com` is readable everywhere.
+
+**What it involves:**
+- Register company domain (if not done)
+- Set up subdomains: `app.company.com` (Cashflow), `tools.company.com` (landing page), `auth.company.com` (shared service)
+- Configure JWT cookies with `Domain=.company.com` so they're shared across subdomains
+- Update all CORS, `FRONTEND_URL`, and redirect config on Render for each service
+- Test full login-on-landing-page → redirect-to-tool → token-present flow
+
+**What it touches:**  
+Render deployment config for all services · DNS / domain registrar · `App/API/backend.py` (cookie domain, CORS) · environment variables
+
+---
+
+### 7 · Free trial support
+
+**Priority:** 🟠 P2 — High  
+**Effort:** 2–3 days  
+**Complexity:** Medium  
+**Why:** Agreed as part of the architecture. Must be decided and built before Cashflow goes to paying users — retrofitting trial logic after real subscriptions exist is messier.
+
+**What it involves:**
+- Decide trial length and card-required policy (business decision, not technical — agree before build)
+- Pass `trial_period_days` to Stripe Checkout session creation when creating a subscription
+- Update webhook handler and subscriptions table to treat `trialing` as `active`
+- Optional abuse guard: one trial per verified email (low priority for soft launch but flag for later)
+
+**What it touches:**  
+Shared service: Checkout session creation · webhook handler · subscriptions table status logic
+
+---
+
+### 8 · Stripe Customer Portal (self-service)
+
+**Priority:** 🟠 P2 — High  
+**Effort:** 1–2 days  
+**Complexity:** Low  
+**Why:** Without this, users cannot update their card, switch plans, or cancel — everything would need to be handled manually. Stripe provides this for free; it just needs enabling and linking.
+
+**What it involves:**
+- Enable Stripe Customer Portal in Stripe dashboard (configure what users can do: cancel, update card, switch plan)
+- Add one endpoint to shared service: creates a Stripe portal session and redirects the user there
+- Add "Manage subscription" link in Cashflow's account/settings UI
+- Portal redirects back to the tool when done
+
+**What it touches:**  
+Stripe dashboard · shared service: `routes/billing.py` · Cashflow frontend: account/settings area
+
+---
+
+### 9 · Category list vanishing on "Remember this order"
+
+**Priority:** 🟠 P2 — High  
+**Effort:** 0.5–1 day  
+**Complexity:** Low  
+**Why:** Active bug affecting current users. Likely a state update wiping the rendered list before the save completes — quick to diagnose and fix once investigated.
+
+**What it involves:**
+- Reproduce the bug: press "Remember this order" and observe the list disappearing
+- Trace the state update chain through the category context and the save handler
+- Fix: likely guard the re-render or optimistically keep the list visible until the save resolves
+- Verify no regression on reorder, add, delete category flows
+
+**What it touches:**  
+`App/WebUI/src/` category context · category list component · save/reorder handler
+
+---
+
+### 10 · Bring React Native up to date
+
+**Priority:** 🟠 P2 — High  
+**Effort:** 3–5 days  
+**Complexity:** Medium  
+**Why:** RN is currently behind and untested. Needed before any meaningful mobile testing and before the shared-auth changes (task 1) affect the mobile login flow.
+
+**What it involves:**
+- Review all dependencies against Expo SDK 54 docs (`docs.expo.dev/versions/v54.0.0/`)
+- Update packages, resolve breaking API changes
+- Verify iOS and Android builds are clean
+- Check login/logout, upload, charts, and manual review flows still work end-to-end
+
+**What it touches:**  
+`App/NativeAppUI/` · `package.json` · Expo config · any Expo API calls (check `App/NativeAppUI/AGENTS.md` warnings)
+
+---
+
+## 🟡 P3 — Medium (Polish · Do After Core Platform Is Stable)
+
+---
+
+### 11 · Dashboard: zero page scroll
+
+**Priority:** 🟡 P3 — Medium  
+**Effort:** 0.5–1 day  
+**Complexity:** Low  
+**Why:** The dashboard should be a single contained screen. Page-level scroll breaks the fixed-height layout and looks unfinished. Includes the legal footer not pushing content outside the viewport.
+
+**What it involves:**
+- Audit all elements on the dashboard that could contribute to overflow
+- Apply explicit `height` constraints so the layout is fully contained within `100vh`
+- Ensure the legal footer sits inside the layout rather than extending the page
+- Verify on both desktop and phone mimic
+
+**What it touches:**  
+`App/WebUI/src/screens/Dashboard.jsx` · dashboard CSS · `App/WebUI/src/components/Layout.jsx` · `Layout.css`
+
+---
+
+### 12 · Convert footnote box → "User Information" popup
+
+**Priority:** 🟡 P3 — Medium  
+**Effort:** 1–2 days  
+**Complexity:** Low  
+**Why:** The current footnote box is visually cluttered and takes up permanent space. A popup modal is cleaner, more prominent, and consistent with the ℹ pattern already used on the Transactions page.
+
+**What it involves:**
+- Remove the existing footnote box from the dashboard
+- Add a prominent `ℹ` icon button to the dashboard header/UI
+- Clicking it opens a modal labelled "User Information" with the same content
+- Modal also surfaces links to the four legal pages (Privacy, Terms, Accessibility, Cookies)
+- Style consistent with the existing Transactions info modal
+
+**What it touches:**  
+`App/WebUI/src/screens/Dashboard.jsx` · dashboard CSS · `App/WebUI/src/styles/chartFootnote.css` (removed) · `Layout.jsx` pattern reference
+
+---
+
+### 13 · Add "Data Security" popup
+
+**Priority:** 🟡 P3 — Medium  
+**Effort:** 1 day  
+**Complexity:** Low  
+**Why:** Users deserve easy access to the security explainer from within the app. Pairs naturally with the User Information popup (task 12) and uses the already-written `docs/data-security.html` content.
+
+**What it involves:**
+- Add a 🔒 lock icon button to the dashboard (near the ℹ button)
+- Clicking it opens a modal whose content is drawn from `docs/data-security.html`
+- The modal content should be editable by the client without a code change — consider either rendering the HTML file inline or linking to it
+- Popup also links to the legal pages
+
+**What it touches:**  
+`App/WebUI/src/screens/Dashboard.jsx` · dashboard CSS · `docs/data-security.html`
+
+---
+
+### 14 · Font, size and colour palette audit
+
+**Priority:** 🟡 P3 — Medium  
+**Effort:** 2–3 days  
+**Complexity:** Medium  
+**Why:** Three surfaces (web dashboard, phone mimic, React Native) have diverged over time. Inconsistency looks unpolished and erodes trust, especially as the platform expands to multiple tools.
+
+**What it involves:**
+- Document every font family, size, weight, and colour in use across all three surfaces
+- Identify mismatches — particularly between the phone mimic (web) and actual React Native
+- Agree a single token set as source of truth
+- Apply corrections and verify on all three surfaces
+
+**What it touches:**  
+`App/WebUI/src/styles/` · `App/NativeAppUI/` styles · phone mimic CSS · potentially a new shared tokens file
+
+---
+
+### 15 · Hard testing — all surfaces
+
+**Priority:** 🟡 P3 — Medium  
+**Effort:** 3–5 days  
+**Complexity:** Medium  
+**Why:** Pre-launch confidence pass. Should happen after the popup work (tasks 12, 13), React Native update (task 10), and dashboard scroll fix (task 11) are complete.
+
+**What it involves:**
+- Web dashboard: golden path end-to-end (upload → categorise → manual review → charts)
+- Known fragile areas: virtualiser performance, column resize persistence, manual review flush, preferences sync, cold-start spinner
+- Phone mimic: full flow at mobile width, all popups, legal pages, back navigation
+- React Native: login, upload, charts, manual review, edge cases (empty state, offline, large file)
+- Document any failures as new tasks
+
+**What it touches:**  
+All surfaces · no code changes expected — this is verification only
+
+---
+
+## 🟢 P4 — Low (Future · Requires Scoping Before Work Begins)
+
+---
+
+### 16 · Full automated test suite
+
+**Priority:** 🟢 P4 — Low  
+**Effort:** 2–4 weeks  
+**Complexity:** Very High  
+**Why last:** No test framework currently exists. This is a significant scoping and tooling decision before a single test is written. Wrong choices here are expensive to undo.
+
+> ⚠️ **Requires explicit owner sign-off on scope before any code is written.**  
+> See `context/constraints.md` — no test framework should be introduced without instruction.
+
+**What it involves:**
+- Scoping session: agree on unit vs. integration vs. E2E, and which surfaces (web only, RN, API)
+- Choose tooling: e.g. Vitest/React Testing Library (web unit), Playwright (E2E web), Detox (RN)
+- Agree what "passing suite" means and what CI triggers it
+- Write tests progressively: start with the categorisation pipeline and auth routes (highest risk), then UI flows
+- Set up CI to run on push to main
+
+**What it touches:**  
+Everything — this is a cross-cutting concern across `App/API/`, `App/WebUI/`, and `App/NativeAppUI/`
+
+---
+
+## Dependency Order
+
+```
+1 (Auth isolation) ──► 5 (JWT gating) ──► 6 (Subdomain linkage)
+                   ──► 3 (Stripe)     ──► 4 (Webhooks) ──► 7 (Trials)
+                                                         ──► 8 (Portal)
+2 (Landing page) depends on 1 + 6
+
+10 (RN update) ──► 15 (Hard testing)
+12 (Info popup) ─┐
+13 (Security popup) ─┤──► 11 (No scroll) ──► 15 (Hard testing)
+9  (Category bug) ──┘
+
+15 (Hard testing) ──► 16 (Automated tests)
+```
 
 ---
 
 ## Notes
 
-- Tasks are in rough priority order within each section but can be reordered freely.
-- "Hard testing" (#7) should happen after React Native is updated (#3) and after the popup work (#4, #5) is complete.
-- Automated testing (#8) is a substantial scoping exercise before it becomes a coding task.
+- The shared Auth & Billing Service (tasks 1–8) is a new standalone product, separate from the Cashflow codebase. It will likely live in its own repo.
+- Existing Cashflow users need a migration plan when auth is isolated — decide: grandfather them in free, require subscription, or offer a grace period.
+- Trial policy (card required vs. not, trial length) is a business decision that must be made before task 7 is built.
+- Tasks 12 and 13 (popups) directly reduce task 11's scope — do them first.
+- Task 16 (automated testing) needs a scoping conversation before any implementation begins.
