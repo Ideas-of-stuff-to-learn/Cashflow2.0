@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { useTransactions, useProcessing, useChartFilter, useUserPreferences } from '../../appState';
-import { resolveCategories, resolveRemainingToOther, beaconResolveRemainingToOther } from '../../api';
+import { resolveCategories, resolveAndExit, beaconResolveRemainingToOther } from '../../api';
 import { NEEDS_MANUAL_REVIEW } from '../../checkingName';
 import ManualReviewStatsModal from './ManualReviewStatsModal';
 import ManualReviewSequentialModal from './ManualReviewSequentialModal';
@@ -12,9 +12,8 @@ export default function ManualReviewGate() {
     const { bumpChartDataVersion } = useChartFilter();
 
     const pendingResolutionsRef = useRef([]);
-    const [flushError, setFlushError] = useState(false);
-    const [flushing, setFlushing] = useState(false);
     const [exitConfirmPending, setExitConfirmPending] = useState(false);
+    const [flushing, setFlushing] = useState(false);
     const [exitFailed, setExitFailed] = useState(false);
 
     // Page-unload safety net: if the user closes the tab mid-sequential,
@@ -86,53 +85,49 @@ export default function ManualReviewGate() {
         }
     }
 
-    async function withOneRetry(fn, delayMs = 1500) {
-        try {
-            return await fn();
-        } catch (e) {
-            await new Promise(r => setTimeout(r, delayMs));
-            return await fn(); // second failure propagates to caller
-        }
+    function flushPendingResolutions() {
+        const picks = [...pendingResolutionsRef.current];
+        pendingResolutionsRef.current = [];
+        clearPendingStorage();
+        bumpChartDataVersion();
+        // Show "All done!" immediately; server syncs in background.
+        // If it fails after one retry, picks come back as NEEDS_MANUAL_REVIEW on reload.
+        setManualReviewFlow(prev => prev ? { ...prev, needsReviewItems: [] } : prev);
+        setTimeout(closeManualReviewFlow, 900);
+        resolveCategories(picks).catch(() =>
+            resolveCategories(picks).catch(e => console.warn('[ManualReview] flush failed:', e.message))
+        );
     }
 
-    async function flushPendingResolutions() {
-        setFlushing(true);
-        setFlushError(false);
-        try {
-            await withOneRetry(() => resolveCategories(pendingResolutionsRef.current));
-            bumpChartDataVersion();
-            pendingResolutionsRef.current = [];
-            clearPendingStorage();
-            closeManualReviewFlow();
-        } catch (e) {
-            console.warn('Failed to flush resolutions:', e.message);
-            setFlushError(true);
-        } finally {
-            setFlushing(false);
-        }
-    }
-
-    async function handleExitConfirm() {
-        setFlushing(true);
+    function handleExitConfirm() {
+        const picks = [...pendingResolutionsRef.current];
+        pendingResolutionsRef.current = [];
+        clearPendingStorage();
+        // Optimistic local update — charts and table reflect the change immediately
+        setTransactions(prev => prev.map(t =>
+            t.category === NEEDS_MANUAL_REVIEW ? { ...t, category: 'Other' } : t
+        ));
+        bumpChartDataVersion();
         setExitFailed(false);
-        try {
-            if (pendingResolutionsRef.current.length > 0) {
-                await withOneRetry(() => resolveCategories(pendingResolutionsRef.current));
-                pendingResolutionsRef.current = [];
-                clearPendingStorage();
+
+        const serverCall = resolveAndExit(picks)
+            .catch(() => resolveAndExit(picks)); // one retry
+
+        // Race: if the server responds within 400ms, close with no visible delay.
+        // If slower, show the spinner as a fallback until it settles.
+        Promise.race([
+            serverCall.then(() => 'done'),
+            new Promise(r => setTimeout(() => r('slow'), 400)),
+        ]).then(result => {
+            if (result === 'done') {
+                closeManualReviewFlow();
+            } else {
+                setFlushing(true);
+                serverCall
+                    .then(() => { setFlushing(false); closeManualReviewFlow(); })
+                    .catch(() => { setFlushing(false); setExitFailed(true); });
             }
-            await withOneRetry(() => resolveRemainingToOther());
-            setTransactions(prev => prev.map(t =>
-                t.category === NEEDS_MANUAL_REVIEW ? { ...t, category: 'Other' } : t
-            ));
-            bumpChartDataVersion();
-            closeManualReviewFlow();
-        } catch (e) {
-            console.warn('Failed to exit manual review:', e.message);
-            setExitFailed(true);
-        } finally {
-            setFlushing(false);
-        }
+        });
     }
 
     if (manualReviewFlow.stage === 'stats') {
@@ -155,10 +150,8 @@ export default function ManualReviewGate() {
                 remainingCount={manualReviewFlow.needsReviewItems.length}
                 selectableCategories={categoryNames}
                 onPick={handleSequentialPick}
-                flushError={flushError}
                 flushing={flushing}
                 isDone={isDone}
-                onRetry={flushPendingResolutions}
                 onExit={() => { setExitConfirmPending(true); setExitFailed(false); }}
                 exitConfirmPending={exitConfirmPending}
                 exitFailed={exitFailed}

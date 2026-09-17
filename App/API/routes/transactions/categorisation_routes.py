@@ -308,6 +308,95 @@ def resolve_manual():
         release_connection(conn)
         
         
+@app.route('/categorize/resolve-and-exit', methods=['POST'])
+@jwt_required()
+@limiter.limit("50 per day")
+def resolve_and_exit():
+    """Combined exit endpoint: saves any accumulated picks then bulk-resolves
+    whatever is still NEEDS_MANUAL_REVIEW to Other, all in one DB transaction.
+    Replaces the two-round-trip pattern of resolve → resolve-remaining-to-other.
+    Body: { resolutions: [...] }  (may be empty list if no picks were made)
+    """
+    current_user = int(get_jwt_identity())
+    data = request.get_json(silent=True) or {}
+    resolutions = data.get('resolutions', [])
+
+    conn = get_connection()
+    try:
+        valid_categories = set(load_categories(conn))
+        personal_cache = CategoryCache(conn, scope='personal', user_id=current_user)
+        global_cache = CategoryCache(conn, scope='global')
+        personal_cache.preload()
+        global_cache.preload()
+
+        updated = []
+        skipped = []
+
+        for r in resolutions:
+            desc = r.get('description')
+            date = r.get('date')
+            amount = r.get('amount')
+            category = r.get('category')
+
+            if not all([desc, date, category]) or amount is None:
+                skipped.append(r)
+                continue
+            if category not in valid_categories or category == NEEDS_MANUAL_REVIEW:
+                skipped.append(r)
+                continue
+
+            amount_str = str(amount)
+            resolved = personal_cache.resolve_record(desc, date, amount_str, category)
+            if not resolved:
+                removed = personal_cache.remove_record(desc, date, amount_str, category=None)
+                if not removed:
+                    global_cache.remove_record(desc, date, amount_str, category=None)
+                personal_cache.add_record(desc, date, amount_str, category)
+
+            with conn.cursor() as cur:
+                cur.execute(
+                    """UPDATE transactions SET category = %s
+                       WHERE user_id = %s AND description = %s
+                         AND txn_date = %s AND amount = %s""",
+                    (category, current_user, desc, date, amount),
+                )
+
+            status_after = combined_status(desc, personal_cache, global_cache)
+            if status_after['status'] == 'resolved':
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """UPDATE transactions SET category = %s
+                           WHERE user_id = %s AND description = %s""",
+                        (category, current_user, desc),
+                    )
+
+            updated.append({'description': desc, 'date': date, 'amount': amount, 'category': category})
+
+        if personal_cache.dirty:
+            personal_cache.save()
+        if global_cache.dirty:
+            global_cache.save()
+
+        # Bulk-resolve whatever is still NEEDS_MANUAL_REVIEW to Other
+        with conn.cursor() as cur:
+            cur.execute(
+                """UPDATE transactions SET category = 'Other'
+                   WHERE user_id = %s AND category = %s
+                   RETURNING id""",
+                (current_user, NEEDS_MANUAL_REVIEW),
+            )
+            remaining_resolved = cur.rowcount
+
+        conn.commit()
+        return jsonify({'updated': updated, 'skipped': skipped, 'remaining_resolved': remaining_resolved}), 200
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Resolve-and-exit failed for user {current_user}: {e}')
+        return jsonify({'error': 'Failed to save and exit'}), 500
+    finally:
+        release_connection(conn)
+
+
 @app.route('/categorize/resolve-remaining-to-other', methods=['POST'])
 @jwt_required()
 @limiter.limit("50 per day")

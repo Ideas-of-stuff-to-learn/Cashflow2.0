@@ -2,9 +2,18 @@
 
 ## Status (2026-09-17)
 
-No active task. Pending push to main.
+No active task. Clean main branch.
 
 ## What Was Just Done
+
+**Manual review UX + stats fixes (2026-09-17):**
+- `ManualReviewStatsModal.jsx`: decimal percentage display (e.g. `0.40%`); ≥1% whole number
+- `ManualReviewGate.jsx`: optimistic exit with race pattern — instant close if server < 400ms, spinner fallback if slow, error screen if both retries fail; "All done!" path fully optimistic with 900ms close delay
+- `ManualReviewSequentialModal.jsx`: small centered saving card, spinner + checkmark, full flushing/exitFailed framework kept for future use
+- `categorisation_routes.py`: `/categorize/resolve-and-exit` — picks + remaining-to-Other in one transaction
+- `api.jsx`: `resolveAndExit()` added
+- `tasks/backlog.md`: task 17 added (owner admin page, P4)
+- Test SQL: `_mr_test_backup` table + parameterised flip/restore query
 
 **FilterPane order/persist bug fixes (2026-09-17):**
 - `useStackOrder.jsx`: hydration effect no longer filters `savedOrder` against `categoryNames` (empty on mount). Sets raw saved order directly; `effectiveOrder` filters reactively.

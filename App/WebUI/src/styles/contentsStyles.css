@@ -145,6 +145,11 @@
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 1000; }
 .modal-card { background: #fff; border-radius: 12px; padding: 16px; max-height: 70%; overflow: hidden; display: flex; flex-direction: column; justify-content: center; align-items: center; }
 .modal-card-narrow { max-width: 380px; width: 100%; }
+.modal-card-saving { max-width: 220px; width: 100%; padding: 28px 24px; gap: 12px; }
+.modal-saving-spinner { width: 28px; height: 28px; border: 3px solid #e0e7ef; border-top-color: #2E5C8A; border-radius: 50%; animation: modal-spin 0.75s linear infinite; }
+@keyframes modal-spin { to { transform: rotate(360deg); } }
+.modal-saving-label { font-size: 15px; font-weight: 600; color: #333; text-align: center; margin: 0; }
+.modal-done-check { font-size: 28px; line-height: 1; }
 .duplicate-success-line { font-size: 14px; color: #444; text-align: center; margin-bottom: 12px; }
 .duplicate-section { width: 100%; margin-bottom: 10px; }
 .duplicate-label { font-size: 13px; text-align: center; margin-bottom: 4px; color: #222; }

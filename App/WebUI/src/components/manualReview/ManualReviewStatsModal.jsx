@@ -7,8 +7,15 @@ import '../../styles/manualReviewModal.css';
 export default function ManualReviewStatsModal({ flow, onCategoriseNow, onPutInOther }) {
     const { totalTransactions, autoResolvedCount, needsReviewCount } = flow;
 
-    const autoPercent = totalTransactions > 0 ? Math.round((autoResolvedCount / totalTransactions) * 100) : 0;
-    const needsReviewPercent = totalTransactions > 0 ? Math.round((needsReviewCount / totalTransactions) * 100) : 0;
+    const fmt = (count) => {
+        if (totalTransactions === 0) return '0';
+        const pct = (count / totalTransactions) * 100;
+        if (pct === 0) return '0';
+        if (pct >= 1) return Math.round(pct).toString();
+        return parseFloat(pct.toFixed(2)).toString();
+    };
+    const autoPercentLabel = fmt(autoResolvedCount);
+    const needsReviewPercentLabel = fmt(needsReviewCount);
 
     return (
         <div className="manual-review-backdrop">
@@ -17,10 +24,10 @@ export default function ManualReviewStatsModal({ flow, onCategoriseNow, onPutInO
                     You've uploaded {totalTransactions.toLocaleString()} transactions.
                 </p>
                 <p className="manual-review-text">
-                    {autoPercent}% ({autoResolvedCount.toLocaleString()}) were categorised automatically.
+                    {autoPercentLabel}% ({autoResolvedCount.toLocaleString()}) were categorised automatically.
                 </p>
                 <p className="manual-review-text">
-                    {needsReviewPercent}% ({needsReviewCount.toLocaleString()}) were unable to be automatically categorised and require your decision in order to provide you with a complete and accurate view of your data.
+                    {needsReviewPercentLabel}% ({needsReviewCount.toLocaleString()}) were unable to be automatically categorised and require your decision in order to provide you with a complete and accurate view of your data.
                 </p>
                 <p className="manual-review-question">
                     Would you like to categorise these transactions now, or put them all in the Other category?

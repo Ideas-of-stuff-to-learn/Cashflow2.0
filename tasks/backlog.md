@@ -32,7 +32,7 @@
 | [6](#6--deployed-subdomain-linkage) | Deployed subdomain linkage | 🟠 P2 | 2–3 days | Medium |
 | [7](#7--free-trial-support) | Free trial support | 🟠 P2 | 2–3 days | Medium |
 | [8](#8--stripe-customer-portal-self-service) | Stripe Customer Portal (self-service) | 🟠 P2 | 1–2 days | Low |
-| [9](#9--category-list-vanishing-on-remember-this-order) | Category list vanishing bug | 🟠 P2 | 0.5–1 day | Low |
+| [9](#9--category-list-vanishing-on-remember-this-order) | ~~Category list vanishing bug~~ | 🟠 P2 | 0.5–1 day | Low |
 | [10](#10--bring-react-native-up-to-date) | Bring React Native up to date | 🟠 P2 | 3–5 days | Medium |
 | [11](#11--dashboard-zero-page-scroll) | Dashboard: no page scroll | 🟡 P3 | 0.5–1 day | Low |
 | [12](#12--convert-footnote-box--user-information-popup) | User Information popup | 🟡 P3 | 1–2 days | Low |
@@ -211,19 +211,9 @@ Stripe dashboard · shared service: `routes/billing.py` · Cashflow frontend: ac
 
 ### 9 · Category list vanishing on "Remember this order"
 
-**Priority:** 🟠 P2 — High  
-**Effort:** 0.5–1 day  
-**Complexity:** Low  
-**Why:** Active bug affecting current users. Likely a state update wiping the rendered list before the save completes — quick to diagnose and fix once investigated.
+**Status:** `[x]` Done — 2026-09-17
 
-**What it involves:**
-- Reproduce the bug: press "Remember this order" and observe the list disappearing
-- Trace the state update chain through the category context and the save handler
-- Fix: likely guard the re-render or optimistically keep the list visible until the save resolves
-- Verify no regression on reorder, add, delete category flows
-
-**What it touches:**  
-`App/WebUI/src/` category context · category list component · save/reorder handler
+**Root cause:** `useStackOrder` hydration effect filtered `savedOrder` against `categoryNames` at mount time. `categoryNames` is `[]` on mount (async fetch), so the filter produced `[]` permanently — `effectiveOrder` was always empty after a reload with persist=true. Fix: hydration now sets raw `savedOrder` directly; `effectiveOrder` filters reactively on every render. Also gated both "Remember this order" and "Reset to default" on `isCustomOrder` so neither appears on the default order.
 
 ---
 

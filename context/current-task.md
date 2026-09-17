@@ -6,6 +6,14 @@ No active task. Clean main branch.
 
 ## Recently Completed
 
+**Manual review UX + stats fixes (2026-09-17):**
+- `ManualReviewStatsModal.jsx`: percentage now shows exact decimal (e.g. `0.40%`) instead of rounding to `0%` when count is non-zero; ≥1% rounds to whole number
+- `ManualReviewGate.jsx`: optimistic exit — local state updates immediately, server fires in background; race pattern: if server responds within 400ms modal closes instantly, if slower shows spinner as fallback, if both retries fail shows error screen
+- `ManualReviewGate.jsx`: `flushPendingResolutions` (all items done) — "All done!" shows immediately, server syncs in background, modal closes after 900ms
+- `ManualReviewSequentialModal.jsx`: saving/done card restyled — small centered card, spinner animation while saving, checkmark for all-done; full flushing/exitFailed framework preserved
+- `categorisation_routes.py`: new `/categorize/resolve-and-exit` endpoint — saves picks + bulk-resolves remaining to Other in one DB transaction (replaces two sequential round trips)
+- `api.jsx`: `resolveAndExit()` frontend function
+
 **FilterPane order/persist bug fixes (2026-09-17):**
 - `useStackOrder.jsx`: hydration effect no longer filters `savedOrder` against `categoryNames` at mount (categoryNames=[] on mount → filtering produced [] permanently, breaking all filter checkboxes on reload). Now sets raw `savedOrder` directly; `effectiveOrder` already filters reactively on every render.
 - `FilterPane.jsx`: "Remember this order" and "Reset to default" both now gated on `isCustomOrder`. Previously "Remember this order" was always visible and clickable even on default order.

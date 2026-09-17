@@ -18,3 +18,4 @@ YYYY-MM-DD | task: <what was done> | SQLite queries: <N> | context docs loaded: 
 | 2026-09-16 | Legal pages: /privacy, /terms, /accessibility, /cookies | 0 | App.jsx, routes.jsx, Layout.jsx only | yes | Continued from compacted session; all context from summary |
 2026-09-17 | task: FilterPane order/persist bug fixes | SQLite queries: 3 | context docs loaded: 4 | full repo scan avoided: yes | useStackOrder hydration fix + FilterPane button visibility fix
 2026-09-17 | task: FilterPane persist-to-DB fix (flushNow) | SQLite queries: 0 | context docs loaded: 0 | full repo scan avoided: yes | added flushNow to UserPreferencesContext; togglePersist+resetOrder now write to server immediately
+2026-09-17 | task: Manual review UX fixes (decimal pct, optimistic exit, spinner fallback, resolve-and-exit endpoint) | SQLite queries: 0 | context docs loaded: 2 | full repo scan avoided: yes | also marked task 9 complete in backlog

@@ -579,6 +579,15 @@ export async function resolveCategories(resolutions) {
     return await parseJsonResponse(response, 'Resolve failed');
 }
 
+export async function resolveAndExit(resolutions = []) {
+    const response = await authorizedFetch(`${BASE_URL}/categorize/resolve-and-exit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resolutions }),
+    });
+    return await parseJsonResponse(response, 'Resolve-and-exit failed');
+}
+
 export async function resolveRemainingToOther() {
     const response = await authorizedFetch(`${BASE_URL}/categorize/resolve-remaining-to-other`, {
         method: 'POST',

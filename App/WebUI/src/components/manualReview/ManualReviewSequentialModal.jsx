@@ -4,27 +4,16 @@ import '../../styles/contentsStyles.css';
 // Deliberately no onClick on the backdrop - must NOT be dismissible by clicking outside.
 export default function ManualReviewSequentialModal({
     current, remainingCount, selectableCategories, onPick,
-    flushError, flushing, isDone, onRetry,
-    onExit, exitConfirmPending, exitFailed, onExitConfirm, onExitCancel,
+    flushing, isDone, onExit, exitConfirmPending, exitFailed, onExitConfirm, onExitCancel,
 }) {
     if (flushing || isDone) {
         return (
             <div className="modal-backdrop">
-                <div className="modal-card">
-                    <p className="modal-desc">{flushing ? 'Saving…' : 'All done!'}</p>
-                </div>
-            </div>
-        );
-    }
-
-    if (flushError) {
-        return (
-            <div className="modal-backdrop">
-                <div className="modal-card">
-                    <p className="modal-desc">Saving failed. Please check your connection and try again.</p>
-                    <button className="modal-option" onClick={onRetry}>
-                        <span className="modal-option-text">Retry</span>
-                    </button>
+                <div className="modal-card modal-card-saving">
+                    {flushing
+                        ? <><div className="modal-saving-spinner" /><p className="modal-saving-label">Saving…</p></>
+                        : <><span className="modal-done-check">✓</span><p className="modal-saving-label">All done!</p></>
+                    }
                 </div>
             </div>
         );
