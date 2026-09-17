@@ -34,7 +34,7 @@
 }
 
 .filter-pane-title {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
     color: #333;
 }
@@ -59,8 +59,8 @@
 }
 
 .filter-pane-section {
-    margin-bottom: 12px;
-    padding-bottom: 12px;
+    margin-bottom: 6px;
+    padding-bottom: 6px;
     border-bottom: 1px solid #eee;
     display: flex;
     flex-direction: column;
@@ -76,51 +76,51 @@
     overflow: visible;
 }
 
-/* Compress text when the pane is short — keeps all categories visible without scrolling */
-@container filter-pane (max-height: 420px) {
-    .filter-pane-title          { font-size: 12px; }
-    .filter-pane-section-title  { font-size: 11px; }
-    .filter-pane-checkbox-row   { font-size: 11px; padding: 2px 0; }
-    .filter-pane-combined-label { font-size: 11px; }
-    .filter-pane-hint           { font-size: 10px; margin-bottom: 4px; }
-    .filter-pane-persist-row    { font-size: 11px; margin-top: 4px; }
-    .filter-pane-reset-btn      { font-size: 11px; padding: 4px; margin-top: 4px; }
-    .filter-pane-header         { margin-bottom: 4px; padding-bottom: 4px; }
-    .filter-pane-section        { margin-bottom: 6px; padding-bottom: 6px; }
+/* Scale up when there's genuinely lots of room — compact is the default */
+@container filter-pane (min-height: 700px) {
+    .filter-pane-title          { font-size: 14px; }
+    .filter-pane-section-title  { font-size: 13px; }
+    .filter-pane-checkbox-row   { font-size: 13px; padding: 4px 0; }
+    .filter-pane-combined-label { font-size: 13px; }
+    .filter-pane-hint           { font-size: 11px; margin-bottom: 6px; }
+    .filter-pane-persist-row    { font-size: 12px; margin-top: 8px; }
+    .filter-pane-reset-btn      { font-size: 12px; padding: 6px; margin-top: 8px; }
+    .filter-pane-header         { margin-bottom: 8px; padding-bottom: 8px; }
+    .filter-pane-section        { margin-bottom: 12px; padding-bottom: 12px; }
 }
 
-@container filter-pane (max-height: 320px) {
-    .filter-pane-title          { font-size: 11px; }
-    .filter-pane-section-title  { font-size: 10px; }
-    .filter-pane-checkbox-row   { font-size: 10px; padding: 1px 0; }
-    .filter-pane-combined-label { font-size: 10px; }
-    .filter-pane-hint           { font-size: 9px; margin-bottom: 2px; }
-    .filter-pane-persist-row    { font-size: 10px; margin-top: 2px; }
-    .filter-pane-reset-btn      { font-size: 10px; padding: 3px; margin-top: 2px; }
+/* Extra tight when pane is very short */
+@container filter-pane (max-height: 350px) {
+    .filter-pane-title          { font-size: 10px; }
+    .filter-pane-section-title  { font-size: 9px; }
+    .filter-pane-checkbox-row   { font-size: 9px; padding: 1px 0; }
+    .filter-pane-combined-label { font-size: 9px; }
+    .filter-pane-hint           { font-size: 8px; margin-bottom: 2px; }
+    .filter-pane-persist-row    { font-size: 9px; margin-top: 2px; }
+    .filter-pane-reset-btn      { font-size: 9px; padding: 2px; margin-top: 2px; }
     .filter-pane-colour-dot     { width: 6px; height: 6px; }
-    .filter-pane-drag-handle    { font-size: 12px; }
-    .filter-pane-section        { margin-bottom: 4px; padding-bottom: 4px; }
+    .filter-pane-section        { margin-bottom: 2px; padding-bottom: 2px; }
 }
 
 .filter-pane-section-title {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
     color: #333;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
 .filter-pane-hint {
-    font-size: 11px;
+    font-size: 10px;
     color: #888;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
 .filter-pane-checkbox-row {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 0;
-    font-size: 13px;
+    padding: 2px 0;
+    font-size: 11px;
     color: #333;
     cursor: pointer;
 }
@@ -159,22 +159,22 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: 11px;
     color: #333;
-    margin-top: 8px;
+    margin-top: 4px;
     cursor: pointer;
     flex-shrink: 0;
 }
 
 .filter-pane-reset-btn {
     width: 100%;
-    margin-top: 8px;
-    padding: 6px;
+    margin-top: 4px;
+    padding: 4px;
     border: 1px solid #d94f4f;
     border-radius: 6px;
     background: none;
     color: #d94f4f;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     cursor: pointer;
     flex-shrink: 0;
