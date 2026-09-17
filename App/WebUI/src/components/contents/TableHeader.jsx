@@ -1,5 +1,4 @@
 import { useRef, useCallback, useEffect } from 'react';
-import { useUserPreferences } from '../../appState/UserPreferencesContext';
 import '../../styles/contentsStyles.css';
 
 const COLS = ['date', 'desc', 'amount', 'cat'];
@@ -92,8 +91,7 @@ function SortHeader({ label, field, col, sortField, sortAsc, onToggleSort, class
     );
 }
 
-export default function TableHeader({ selectionMode, sortField, sortAsc, onToggleSort }) {
-    const { columnWidths, setColumnWidths } = useUserPreferences();
+export default function TableHeader({ selectionMode, sortField, sortAsc, onToggleSort, columnWidths, setColumnWidths }) {
 
     // Apply saved widths from context on mount
     useEffect(() => {

@@ -39,7 +39,12 @@
    get fixed when the user drags a resize handle. */
 /* Full flex shorthand stored in each var so setColVar('col', px) → "0 0 Xpx" works uniformly.
    desc/cat not set by default → cells use the fallback flex:1.5 until first drag. */
-:root { --col-date: 0 0 62px; --col-amount: 0 0 68px; }
+/* Desktop defaults */
+:root { --col-date: 0 0 80px; --col-amount: 0 0 80px; }
+/* Mobile defaults — narrower, category column gets less room */
+@media (max-width: 1023px) {
+    :root { --col-date: 0 0 58px; --col-amount: 0 0 60px; }
+}
 
 .cell { flex: 1; font-size: 11px; color: #333; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; }
 .cell-date { flex: var(--col-date); white-space: nowrap; overflow: hidden; }

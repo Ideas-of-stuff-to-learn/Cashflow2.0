@@ -16,7 +16,13 @@ const COL_VARS = ['date', 'desc', 'amount', 'cat'];
 export default function ContentsScreen() {
     const tableRef = useRef(null);
     const isMobile = useIsMobile();
-    const { columnWidths, setColumnWidths } = useUserPreferences();
+    const {
+        columnWidthsDesktop, setColumnWidthsDesktop,
+        columnWidthsMobile,  setColumnWidthsMobile,
+    } = useUserPreferences();
+
+    const columnWidths    = isMobile ? columnWidthsMobile  : columnWidthsDesktop;
+    const setColumnWidths = isMobile ? setColumnWidthsMobile : setColumnWidthsDesktop;
 
     const hasCustomWidths = columnWidths && Object.keys(columnWidths).length > 0;
 
@@ -166,6 +172,8 @@ export default function ContentsScreen() {
                         sortField={sortField}
                         sortAsc={sortAsc}
                         onToggleSort={toggleSort}
+                        columnWidths={columnWidths}
+                        setColumnWidths={setColumnWidths}
                     />
 
                     <div className="cs-table" ref={tableRef}>

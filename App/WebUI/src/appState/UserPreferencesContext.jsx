@@ -2,9 +2,10 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import { useAuth } from './AuthContext';
 import { url as BASE_URL } from '../../../frontendLocalConfig';
 
-// ─── localStorage keys (unchanged from before) ────────────────────────────
-const LS_COLUMN_WIDTHS   = 'columnWidths';
-const LS_STACK_ORDER     = 'chartStackOrder';
+// ─── localStorage keys ────────────────────────────────────────────────────
+const LS_COL_WIDTHS_DESKTOP = 'columnWidthsDesktop';
+const LS_COL_WIDTHS_MOBILE  = 'columnWidthsMobile';
+const LS_STACK_ORDER        = 'chartStackOrder';
 const LS_STACK_PERSIST   = 'chartStackOrderPersist';
 const LS_MR_PICKS        = 'mr_pending_picks';
 
@@ -44,7 +45,8 @@ export function UserPreferencesProvider({ children }) {
     const { isLoggedIn } = useAuth();
 
     // ── state ──────────────────────────────────────────────────────────────
-    const [columnWidths, _setColumnWidths]   = useState(() => lsGet(LS_COLUMN_WIDTHS, {}));
+    const [columnWidthsDesktop, _setColWidthsDesktop] = useState(() => lsGet(LS_COL_WIDTHS_DESKTOP, {}));
+    const [columnWidthsMobile,  _setColWidthsMobile]  = useState(() => lsGet(LS_COL_WIDTHS_MOBILE, {}));
     const [stackOrder,   _setStackOrder]     = useState(() => lsGet(LS_STACK_ORDER, null));
     const [stackPersist, _setStackPersist]   = useState(() => lsGet(LS_STACK_PERSIST, false));
     const [mrPicks,      _setMrPicks]        = useState(() => lsGet(LS_MR_PICKS, null));
@@ -87,7 +89,8 @@ export function UserPreferencesProvider({ children }) {
         let cancelled = false;
         serverGet().then(remote => {
             if (cancelled || !remote) return;
-            if (remote.columnWidths)         { lsSet(LS_COLUMN_WIDTHS, remote.columnWidths);      _setColumnWidths(remote.columnWidths); }
+            if (remote.columnWidthsDesktop)  { lsSet(LS_COL_WIDTHS_DESKTOP, remote.columnWidthsDesktop); _setColWidthsDesktop(remote.columnWidthsDesktop); }
+            if (remote.columnWidthsMobile)   { lsSet(LS_COL_WIDTHS_MOBILE,  remote.columnWidthsMobile);  _setColWidthsMobile(remote.columnWidthsMobile); }
             if (remote.stackOrder)           { lsSet(LS_STACK_ORDER, remote.stackOrder);           _setStackOrder(remote.stackOrder); }
             if (remote.stackPersist != null) { lsSet(LS_STACK_PERSIST, remote.stackPersist);       _setStackPersist(remote.stackPersist); }
             if (remote.mrPicks)              { lsSet(LS_MR_PICKS, remote.mrPicks);                 _setMrPicks(remote.mrPicks); }
@@ -109,11 +112,13 @@ export function UserPreferencesProvider({ children }) {
                 syncTimer.current = null;
             }
             const patch = {};
-            const cw = lsGet(LS_COLUMN_WIDTHS, null);
-            const so = lsGet(LS_STACK_ORDER, null);
+            const cwd = lsGet(LS_COL_WIDTHS_DESKTOP, null);
+            const cwm = lsGet(LS_COL_WIDTHS_MOBILE, null);
+            const so  = lsGet(LS_STACK_ORDER, null);
             const sp = lsGet(LS_STACK_PERSIST, null);
             const mr = lsGet(LS_MR_PICKS, null);
-            if (cw !== null) patch.columnWidths = cw;
+            if (cwd !== null) patch.columnWidthsDesktop = cwd;
+            if (cwm !== null) patch.columnWidthsMobile  = cwm;
             if (so !== null) patch.stackOrder = so;
             if (sp !== null) patch.stackPersist = sp;
             if (mr !== null) patch.mrPicks = mr;
@@ -133,10 +138,16 @@ export function UserPreferencesProvider({ children }) {
     }, [isLoggedIn]);
 
     // ── setters (localStorage + state + debounced server) ─────────────────
-    const setColumnWidths = useCallback((widths) => {
-        _setColumnWidths(widths);
-        lsSet(LS_COLUMN_WIDTHS, widths);
-        scheduleSync({ columnWidths: widths });
+    const setColumnWidthsDesktop = useCallback((widths) => {
+        _setColWidthsDesktop(widths);
+        lsSet(LS_COL_WIDTHS_DESKTOP, widths);
+        scheduleSync({ columnWidthsDesktop: widths });
+    }, []);
+
+    const setColumnWidthsMobile = useCallback((widths) => {
+        _setColWidthsMobile(widths);
+        lsSet(LS_COL_WIDTHS_MOBILE, widths);
+        scheduleSync({ columnWidthsMobile: widths });
     }, []);
 
     const setStackOrder = useCallback((order) => {
@@ -161,8 +172,9 @@ export function UserPreferencesProvider({ children }) {
 
     return (
         <UserPreferencesContext.Provider value={{
-            columnWidths, setColumnWidths,
-            stackOrder,   setStackOrder,
+            columnWidthsDesktop, setColumnWidthsDesktop,
+            columnWidthsMobile,  setColumnWidthsMobile,
+            stackOrder,          setStackOrder,
             stackPersist, setStackPersist,
             mrPicks,      setMrPicks,
             flushNow,
