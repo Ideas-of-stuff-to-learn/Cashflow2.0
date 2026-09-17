@@ -9,8 +9,7 @@
     width: 220px;
     flex-shrink: 0;
     overflow: hidden;
-    container-type: size;
-    container-name: filter-pane;
+    font-size: 13px;
 }
 
 .filter-pane-collapsed {
@@ -34,7 +33,7 @@
 }
 
 .filter-pane-title {
-    font-size: 12px;
+    font-size: 1.1em;
     font-weight: 600;
     color: #333;
 }
@@ -76,41 +75,19 @@
     overflow: visible;
 }
 
-/* Scale up when there's genuinely lots of room — compact is the default */
-@container filter-pane (min-height: 700px) {
-    .filter-pane-title          { font-size: 14px; }
-    .filter-pane-section-title  { font-size: 13px; }
-    .filter-pane-checkbox-row   { font-size: 13px; padding: 4px 0; }
-    .filter-pane-combined-label { font-size: 13px; }
-    .filter-pane-hint           { font-size: 11px; margin-bottom: 6px; }
-    .filter-pane-persist-row    { font-size: 12px; margin-top: 8px; }
-    .filter-pane-reset-btn      { font-size: 12px; padding: 6px; margin-top: 8px; }
-    .filter-pane-header         { margin-bottom: 8px; padding-bottom: 8px; }
-    .filter-pane-section        { margin-bottom: 12px; padding-bottom: 12px; }
-}
-
-/* Extra tight when pane is very short */
-@container filter-pane (max-height: 350px) {
-    .filter-pane-title          { font-size: 10px; }
-    .filter-pane-section-title  { font-size: 9px; }
-    .filter-pane-checkbox-row   { font-size: 9px; padding: 1px 0; }
-    .filter-pane-combined-label { font-size: 9px; }
-    .filter-pane-hint           { font-size: 8px; margin-bottom: 2px; }
-    .filter-pane-persist-row    { font-size: 9px; margin-top: 2px; }
-    .filter-pane-reset-btn      { font-size: 9px; padding: 2px; margin-top: 2px; }
-    .filter-pane-colour-dot     { width: 6px; height: 6px; }
-    .filter-pane-section        { margin-bottom: 2px; padding-bottom: 2px; }
-}
+/* Font sizes inside are em-relative — JS on the pane root steps font-size
+   down from 13px until scrollHeight <= clientHeight, so all items fit
+   without scrolling regardless of how many categories there are. */
 
 .filter-pane-section-title {
-    font-size: 11px;
+    font-size: 1em;
     font-weight: 600;
     color: #333;
     margin-bottom: 4px;
 }
 
 .filter-pane-hint {
-    font-size: 10px;
+    font-size: 0.9em;
     color: #888;
     margin-bottom: 4px;
 }
@@ -120,7 +97,7 @@
     align-items: center;
     gap: 6px;
     padding: 2px 0;
-    font-size: 11px;
+    font-size: 1em;
     color: #333;
     cursor: pointer;
 }
@@ -145,7 +122,7 @@
 .filter-pane-drag-handle {
     cursor: grab;
     color: #999;
-    font-size: 14px;
+    font-size: 1.1em;
     padding: 0 2px;
     user-select: none;
     flex-shrink: 0;
@@ -159,7 +136,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
+    font-size: 1em;
     color: #333;
     margin-top: 4px;
     cursor: pointer;
@@ -174,7 +151,7 @@
     border-radius: 6px;
     background: none;
     color: #d94f4f;
-    font-size: 11px;
+    font-size: 1em;
     font-weight: 600;
     cursor: pointer;
     flex-shrink: 0;

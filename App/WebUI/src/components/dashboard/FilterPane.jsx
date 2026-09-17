@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import '../../styles/filterPaneStyles.css';
 
 export default function FilterPane({
@@ -17,6 +17,28 @@ export default function FilterPane({
 }) {
     const [dragIndex, setDragIndex] = useState(null);
     const [dragOverIndex, setDragOverIndex] = useState(null);
+    const paneRef = useRef(null);
+
+    // Step font size down from 13px until all content fits, re-run when
+    // category list changes or the pane is resized.
+    useEffect(() => {
+        const pane = paneRef.current;
+        if (!pane) return;
+
+        const fit = () => {
+            pane.style.fontSize = '';          // reset to CSS default
+            let size = 13;
+            while (pane.scrollHeight > pane.clientHeight && size > 8) {
+                size -= 0.5;
+                pane.style.fontSize = `${size}px`;
+            }
+        };
+
+        fit();
+        const ro = new ResizeObserver(fit);
+        ro.observe(pane);
+        return () => ro.disconnect();
+    }, [effectiveOrder, availableCategories, isCustomOrder]);
 
     // Displayed top-to-bottom, so the row a person sees at the top is
     // the top (last-drawn) segment of the stacked bar - the reverse of
@@ -42,7 +64,7 @@ export default function FilterPane({
     const allSelected = availableCategories.every(cat => contentsSelectedCategories.has(cat));
 
     return (
-        <div className="filter-pane filter-pane-right">
+        <div className="filter-pane filter-pane-right" ref={paneRef}>
             <div className="filter-pane-header">
                 <span className="filter-pane-title">Filters</span>
             </div>
