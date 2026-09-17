@@ -5,26 +5,41 @@
 
 ---
 
+## 🎯 Target & Progress Log
+
+**Deadline:** 30 September 2026 — aim to have all P1 and P2 tasks complete, P3 in progress or done, P4 scoped.  
+**Check-in cadence:** every 5 days — write a short progress note below.
+
+| Check-in | Date | Notes |
+|----------|------|-------|
+| 1 | 22 Sep 2026 | _(write update here)_ |
+| 2 | 27 Sep 2026 | _(write update here)_ |
+| 3 | 02 Oct 2026 | _(extended if needed)_ |
+
+> The deadline is an aim, not a hard constraint — extend if needed but keep the cadence.
+
+---
+
 ## Quick Reference
 
 | # | Task | Priority | Effort | Complexity |
 |---|------|----------|--------|------------|
-| 1 | Isolate auth into shared service | 🔴 P1 | 2–3 weeks | Very High |
-| 2 | Company landing page | 🔴 P1 | 3–5 days | Medium |
-| 3 | Stripe billing integration | 🔴 P1 | 1–2 weeks | High |
-| 4 | Webhook listener (subscription sync) | 🔴 P1 | 3–5 days | High |
-| 5 | Per-tool JWT access gating | 🟠 P2 | 3–5 days | High |
-| 6 | Deployed subdomain linkage | 🟠 P2 | 2–3 days | Medium |
-| 7 | Free trial support | 🟠 P2 | 2–3 days | Medium |
-| 8 | Stripe Customer Portal (self-service) | 🟠 P2 | 1–2 days | Low |
-| 9 | Category list vanishing bug | 🟠 P2 | 0.5–1 day | Low |
-| 10 | Bring React Native up to date | 🟠 P2 | 3–5 days | Medium |
-| 11 | Dashboard: no page scroll | 🟡 P3 | 0.5–1 day | Low |
-| 12 | User Information popup | 🟡 P3 | 1–2 days | Low |
-| 13 | Data Security popup | 🟡 P3 | 1 day | Low |
-| 14 | Font, size and colour palette audit | 🟡 P3 | 2–3 days | Medium |
-| 15 | Hard testing (all surfaces) | 🟡 P3 | 3–5 days | Medium |
-| 16 | Full automated test suite | 🟢 P4 | 2–4 weeks | Very High |
+| [1](#1--isolate-auth-into-shared-auth--billing-service) | Isolate auth into shared service | 🔴 P1 | 2–3 weeks | Very High |
+| [2](#2--company-landing-page) | Company landing page | 🔴 P1 | 3–5 days | Medium |
+| [3](#3--stripe-billing-integration) | Stripe billing integration | 🔴 P1 | 1–2 weeks | High |
+| [4](#4--webhook-listener-subscription-status-sync) | Webhook listener (subscription sync) | 🔴 P1 | 3–5 days | High |
+| [5](#5--per-tool-jwt-access-gating) | Per-tool JWT access gating | 🟠 P2 | 3–5 days | High |
+| [6](#6--deployed-subdomain-linkage) | Deployed subdomain linkage | 🟠 P2 | 2–3 days | Medium |
+| [7](#7--free-trial-support) | Free trial support | 🟠 P2 | 2–3 days | Medium |
+| [8](#8--stripe-customer-portal-self-service) | Stripe Customer Portal (self-service) | 🟠 P2 | 1–2 days | Low |
+| [9](#9--category-list-vanishing-on-remember-this-order) | Category list vanishing bug | 🟠 P2 | 0.5–1 day | Low |
+| [10](#10--bring-react-native-up-to-date) | Bring React Native up to date | 🟠 P2 | 3–5 days | Medium |
+| [11](#11--dashboard-zero-page-scroll) | Dashboard: no page scroll | 🟡 P3 | 0.5–1 day | Low |
+| [12](#12--convert-footnote-box--user-information-popup) | User Information popup | 🟡 P3 | 1–2 days | Low |
+| [13](#13--add-data-security-popup) | Data Security popup | 🟡 P3 | 1 day | Low |
+| [14](#14--font-size-and-colour-palette-audit) | Font, size and colour palette audit | 🟡 P3 | 2–3 days | Medium |
+| [15](#15--hard-testing--all-surfaces) | Hard testing (all surfaces) | 🟡 P3 | 3–5 days | Medium |
+| [16](#16--full-automated-test-suite) | Full automated test suite | 🟢 P4 | 2–4 weeks | Very High |
 
 ---
 
