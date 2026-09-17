@@ -41,6 +41,7 @@
 | [15](#15--hard-testing--all-surfaces) | Hard testing (all surfaces) | 🟡 P3 | 3–5 days | Medium |
 | [16](#16--full-automated-test-suite) | Full automated test suite | 🟢 P4 | 2–4 weeks | Very High |
 | [17](#17--owner-admin-page) | Owner admin page (CLI + SQL tools in UI) | 🟢 P4 | 2–3 days | Medium |
+| [18](#18--migrate-github-pages-deployment-to-private-repo--alternative-host) | Migrate GitHub Pages to private repo + new host | 🟢 P4 | 1–2 days | Medium |
 
 ---
 
@@ -380,6 +381,31 @@ A protected web UI page (`/admin`) visible only to the `owner` role (or a config
 
 ---
 
+---
+
+## 18 — Migrate GitHub Pages deployment to private repo + alternative host
+
+**Status:** `[ ]` &nbsp;·&nbsp; **Priority:** 🟢 P4 &nbsp;·&nbsp; **Effort:** 1–2 days &nbsp;·&nbsp; **Complexity:** Medium
+
+Currently `context/overview.html` (and any other public-facing docs) are served via GitHub Pages from this public repo. As the project matures, the repo should transition to private and Pages will stop working. This task scopes what that migration looks like and what else it breaks.
+
+**What it involves:**
+- Decide on a replacement host: Render static site, Netlify, Cloudflare Pages, or another service — must support private-source deploys
+- Audit everything that currently depends on the GitHub Pages URL (any links in code, docs, emails, the landing page, or external references) and update them to the new URL
+- Wire up the new deployment: connect the private repo to the chosen host, set up the deploy trigger (push to main or a dedicated `docs` branch)
+- Update the repo visibility from public → private once the new deploy is live and verified
+- Check downstream effects:
+  - `context/overview.html` links still resolve
+  - Any `CNAME` or custom domain config carries over
+  - GitHub free-tier limits — private repos with GitHub Actions minutes, LFS, etc.
+  - Any CI/CD workflows that reference `github.com/<org>/<repo>` public URLs
+- Update `context/gitContext.md` and `context/overview.html` with the new deploy URL and workflow
+
+**What it touches:**  
+Repo visibility settings · GitHub Pages config · `context/gitContext.md` · `context/overview.html` · any hardcoded public GitHub URLs in docs or code · chosen external static host config
+
+---
+
 ## Dependency Order
 
 ```
@@ -405,3 +431,4 @@ A protected web UI page (`/admin`) visible only to the `owner` role (or a config
 - Trial policy (card required vs. not, trial length) is a business decision that must be made before task 7 is built.
 - Tasks 12 and 13 (popups) directly reduce task 11's scope — do them first.
 - Task 16 (automated testing) needs a scoping conversation before any implementation begins.
+- Task 18 (repo migration) should happen after the public-facing URL from Pages is no longer load-bearing — i.e. after the landing page (task 2) and shared auth service (task 1) are live and users are redirected through the real product URL instead of GitHub Pages.
