@@ -16,16 +16,16 @@ export function useStackOrder(categoryNames) {
     const [persist, _setPersist] = useState(savedPersist ?? false);
     const [loaded, setLoaded] = useState(false);
 
-    // Hydrate once from context (already read from localStorage/server)
+    // Hydrate once from context (already read from localStorage/server).
+    // Do NOT filter against categoryNames here — categoryNames is [] on mount
+    // (async fetch) and filtering would produce [] permanently since this effect
+    // never re-runs. effectiveOrder already filters reactively against categoryNames
+    // on every render, so setting the raw saved order is correct.
     useEffect(() => {
         const shouldPersist = savedPersist === true;
         _setPersist(shouldPersist);
-        if (shouldPersist && savedOrder) {
-            const currentSet = new Set(categoryNames);
-            const filtered = savedOrder.filter(n => currentSet.has(n));
-            const savedSet = new Set(filtered);
-            const newNames = categoryNames.filter(n => !savedSet.has(n));
-            _setStackOrder([...filtered, ...newNames]);
+        if (shouldPersist && savedOrder && savedOrder.length > 0) {
+            _setStackOrder(savedOrder);
         }
         setLoaded(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps

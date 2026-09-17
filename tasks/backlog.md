@@ -40,6 +40,7 @@
 | [14](#14--font-size-and-colour-palette-audit) | Font, size and colour palette audit | 🟡 P3 | 2–3 days | Medium |
 | [15](#15--hard-testing--all-surfaces) | Hard testing (all surfaces) | 🟡 P3 | 3–5 days | Medium |
 | [16](#16--full-automated-test-suite) | Full automated test suite | 🟢 P4 | 2–4 weeks | Very High |
+| [17](#17--owner-admin-page) | Owner admin page (CLI + SQL tools in UI) | 🟢 P4 | 2–3 days | Medium |
 
 ---
 
@@ -363,6 +364,29 @@ All surfaces · no code changes expected — this is verification only
 
 **What it touches:**  
 Everything — this is a cross-cutting concern across `App/API/`, `App/WebUI/`, and `App/NativeAppUI/`
+
+---
+
+---
+
+## 17 — Owner admin page
+
+**Status:** `[ ]` &nbsp;·&nbsp; **Priority:** 🟢 P4 &nbsp;·&nbsp; **Effort:** 2–3 days &nbsp;·&nbsp; **Complexity:** Medium
+
+A protected web UI page (`/admin`) visible only to the `owner` role (or a configurable high-permission role). Consolidates the admin CLI tools and the test SQL utilities into a point-and-click interface so there's no need to open a DB client or terminal for common owner tasks.
+
+**Scope:**
+- Route gated by `role = 'owner'` (or role_id threshold) — non-owners get 404 or redirect
+- Sections to include:
+  - **Manual review tester** — the `_mr_test_backup` query wrapped in a form: set `n`, pick source categories from a multi-select, flip/restore with one click; shows a table of what changed
+  - **Category management** — view/rename/merge categories (currently adminCLI-only)
+  - **User management** — view users, toggle roles (owner-only)
+  - **DB health** — row counts per table, cache status, last categorisation run
+- The existing `App/API/adminCLI/` logic should be extracted into reusable backend route functions that both the CLI and the admin page call — no duplication
+- `_mr_test_backup` table must exist (one-time migration in `schema.sql`)
+
+**What it touches:**
+`App/API/routes/` (new `admin.py`), `App/WebUI/src/screens/` (new `AdminScreen.jsx`), `App/WebUI/src/components/Layout.jsx` (conditional nav link), `App/API/adminCLI/` (refactor shared logic out)
 
 ---
 

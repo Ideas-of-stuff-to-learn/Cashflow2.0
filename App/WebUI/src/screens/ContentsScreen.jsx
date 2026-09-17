@@ -1,8 +1,9 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useCallback } from 'react';
 import { useVirtualizer, useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useContentsData } from '../customHooks/contentsscreen/useContentsData';
 import { ROW_HEIGHT } from '../utils/contentsscreen/contentsUtils';
 import { useIsMobile } from '../customHooks/useIsMobile';
+import { useUserPreferences } from '../appState/UserPreferencesContext';
 import TransactionRow from '../components/contents/TransactionRow';
 import TableHeader from '../components/contents/TableHeader';
 import SelectionBar from '../components/contents/SelectionBar';
@@ -10,9 +11,19 @@ import StatusBanners from '../components/contents/StatusBanners';
 import CategoryResolveModal from '../components/contents/CategoryResolveModal';
 import '../styles/contentsStyles.css';
 
+const COL_VARS = ['date', 'desc', 'amount', 'cat'];
+
 export default function ContentsScreen() {
     const tableRef = useRef(null);
     const isMobile = useIsMobile();
+    const { columnWidths, setColumnWidths } = useUserPreferences();
+
+    const hasCustomWidths = columnWidths && Object.keys(columnWidths).length > 0;
+
+    const resetColumnWidths = useCallback(() => {
+        setColumnWidths({});
+        COL_VARS.forEach(col => document.documentElement.style.removeProperty(`--col-${col}`));
+    }, [setColumnWidths]);
 
     const {
         transactions,
@@ -104,6 +115,12 @@ export default function ContentsScreen() {
                             <span className="cs-cat-count">{(categoryCounts[cat] || 0).toLocaleString()}</span>
                         </button>
                     ))}
+
+                    {hasCustomWidths && (
+                        <button className="cs-reset-cols-btn" onClick={resetColumnWidths}>
+                            Reset column widths
+                        </button>
+                    )}
                 </div>
 
                 {/* Main content */}

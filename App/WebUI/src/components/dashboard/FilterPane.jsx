@@ -92,17 +92,17 @@ export default function FilterPane({
                     ))}
                 </div>
 
-                <div style={{ flexShrink: 0 }}>
-                    <label className="filter-pane-persist-row">
-                        <input type="checkbox" checked={persist} onChange={e => togglePersist(e.target.checked)} />
-                        <span>Remember this order</span>
-                    </label>
-                    {isCustomOrder && (
+                {isCustomOrder && (
+                    <div style={{ flexShrink: 0 }}>
+                        <label className="filter-pane-persist-row">
+                            <input type="checkbox" checked={persist} onChange={e => togglePersist(e.target.checked)} />
+                            <span>Remember this order</span>
+                        </label>
                         <button className="filter-pane-reset-btn" onClick={resetOrder}>
                             Reset to default
                         </button>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -63,6 +63,19 @@ export function UserPreferencesProvider({ children }) {
         }, 2000);
     }
 
+    // Flush any pending debounced changes immediately — call this after an
+    // explicit user intent action (e.g. "Remember this order", "Reset to default")
+    // so a quick reload doesn't lose the change before the 2s debounce fires.
+    const flushNow = useCallback(() => {
+        if (syncTimer.current) {
+            clearTimeout(syncTimer.current);
+            syncTimer.current = null;
+        }
+        const p = { ...pendingPatch.current };
+        pendingPatch.current = {};
+        if (Object.keys(p).length > 0) serverPut(p);
+    }, []);
+
     // ── hydrate from server on login (also handles empty localStorage) ───────
     // Fires when isLoggedIn transitions to true (every page load via AuthContext)
     // and on initial mount if isLoggedIn is already true.
@@ -152,6 +165,7 @@ export function UserPreferencesProvider({ children }) {
             stackOrder,   setStackOrder,
             stackPersist, setStackPersist,
             mrPicks,      setMrPicks,
+            flushNow,
         }}>
             {children}
         </UserPreferencesContext.Provider>

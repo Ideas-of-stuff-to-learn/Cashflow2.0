@@ -1,8 +1,14 @@
 # Cashflow2.0 — Current Task
 
-## Status (2026-09-16)
+## Status (2026-09-17)
 
 No active task. Clean main branch.
+
+## Recently Completed
+
+**FilterPane order/persist bug fixes (2026-09-17):**
+- `useStackOrder.jsx`: hydration effect no longer filters `savedOrder` against `categoryNames` at mount (categoryNames=[] on mount → filtering produced [] permanently, breaking all filter checkboxes on reload). Now sets raw `savedOrder` directly; `effectiveOrder` already filters reactively on every render.
+- `FilterPane.jsx`: "Remember this order" and "Reset to default" both now gated on `isCustomOrder`. Previously "Remember this order" was always visible and clickable even on default order.
 
 ## Recently Completed
 

@@ -1,5 +1,21 @@
 # Cashflow2.0 — Handoff
 
+## Status (2026-09-17)
+
+No active task. Pending push to main.
+
+## What Was Just Done
+
+**FilterPane order/persist bug fixes (2026-09-17):**
+- `useStackOrder.jsx`: hydration effect no longer filters `savedOrder` against `categoryNames` (empty on mount). Sets raw saved order directly; `effectiveOrder` filters reactively.
+- `FilterPane.jsx`: "Remember this order" and "Reset to default" both gated on `isCustomOrder` (previously "Remember this order" always showed).
+- `UserPreferencesContext.jsx`: added `flushNow()` — cancels debounce and immediately PUTs to server. Exposed from context.
+- `useStackOrder.jsx`: `togglePersist` and `resetOrder` both call `flushNow()` so the DB write is guaranteed before a reload, not dependent on the 2s debounce or `beforeunload`.
+
+Root cause of "filters disappear on reload": server had stale `stackPersist: false` (debounce hadn't fired before reload), server hydration on reload overwrote localStorage `stackPersist: true` with `false`, causing `useStackOrder` to treat order as non-persisted.
+
+---
+
 ## Status (2026-09-16)
 
 No active task. Pending push to main.
