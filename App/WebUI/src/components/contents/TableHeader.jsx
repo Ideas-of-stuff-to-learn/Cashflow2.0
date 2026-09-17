@@ -91,10 +91,12 @@ function SortHeader({ label, field, col, sortField, sortAsc, onToggleSort, class
     );
 }
 
-export default function TableHeader({ selectionMode, sortField, sortAsc, onToggleSort, columnWidths, setColumnWidths }) {
+export default function TableHeader({ selectionMode, sortField, sortAsc, onToggleSort, columnWidths, setColumnWidths, isMobile }) {
 
-    // Apply saved widths from context on mount
+    // Clear any stale inline CSS vars from a previous surface (e.g. desktop widths
+    // bleeding into mobile), then apply saved widths for this surface.
     useEffect(() => {
+        COLS.forEach(col => document.documentElement.style.removeProperty(`--col-${col}`));
         if (columnWidths && typeof columnWidths === 'object') {
             COLS.forEach(col => {
                 const px = columnWidths[col];
@@ -102,8 +104,7 @@ export default function TableHeader({ selectionMode, sortField, sortAsc, onToggl
             });
         }
         logWidths('page load – current state');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [isMobile]); // re-run on resize so stale vars from the other surface are cleared
 
     return (
         <div className="table-header">

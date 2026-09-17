@@ -174,6 +174,7 @@ export default function ContentsScreen() {
                         onToggleSort={toggleSort}
                         columnWidths={columnWidths}
                         setColumnWidths={setColumnWidths}
+                        isMobile={isMobile}
                     />
 
                     <div className="cs-table" ref={tableRef}>
