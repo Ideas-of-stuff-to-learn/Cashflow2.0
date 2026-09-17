@@ -34,9 +34,9 @@
 | [8](#8--stripe-customer-portal-self-service) | Stripe Customer Portal (self-service) | 🟠 P2 | 1–2 days | Low |
 | [9](#9--category-list-vanishing-on-remember-this-order) | ~~Category list vanishing bug~~ | 🟠 P2 | 0.5–1 day | Low |
 | [10](#10--bring-react-native-up-to-date) | Bring React Native up to date | 🟠 P2 | 3–5 days | Medium |
-| [11](#11--dashboard-zero-page-scroll) | Dashboard: no page scroll | 🟡 P3 | 0.5–1 day | Low |
-| [12](#12--convert-footnote-box--user-information-popup) | User Information popup | 🟡 P3 | 1–2 days | Low |
-| [13](#13--add-data-security-popup) | Data Security popup | 🟡 P3 | 1 day | Low |
+| [11](#11--dashboard-zero-page-scroll) | ~~Dashboard: no page scroll~~ | 🟡 P3 | 0.5–1 day | Low |
+| [12](#12--convert-footnote-box--user-information-popup) | ~~User Information popup~~ | 🟡 P3 | 1–2 days | Low |
+| [13](#13--add-data-security-popup) | ~~Data Security popup~~ | 🟡 P3 | 1 day | Low |
 | [14](#14--font-size-and-colour-palette-audit) | Font, size and colour palette audit | 🟡 P3 | 2–3 days | Medium |
 | [15](#15--hard-testing--all-surfaces) | Hard testing (all surfaces) | 🟡 P3 | 3–5 days | Medium |
 | [16](#16--full-automated-test-suite) | Full automated test suite | 🟢 P4 | 2–4 weeks | Very High |
@@ -239,7 +239,7 @@ Stripe dashboard · shared service: `routes/billing.py` · Cashflow frontend: ac
 
 ---
 
-### 11 · Dashboard: zero page scroll
+### ~~11 · Dashboard: zero page scroll~~ ✅
 
 **Priority:** 🟡 P3 — Medium  
 **Effort:** 0.5–1 day  
@@ -257,7 +257,7 @@ Stripe dashboard · shared service: `routes/billing.py` · Cashflow frontend: ac
 
 ---
 
-### 12 · Convert footnote box → "User Information" popup
+### ~~12 · Convert footnote box → "User Information" popup~~ ✅
 
 **Priority:** 🟡 P3 — Medium  
 **Effort:** 1–2 days  
@@ -276,7 +276,7 @@ Stripe dashboard · shared service: `routes/billing.py` · Cashflow frontend: ac
 
 ---
 
-### 13 · Add "Data Security" popup
+### ~~13 · Add "Data Security" popup~~ ✅
 
 **Priority:** 🟡 P3 — Medium  
 **Effort:** 1 day  
