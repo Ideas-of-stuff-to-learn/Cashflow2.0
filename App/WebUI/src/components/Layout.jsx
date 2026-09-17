@@ -51,7 +51,7 @@ export default function Layout() {
     const [showFootnote, setShowFootnote] = useState(false);
 
     return (
-        <div className={`app-shell${(isDashboard || isContents) ? ' app-shell-locked' : ''}`}>
+        <div className={`app-shell${isDashboard ? ' app-shell-locked' : ''}`}>
             <header className="app-header">
                 {/* col 1: back button / title / spacer */}
                 {isDashboard
