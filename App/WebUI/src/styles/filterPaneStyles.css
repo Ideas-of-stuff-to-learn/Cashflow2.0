@@ -8,9 +8,9 @@
     padding: 12px;
     width: 220px;
     flex-shrink: 0;
-    overflow-y: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+    overflow: visible;
+    container-type: size;
+    container-name: filter-pane;
 }
 
 .filter-pane-collapsed {
@@ -73,13 +73,34 @@
 }
 
 .filter-pane-scroll-list {
-    max-height: 280px;
-    overflow-y: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+    overflow: visible;
 }
-.filter-pane::-webkit-scrollbar,
-.filter-pane-scroll-list::-webkit-scrollbar { display: none; }
+
+/* Compress text when the pane is short — keeps all categories visible without scrolling */
+@container filter-pane (max-height: 420px) {
+    .filter-pane-title          { font-size: 12px; }
+    .filter-pane-section-title  { font-size: 11px; }
+    .filter-pane-checkbox-row   { font-size: 11px; padding: 2px 0; }
+    .filter-pane-combined-label { font-size: 11px; }
+    .filter-pane-hint           { font-size: 10px; margin-bottom: 4px; }
+    .filter-pane-persist-row    { font-size: 11px; margin-top: 4px; }
+    .filter-pane-reset-btn      { font-size: 11px; padding: 4px; margin-top: 4px; }
+    .filter-pane-header         { margin-bottom: 4px; padding-bottom: 4px; }
+    .filter-pane-section        { margin-bottom: 6px; padding-bottom: 6px; }
+}
+
+@container filter-pane (max-height: 320px) {
+    .filter-pane-title          { font-size: 11px; }
+    .filter-pane-section-title  { font-size: 10px; }
+    .filter-pane-checkbox-row   { font-size: 10px; padding: 1px 0; }
+    .filter-pane-combined-label { font-size: 10px; }
+    .filter-pane-hint           { font-size: 9px; margin-bottom: 2px; }
+    .filter-pane-persist-row    { font-size: 10px; margin-top: 2px; }
+    .filter-pane-reset-btn      { font-size: 10px; padding: 3px; margin-top: 2px; }
+    .filter-pane-colour-dot     { width: 6px; height: 6px; }
+    .filter-pane-drag-handle    { font-size: 12px; }
+    .filter-pane-section        { margin-bottom: 4px; padding-bottom: 4px; }
+}
 
 .filter-pane-section-title {
     font-size: 13px;
