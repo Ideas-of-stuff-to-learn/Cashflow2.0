@@ -42,6 +42,8 @@
 | [16](#16--full-automated-test-suite) | Full automated test suite | 🟢 P4 | 2–4 weeks | Very High |
 | [17](#17--owner-admin-page) | Owner admin page (CLI + SQL tools in UI) | 🟢 P4 | 2–3 days | Medium |
 | [18](#18--migrate-github-pages-deployment-to-private-repo--alternative-host) | Migrate GitHub Pages to private repo + new host | 🟢 P4 | 1–2 days | Medium |
+| [19](#19--filter-pane-no-scroll--fully-visible) | Filter pane: no scroll, always fully visible | 🟡 P3 | 0.5 day | Low |
+| [20](#20--rename-app-title-to-personal-spending-pattern-visualisation-tool) | Rename app title to "Personal Spending…" | 🟡 P3 | 0.5 day | Low |
 
 ---
 
@@ -403,6 +405,40 @@ Currently `context/overview.html` (and any other public-facing docs) are served 
 
 **What it touches:**  
 Repo visibility settings · GitHub Pages config · `context/gitContext.md` · `context/overview.html` · any hardcoded public GitHub URLs in docs or code · chosen external static host config
+
+---
+
+## 19 — Filter pane: no scroll, always fully visible
+
+**Status:** `[ ]` &nbsp;·&nbsp; **Priority:** 🟡 P3 &nbsp;·&nbsp; **Effort:** 0.5 day &nbsp;·&nbsp; **Complexity:** Low
+
+The filter pane currently has `overflow-y: auto` and `.filter-pane-scroll-list` is capped at `max-height: 280px`, which means when there are many categories the list scrolls internally. The goal is to remove all scrolling from the pane — it should always show every category at once and still bottom-align with the action buttons column, with zero page scroll.
+
+**What it involves:**
+- Remove `overflow-y: auto` from `.filter-pane` and `max-height: 280px` from `.filter-pane-scroll-list`
+- The pane must stretch to show all items — the surrounding flex row (`dashboard-flex`) already uses `align-items: stretch` so the pane grows with content
+- Confirm that as the pane grows taller it doesn't push the page height beyond `100vh` — if it does, shrink the chart area (`dashboard-charts-box` flex) rather than letting the pane scroll or the page overflow
+- Verify at a realistic category count (10–15 items) that nothing scrolls and the bottom edges still align
+
+**What it touches:**  
+`App/WebUI/src/styles/filterPaneStyles.css` · `App/WebUI/src/styles/dashboardStyles.css`
+
+---
+
+## 20 — Rename app title to "Personal Spending Pattern Visualisation Tool"
+
+**Status:** `[ ]` &nbsp;·&nbsp; **Priority:** 🟡 P3 &nbsp;·&nbsp; **Effort:** 0.5 day &nbsp;·&nbsp; **Complexity:** Low
+
+The login screen and browser tab currently show "Transaction Categorizer" / "Spending Pattern Visualisation Tool". Adding "Personal" before the title better describes the single-user, personal-finance nature of the product.
+
+**What it involves:**
+- Update the `<title>` tag in `App/WebUI/index.html`
+- Update the display title on the login/signup screen (wherever the string "Transaction Categorizer" or "Spending Pattern Visualisation Tool" is rendered as text)
+- Search for all other occurrences of the old title string in the codebase (JSX, config, meta tags) and update them
+- Confirm the new title appears in the browser tab, the login screen, and any other surface that shows the app name
+
+**What it touches:**  
+`App/WebUI/index.html` · login/signup screen JSX · any other string references to the old title
 
 ---
 
