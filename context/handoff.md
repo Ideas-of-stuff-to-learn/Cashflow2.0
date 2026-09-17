@@ -6,6 +6,25 @@ No active task. Clean main branch.
 
 ## What Was Just Done
 
+**Dashboard layout + info pages (2026-09-17):**
+- `ChartFootnote` removed from inline position in Dashboard and ChartsScreen; moved into a modal popup triggered by a "User Information" pill button in the header center column (dashboard + charts routes)
+- New `FootnoteModal` in `Layout.jsx` renders `<ChartFootnote />` inside a styled overlay; keeps nth-child bold/red rules via scoped CSS in `Layout.css`
+- "🔒 Data Security" pill added next to "User Information" — navigates to `/data-security`
+- New `DataSecurityScreen.jsx` — full JSX port of `docs/data-security.html` with back button (`navigate(-1)`); own CSS in `dataSecurityStyles.css`; route wired in `App.jsx` outside `<Layout />`
+- `html, body` reset (`overflow: hidden; height: 100%; margin: 0`) kills browser scrollbar at root
+- `app-shell` changed from `min-height: 100vh` to `height: 100vh; overflow: hidden` — true viewport lock
+- `#root { padding-top: 10px }` adds breathing gap between viewport top and header
+- Footer border removed (legal links visually cleaner at bottom)
+- `dashboard-flex`: `align-items: stretch; flex: 1; min-height: 0` — fills full content height
+- `dashboard-home-box`, `dashboard-main`, `dashboard-charts-box`: flex column, stretch to full height
+- FilterPane: `position: sticky` + `align-self: flex-start` removed — now stretches with flex row
+- `dashboard-chart-area`: `display: flex; flex-direction: column` — enables nav row push
+- `.dashboard-chart-area .window-nav-row { margin-top: auto; margin-bottom: -4px }` — nav arrow bottom-aligns with Log Out and filter pane bottom edge
+- `BASE_CHART_HEIGHT` bumped 170 → 270 in `SpendingStackedChart.jsx` — chart fills more of the available space
+- All `calc(100vh - Npx)` values updated: cs-container → 89px, chartStyles sidebar → 89px
+
+## What Was Just Done
+
 **Manual review UX + stats fixes (2026-09-17):**
 - `ManualReviewStatsModal.jsx`: decimal percentage display (e.g. `0.40%`); ≥1% whole number
 - `ManualReviewGate.jsx`: optimistic exit with race pattern — instant close if server < 400ms, spinner fallback if slow, error screen if both retries fail; "All done!" path fully optimistic with 900ms close delay

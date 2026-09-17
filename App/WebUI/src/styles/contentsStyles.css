@@ -87,7 +87,7 @@
    Contents screen — desktop layout (cs-* namespace)
    ============================================================ */
 
-.cs-container { display: flex; flex-direction: column; height: calc(100vh - 48px); background: #fff; overflow: hidden; }
+.cs-container { display: flex; flex-direction: column; height: calc(100vh - 89px); background: #fff; overflow: hidden; }
 
 /* Topbar */
 .cs-topbar { display: flex; align-items: center; gap: 12px; padding: 9px 18px; background: #fff; border-bottom: 1px solid #eee; flex-shrink: 0; }
@@ -207,7 +207,7 @@ justify-content: center; /* Horizontal center */
     .cs-sidebar {
         position: sticky;
         top: 48px; /* below the 48px app-header */
-        max-height: calc(100vh - 48px);
+        max-height: calc(100vh - 89px);
         overflow-y: auto;
         scrollbar-width: none;
         -ms-overflow-style: none;

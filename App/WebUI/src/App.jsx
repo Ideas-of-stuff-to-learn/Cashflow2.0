@@ -14,6 +14,7 @@ import PrivacyScreen from './screens/PrivacyScreen';
 import TermsScreen from './screens/TermsScreen';
 import AccessibilityScreen from './screens/AccessibilityScreen';
 import CookiesScreen from './screens/CookiesScreen';
+import DataSecurityScreen from './screens/DataSecurityScreen';
 
 const ChartsScreen = lazy(() => import('./screens/ChartsScreen'));
 const ContentsScreen = lazy(() => import('./screens/ContentsScreen'));
@@ -42,6 +43,7 @@ export default function App() {
             <Route path="/terms" element={<TermsScreen />} />
             <Route path="/accessibility" element={<AccessibilityScreen />} />
             <Route path="/cookies" element={<CookiesScreen />} />
+            <Route path="/data-security" element={<DataSecurityScreen />} />
 
             <Route element={<ResponsiveGate />}>
               <Route path="/" element={null} />

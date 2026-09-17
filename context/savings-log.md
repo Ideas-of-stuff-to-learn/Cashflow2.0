@@ -2,6 +2,8 @@
 
 Each entry = one session that used the intelligence system instead of cold-scanning the repo.
 
+2026-09-17 | task: dashboard layout, info popup, data security page, viewport lock, chart height, bottom alignment | SQLite queries: 2 | context docs loaded: 4 | full repo scan avoided: yes | resumed from compacted context via handoff.md
+
 Format:
 ```
 YYYY-MM-DD | task: <what was done> | SQLite queries: <N> | context docs loaded: <N> | full repo scan avoided: yes/no | notes

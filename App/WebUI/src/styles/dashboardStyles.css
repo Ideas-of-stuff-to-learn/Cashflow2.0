@@ -1,9 +1,11 @@
 .dashboard-flex {
     display: flex;
     gap: 12px;
-    padding: 10px 14px;
+    padding: 16px 14px 10px;
     background: #fff;
-    align-items: flex-start;
+    align-items: stretch;
+    flex: 1;
+    min-height: 0;
 }
 
 .dashboard-home-box {
@@ -12,17 +14,19 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    overflow: hidden;
 }
 
 .dashboard-main {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .dashboard-charts-box {
+    flex: 1;
+    min-height: 0;
     min-width: 0;
-    max-height: calc(100vh - 68px);
     display: flex;
     flex-direction: column;
 }
@@ -31,7 +35,15 @@
     flex: 1;
     min-height: 0;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
+
+.dashboard-chart-area .window-nav-row {
+    margin-top: auto;
+    margin-bottom: -4px;
+}
+
 
 /* FilterPane docks visually left or right via flex order - it's the
    LAST element in markup (always renders after dashboard-main), but

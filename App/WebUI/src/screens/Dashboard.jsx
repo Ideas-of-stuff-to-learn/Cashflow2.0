@@ -8,7 +8,6 @@ import { useFileProcessor } from '../customHooks/homescreen/useFileProcessor';
 import { useChartData } from '../customHooks/charts/useChartData';
 import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartReveal';
 import { NOT_YET_CATEGORISED } from '../checkingName';
-import ChartFootnote from '../components/charts/ChartFootnote';
 import HomepageInfo from '../components/homepage/homepageInfo';
 import ChartWindowSection from '../components/charts/ChartWindowSection';
 import FilterPane from '../components/dashboard/FilterPane';
@@ -53,6 +52,7 @@ export default function DashboardScreen() {
     } = useChartData();
     const chartReady = useDetailedChartReveal();
     const chartAreaRef = useRef(null);
+
     useEffect(() => {
         if (hasData && chartAreaRef.current) {
             chartAreaRef.current.scrollTop = chartAreaRef.current.scrollHeight;
@@ -119,7 +119,6 @@ export default function DashboardScreen() {
                             yearBounds={yearBounds}
                         />
                     </div>
-                    <ChartFootnote />
                 </div>
             </div>
 

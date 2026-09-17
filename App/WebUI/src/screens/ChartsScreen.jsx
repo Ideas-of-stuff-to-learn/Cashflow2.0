@@ -5,7 +5,6 @@ import { useChartData } from '../customHooks/charts/useChartData';
 import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartReveal';
 
 import ChartWindowSection from '../components/charts/ChartWindowSection';
-import ChartFootnote from '../components/charts/ChartFootnote';
 import StatusBanners from '../components/charts/StatusBanners';
 import FilterPane from '../components/dashboard/FilterPane';
 import '../styles/chartStyles.css';
@@ -94,7 +93,6 @@ export default function ChartsScreen() {
                         yearBounds={yearBounds}
                     />
 
-                    <ChartFootnote />
                 </div>
             </div>
         </div>

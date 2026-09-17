@@ -2,8 +2,21 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import RoleBadge from './RoleBadge';
+import ChartFootnote from './charts/ChartFootnote';
 import { useIsMobile } from '../customHooks/useIsMobile';
 import '../styles/Layout.css';
+
+function FootnoteModal({ onClose }) {
+    return (
+        <div className="info-modal-overlay" onClick={onClose}>
+            <div className="info-modal info-modal-footnote" onClick={e => e.stopPropagation()}>
+                <button className="info-modal-close" onClick={onClose}>✕</button>
+                <h2 className="info-modal-title" style={{ marginBottom: 16 }}>About this tool</h2>
+                <ChartFootnote />
+            </div>
+        </div>
+    );
+}
 
 function TransactionsInfoModal({ onClose }) {
     return (
@@ -35,6 +48,7 @@ export default function Layout() {
     const isCharts = location.pathname === '/charts';
     const isDashboard = location.pathname === '/dashboard';
     const [showInfo, setShowInfo] = useState(false);
+    const [showFootnote, setShowFootnote] = useState(false);
 
     return (
         <div className="app-shell">
@@ -58,7 +72,12 @@ export default function Layout() {
                         Transactions
                         <button className="info-icon-btn" onClick={() => setShowInfo(true)} title="About this page">ℹ</button>
                       </span>
-                    : <div />
+                    : (isDashboard || isCharts)
+                        ? <span className="header-pill-group">
+                            <button className="info-btn-footnote" onClick={() => setShowFootnote(true)} title="About this tool">User Information</button>
+                            <button className="info-btn-footnote info-btn-security" onClick={() => navigate('/data-security')} title="Data security">🔒 Data Security</button>
+                          </span>
+                        : <div />
                 }
                 {/* col 3: always right */}
                 <RoleBadge />
@@ -73,6 +92,7 @@ export default function Layout() {
                 <Link to="/cookies">Cookies</Link>
             </footer>
             {showInfo && <TransactionsInfoModal onClose={() => setShowInfo(false)} />}
+            {showFootnote && <FootnoteModal onClose={() => setShowFootnote(false)} />}
         </div>
     );
 }

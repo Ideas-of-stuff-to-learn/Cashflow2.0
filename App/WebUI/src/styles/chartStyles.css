@@ -22,7 +22,7 @@
         overflow: hidden;
         position: sticky;
         top: 48px; /* below the 48px app-header */
-        max-height: calc(100vh - 48px);
+        max-height: calc(100vh - 89px);
         align-self: flex-start;
         overflow-y: auto;
         scrollbar-width: none;
