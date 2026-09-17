@@ -1,14 +1,14 @@
 .filter-pane {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
     background: #F8F9FA;
     border: 1px solid #eee;
     border-radius: 8px;
     padding: 12px;
     width: 220px;
     flex-shrink: 0;
-    overflow: visible;
+    overflow: hidden;
     container-type: size;
     container-name: filter-pane;
 }
