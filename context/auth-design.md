@@ -238,6 +238,12 @@ Before any paying users, every DB query touching `transactions`, `categorized_re
 ## 9. Agreed Implementation Order
 
 ```
+0. Repo rename propagation                                ← owner renames repo on GitHub;
+                                                            Claude then updates all hardcoded
+                                                            references throughout codebase
+                                                            (package.json, render config,
+                                                            CORS origins, README, any
+                                                            github.com URLs in docs/code)
 1. Email migration (schema + auth routes + login UI)       ← prerequisite for everything
 2. Gmail SMTP setup + email sending module                 ← prerequisite for verify + reset
 3. Email verification flow                                 ← prerequisite for trusted emails
