@@ -3,6 +3,7 @@
 Each entry = one session that used the intelligence system instead of cold-scanning the repo.
 
 2026-09-17 | task: dashboard layout, info popup, data security page, viewport lock, chart height, bottom alignment | SQLite queries: 2 | context docs loaded: 4 | full repo scan avoided: yes | resumed from compacted context via handoff.md
+2026-09-20 | task: responsive modal/popup audit + dashboard chart spacing | SQLite queries: 0 | context docs loaded: 2 (current-task, handoff via summary) | full repo scan avoided: yes | targeted glob+read of 17 CSS files + 44 JSX components only
 2026-09-20 | task: app title centralisation, header flex layout, filter pane spacing, mobile pills routing, popup mobile scroll | SQLite queries: 0 | context docs loaded: 4 | full repo scan avoided: yes | resumed from compacted context via handoff.md
 
 Format:
