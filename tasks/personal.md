@@ -166,6 +166,17 @@ Reading sequentially matters here — each book builds on the one before.
 
 ---
 
+## 🛒 To Buy
+
+| Item | `[ ]` |
+|------|-------|
+| Protein powder | `[ ]` |
+| Sandwich bags | `[ ]` |
+| Bike helmet | `[ ]` |
+| Clip-on bike lights | `[ ]` |
+
+---
+
 ## Notes
 
 - The reading plan and the third-year project decision are tightly linked — don't treat them separately.
