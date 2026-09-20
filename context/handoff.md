@@ -6,6 +6,19 @@ No active task. Clean main branch.
 
 ## What Was Just Done
 
+**Theme system — CSS tokens + light/dark toggle (2026-09-20):**
+- `src/styles/theme.css` — single source of truth: all UI colour tokens as CSS custom properties on `:root`, with `:root[data-theme="dark"]` overrides for backgrounds, text and borders. Brand colours (primary, danger, success, gold) unchanged in dark mode.
+- `src/theme.js` — JS-facing exports: `ROLE_COLORS`, `DEFAULT_ROLE_COLOR`, `FALLBACK_CATEGORY_COLOR`, `CHART_COLORS` (14-colour rotation, ready to swap), `initTheme()`, `toggleTheme()`, `getTheme()`.
+- `src/main.jsx` — imports `theme.css` globally, calls `initTheme()` before render (reads `localStorage.getItem('theme')`, sets `data-theme` attribute on `<html>`).
+- `src/components/ThemeToggle.jsx` — 🌙/☀️ button; calls `toggleTheme()`, persists to localStorage, updates instantly.
+- `Layout.jsx` — ThemeToggle added to `app-header-right` alongside RoleBadge.
+- **15 CSS files swept** — every hardcoded hex replaced with the appropriate `var(--token)`: Layout.css, filterPaneStyles.css, homePage.css, chartStyles.css, contentsStyles.css, LoginScreen.css, manualReviewModal.css, segmentPopup.css, stackedChartStyles.css, shared.css, rangeWindowSlider.css, uploadFilesPopup.css, chartFootnote.css, dashboardStyles.css, ProgressBar.css, LoadingBarsPlaceholder.css.
+- **JS/JSX swept** — RoleBadge imports ROLE_COLORS from theme.js; chartUtils.jsx re-exports CHART_COLORS as COLOR_PALETTE from theme.js; all `'#BBBBBB'` fallbacks replaced with `FALLBACK_CATEGORY_COLOR` import.
+- dataSecurityStyles.css intentionally left unchanged (bespoke document palette).
+- Task 14 marked done in backlog.
+
+## What Was Just Done
+
 **App title centralisation, header layout overhaul, filter pane, mobile polish (2026-09-20):**
 
 - **`App/WebUI/src/appTitle.js`** — new single-source constant `APP_TITLE = 'Personal Spending Pattern Visualisation Tool'`. All three previous hardcoded title strings replaced with this import (Layout.jsx, homepageInfo.jsx, LoginScreen.jsx). Change title by editing one line only.

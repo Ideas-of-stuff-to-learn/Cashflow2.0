@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { APP_TITLE } from '../appTitle';
 import RoleBadge from './RoleBadge';
+import ThemeToggle from './ThemeToggle';
 import ChartFootnote from './charts/ChartFootnote';
 import { useIsMobile } from '../customHooks/useIsMobile';
 import '../styles/Layout.css';
@@ -103,6 +104,7 @@ export default function Layout() {
                     }
                 </div>
                 <div className="app-header-right">
+                    <ThemeToggle />
                     <RoleBadge />
                 </div>
             </header>

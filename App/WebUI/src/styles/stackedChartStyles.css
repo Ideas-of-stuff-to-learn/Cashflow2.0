@@ -4,11 +4,11 @@
 .stack-segment { border: none; cursor: pointer; padding: 0; transition: opacity 0.1s; }
 .stack-segment:hover, .stack-segment:active { opacity: 0.6; }
 
-.y-axis-label { font-size: 11px; color: #1f1e1e; text-align: right; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bar-label { font-size: 10px; color: #121111; text-align: center; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.y-axis-label { font-size: 11px; color: var(--text-primary); text-align: right; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar-label { font-size: 10px; color: var(--text-primary); text-align: center; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.grid-line { position: absolute; left: 0; height: 1px; background: #eee; }
-.x-axis-line { position: absolute; left: 0; height: 1px; background: #ccc; }
+.grid-line { position: absolute; left: 0; height: 1px; background: var(--border); }
+.x-axis-line { position: absolute; left: 0; height: 1px; background: var(--border-strong); }
 
 .income-legend {
     display: flex;
@@ -22,12 +22,12 @@
     display: inline-block;
     width: 16px;
     height: 2px;
-    background: #27AE60;
+    background: var(--success-bright);
 }
 
 .income-legend-text {
     font-size: 18px;
-    color: #555;
+    color: var(--text-secondary);
 }
 
 .bar-total-label {
@@ -35,7 +35,7 @@
     text-align: center;
     font-size: 11px;
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
     white-space: nowrap;
     overflow: visible;
 }

@@ -16,7 +16,7 @@
 .loading-bar {
     width: 12px;
     height: 20%;
-    background: #2E5C8A;
+    background: var(--primary);
     border-radius: 3px 3px 0 0;
     animation: bar-oscillate 1.2s ease-in-out infinite;
 }
@@ -29,6 +29,6 @@
 .loading-bars-message {
     margin-top: 16px;
     font-size: 14px;
-    color: #888;
+    color: var(--text-muted);
     font-style: italic;
 }

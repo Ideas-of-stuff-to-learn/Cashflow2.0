@@ -1,3 +1,4 @@
+import { FALLBACK_CATEGORY_COLOR } from '../../theme';
 import { useState, useRef, useEffect } from 'react';
 import '../../styles/filterPaneStyles.css';
 
@@ -98,7 +99,7 @@ export default function FilterPane({
                                     checked={contentsSelectedCategories.has(cat)}
                                     onChange={() => toggleContentsCategory(cat)}
                                 />
-                                <span className="filter-pane-colour-dot" style={{ backgroundColor: categoryColors?.[cat] || '#BBBBBB' }} />
+                                <span className="filter-pane-colour-dot" style={{ backgroundColor: categoryColors?.[cat] || FALLBACK_CATEGORY_COLOR }} />
                                 <span>{cat}</span>
                             </label>
                             <span

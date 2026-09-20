@@ -4,7 +4,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--overlay-dark);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -12,7 +12,7 @@
 }
 
 .manual-review-modal {
-    background: #fff;
+    background: var(--bg-page);
     border-radius: 12px;
     padding: 32px;
     max-width: 480px;
@@ -22,7 +22,7 @@
 
 .manual-review-text {
     font-size: 15px;
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 12px;
     line-height: 1.5;
 }
@@ -30,7 +30,7 @@
 .manual-review-question {
     font-size: 15px;
     font-weight: 600;
-    color: #222;
+    color: var(--text-primary);
     margin: 20px 0 20px;
     line-height: 1.5;
 }
@@ -51,11 +51,11 @@
 }
 
 .manual-review-btn-primary {
-    background: #2E5C8A;
-    color: #fff;
+    background: var(--primary);
+    color: var(--bg-page);
 }
 
 .manual-review-btn-secondary {
-    background: #eee;
-    color: #333;
+    background: var(--border);
+    color: var(--text-primary);
 }

@@ -2,7 +2,7 @@
     display: flex;
     gap: 12px;
     padding: 16px 14px 10px;
-    background: #fff;
+    background: var(--bg-page);
     align-items: stretch;
     flex: 1;
     min-height: 0;

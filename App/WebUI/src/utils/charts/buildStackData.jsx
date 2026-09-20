@@ -1,3 +1,4 @@
+import { FALLBACK_CATEGORY_COLOR } from '../../theme';
 // utils/charts/buildStackData.js
 import { transformValue } from './chartUtils';
 
@@ -44,7 +45,7 @@ export function buildStackDataFromEntries(entries, extraOnPress, {
             const visible = selectedCategories.has(category);
             return {
                 value: visible ? withMinHeight(realValue) : 0,
-                color: categoryColors[category] || '#BBBBBB',
+                color: categoryColors[category] || FALLBACK_CATEGORY_COLOR,
                 category,
                 // NEW - the real (unpadded) data attached directly onto
                 // the segment object itself, so StackBar's fire() can

@@ -1,3 +1,4 @@
+import { FALLBACK_CATEGORY_COLOR } from '../../theme';
 import '../../styles/contentsStyles.css';
 
 export default function CategoryChipRow({ availableCategories, selectedCategories, onToggleCategory, onToggleAllCategories, categoryColors }) {
@@ -17,7 +18,7 @@ export default function CategoryChipRow({ availableCategories, selectedCategorie
                     className={`chip ${selectedCategories.has(cat) ? 'chip-active' : ''}`}
                     onClick={() => onToggleCategory(cat)}
                 >
-                    <span className="chip-colour-dot" style={{ backgroundColor: categoryColors?.[cat] || '#BBBBBB' }} />
+                    <span className="chip-colour-dot" style={{ backgroundColor: categoryColors?.[cat] || FALLBACK_CATEGORY_COLOR }} />
                     <span className={`chip-text ${selectedCategories.has(cat) ? 'chip-text-active' : ''}`}>{cat}</span>
                 </button>
             ))}

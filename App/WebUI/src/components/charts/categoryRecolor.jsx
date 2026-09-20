@@ -1,3 +1,4 @@
+import { FALLBACK_CATEGORY_COLOR, ROLE_COLORS } from '../../theme';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { styles } from '../../styles/chartStyes';
 //import { COLOR_PALETTE } from '../../utils/charts/chartUtils';
@@ -32,7 +33,7 @@ export default function CategoryRecolor({
     // nothing's selected yet (shouldn't normally happen, since the
     // toggle below is disabled until something is selected).
     const firstSelected = [...recolorSelected][0];
-    const initialColor = (firstSelected && categoryColors[firstSelected]) || '#2E5C8A';
+    const initialColor = (firstSelected && categoryColors[firstSelected]) || ROLE_COLORS.admin;
     
     return (
         <>
@@ -48,7 +49,7 @@ export default function CategoryRecolor({
             <View style={styles.chipWrap}>
                 {availableCategories.map(cat => {
                     const isSelected = recolorSelected.has(cat);
-                    const catColor = categoryColors[cat] || '#BBBBBB';
+                    const catColor = categoryColors[cat] || FALLBACK_CATEGORY_COLOR;
                     return (
                         <TouchableOpacity
                             key={cat}

@@ -1,3 +1,4 @@
+import { FALLBACK_CATEGORY_COLOR } from '../theme';
 import { useRef, useMemo, useCallback } from 'react';
 import { useVirtualizer, useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useContentsData } from '../customHooks/contentsscreen/useContentsData';
@@ -116,7 +117,7 @@ export default function ContentsScreen() {
                             className={`cs-cat-item${selectedCategories.has(cat) && !allCatsSelected ? ' cs-cat-item-active' : ''}`}
                             onClick={() => toggleCategory(cat)}
                         >
-                            <span className="cs-cat-dot" style={{ background: categoryColors?.[cat] || '#bbb' }} />
+                            <span className="cs-cat-dot" style={{ background: categoryColors?.[cat] || FALLBACK_CATEGORY_COLOR }} />
                             <span className="cs-cat-name">{cat}</span>
                             <span className="cs-cat-count">{(categoryCounts[cat] || 0).toLocaleString()}</span>
                         </button>

@@ -37,7 +37,7 @@
 | [11](#11--dashboard-zero-page-scroll) | ~~Dashboard: no page scroll~~ | 🟡 P3 | 0.5–1 day | Low |
 | [12](#12--convert-footnote-box--user-information-popup) | ~~User Information popup~~ | 🟡 P3 | 1–2 days | Low |
 | [13](#13--add-data-security-popup) | ~~Data Security popup~~ | 🟡 P3 | 1 day | Low |
-| [14](#14--font-size-and-colour-palette-audit) | Font, size and colour palette audit | 🟡 P3 | 2–3 days | Medium |
+| [14](#14--font-size-and-colour-palette-audit) | ~~Font, size and colour palette audit~~ | 🟡 P3 | 2–3 days | Medium |
 | [15](#15--hard-testing--all-surfaces) | Hard testing (all surfaces) | 🟡 P3 | 3–5 days | Medium |
 | [16](#16--full-automated-test-suite) | Full automated test suite | 🟢 P4 | 2–4 weeks | Very High |
 | [17](#17--owner-admin-page) | Owner admin page (CLI + SQL tools in UI) | 🟢 P4 | 2–3 days | Medium |
@@ -511,3 +511,11 @@ Shared auth service: `routes/auth.py` · `schema.sql` (new columns) · email sen
 - Tasks 12 and 13 (popups) directly reduce task 11's scope — do them first.
 - Task 16 (automated testing) needs a scoping conversation before any implementation begins.
 - Task 18 (repo migration) should happen after the public-facing URL from Pages is no longer load-bearing — i.e. after the landing page (task 2) and shared auth service (task 1) are live and users are redirected through the real product URL instead of GitHub Pages.
+
+---
+
+## 📅 Daily Progress Log
+
+| Date | Status | Overall % | Note |
+|------|--------|-----------|------|
+| 20 Sep 2026 | 🟢 Progressing well | ~18% | UI polish sprint — tasks 19 & 20 done, header/filter/mobile fixes shipped. Tasks 14 and 1 (auth, no billing) targeted for today. |

@@ -1,3 +1,4 @@
+import { FALLBACK_CATEGORY_COLOR } from '../../theme';
 const MONTH_LABELS = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -58,7 +59,7 @@ export function buildYearStackData(yearly, categoryNames, categoryColors, select
                 const visible = selectedCategories.size === 0 || selectedCategories.has(category);
                 return {
                     value: visible ? withMinHeight(realValue, minRenderHeight) : 0,
-                    color: categoryColors[category] || '#BBBBBB',
+                    color: categoryColors[category] || FALLBACK_CATEGORY_COLOR,
                     category,
                     onPress: () => onSegmentPress({ year, category, value: realValue }),
                 };
@@ -196,7 +197,7 @@ export function buildMonthStackDataFromEntries(entries, categoryNames, categoryC
                 const visible = selectedCategories.size === 0 || selectedCategories.has(category);
                 return {
                     value: visible ? withMinHeight(realValue, minRenderHeight) : 0,
-                    color: categoryColors[category] || '#BBBBBB',
+                    color: categoryColors[category] || FALLBACK_CATEGORY_COLOR,
                     category,
                     onPress: () => onSegmentPress({ year, month, category, value: realValue }),
                 };

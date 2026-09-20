@@ -1,10 +1,5 @@
 import { useAuth } from '../appState';
-
-const ROLE_COLORS = {
-    owner: '#C4A227',
-    admin: '#2E5C8A',
-};
-const DEFAULT_ROLE_COLOR = '#7A5C3D';
+import { ROLE_COLORS, DEFAULT_ROLE_COLOR } from '../theme';
 
 function capitalize(word) {
     if (!word) return '';

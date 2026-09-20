@@ -6,28 +6,28 @@
 }
 .segment-popup-period {
     font-size: 11px;
-    color: #888;
+    color: var(--text-muted);
     margin-bottom: 2px;
 }
 
 .segment-popup-category {
     font-size: 13px;
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 2px;
 }
 
 .segment-popup-value {
     font-size: 14px;
     font-weight: 700;
-    color: #2E5C8A;
+    color: var(--primary);
 }
 
 .segment-popup-fixed {
     margin-top: 8px;
     padding: 10px 16px;
-    background: #F8F9FA;
-    border: 1px solid #ddd;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-medium);
     border-radius: 8px;
     display: inline-block;
 }
@@ -35,8 +35,8 @@
 .segment-popup-floating {
     position: absolute;
     transform: translate(-50%, -100%);
-    background: #fff;
-    border: 1px solid #ddd;
+    background: var(--bg-page);
+    border: 1px solid var(--border-medium);
     border-radius: 8px;
     padding: 8px 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
@@ -63,7 +63,7 @@
     height: 0;
     border-left: 5px solid transparent;
     border-right: 5px solid transparent;
-    border-top: 5px solid #fff;
+    border-top: 5px solid var(--bg-page);
 }
 
 /* NEW - upward-pointing arrow for the flipped state, sits at the TOP
@@ -79,7 +79,7 @@
     border-left: 5px solid transparent;
     border-right: 5px solid transparent;
     border-top: none;
-    border-bottom: 5px solid #fff;
+    border-bottom: 5px solid var(--bg-page);
 }
 
 .segment-popup-modal-backdrop {
@@ -96,8 +96,8 @@
 }
 
 .segment-popup-modal {
-    background: #fff;
-    border: 1px solid #ddd;
+    background: var(--bg-page);
+    border: 1px solid var(--border-medium);
     border-radius: 10px;
     padding: 16px 24px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.2);

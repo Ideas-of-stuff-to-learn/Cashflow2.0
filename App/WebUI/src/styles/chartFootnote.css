@@ -3,7 +3,7 @@
     margin-right: 12px;
     padding: 8px 16px;
     background: #abb8c3;
-    border: 1px solid #eee;
+    border: 1px solid var(--border);
     border-radius: 8px;
     font-size: 15px;
     line-height: 1.1;

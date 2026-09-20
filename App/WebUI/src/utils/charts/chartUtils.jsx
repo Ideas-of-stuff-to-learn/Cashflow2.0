@@ -38,7 +38,7 @@ export function buildStackedChartData(
             .filter(category => category !== 'Income')
             .map(category => ({
                 value: categoryTotals[category] || 0,
-                color: categoryColors[category] || '#BBBBBB',
+                color: categoryColors[category] || FALLBACK_CATEGORY_COLOR,
                 category,
                 onPress: () =>
                     onSegmentPress({
@@ -75,11 +75,7 @@ export function sumByCategory(rows) {
 // swatch can be applied to any selected category.
 
 
-export const COLOR_PALETTE = [
-  '#2E5C8A', '#E07A3E', '#3D8B5F', '#9B3D8A', '#C4A227',
-  '#D94F4F', '#4FA8D9', '#7A5C3D', '#5C8A2E', '#D97AB8',
-  '#3D5C8A', '#8A3D3D', '#4DBFBF', '#A67C52',
-];
+export { CHART_COLORS as COLOR_PALETTE } from '../../theme';
 
 
 
