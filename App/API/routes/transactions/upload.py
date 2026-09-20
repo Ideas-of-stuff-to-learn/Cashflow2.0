@@ -20,6 +20,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from psycopg2.extras import execute_values
 
 from extensions import app, limiter
+from rate_limits import RL_UPLOAD
 from database import get_connection, release_connection
 from .shared_helpers import sanitize_cell, MAX_CSV_FILE_SIZE_BYTES
 
@@ -53,7 +54,7 @@ def _rows_from_excel(raw_bytes, filename):
 
 @app.route('/api/parse-csv', methods=['POST'])
 @jwt_required()
-@limiter.limit("50 per day")
+@limiter.limit(RL_UPLOAD)
 def parse_csv():
     current_user = int(get_jwt_identity())
 

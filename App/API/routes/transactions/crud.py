@@ -10,12 +10,14 @@ from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from extensions import app, limiter
+from rate_limits import RL_READ_STANDARD, RL_READ_TRANSACTIONS, RL_READ_UPLOADS
+# RL_READ_STANDARD still used by DELETE /transactions below
 from database import get_connection, release_connection
 
 
 @app.route('/transactions', methods=['GET'])
 @jwt_required()
-@limiter.limit("100 per day")
+@limiter.limit(RL_READ_TRANSACTIONS)
 def get_transactions():
     """Returns transactions for the logged-in user. Supports optional
     pagination via ?offset=N&limit=N query params - if neither is given,
@@ -94,7 +96,7 @@ def get_transactions():
 
 @app.route('/transactions', methods=['DELETE'])
 @jwt_required()
-@limiter.limit("100 per day")
+@limiter.limit(RL_READ_STANDARD)
 def delete_transactions():
     """Deletes one or more of the CURRENT USER's own transactions by id.
     Not admin-only, unlike the category endpoints - this is a personal
@@ -140,7 +142,7 @@ def delete_transactions():
 
 @app.route('/uploads/count', methods=['GET'])
 @jwt_required()
-@limiter.limit("100 per day")
+@limiter.limit(RL_READ_UPLOADS)
 def get_upload_count():
     """Counts upload EVENTS (re-uploading the same file adds to this),
     not distinct filenames.

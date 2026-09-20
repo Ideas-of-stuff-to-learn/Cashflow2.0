@@ -5,5 +5,5 @@
 .range-text { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; text-align: center; }
 .btn { background: var(--primary); padding: 12px 24px; border-radius: 8px; margin-bottom: 12px; width: 100%; text-align: center; color: var(--bg-page); font-size: 16px; font-weight: 600; border: none; cursor: pointer; }
 .btn:disabled { opacity: 0.5; }
-.btn-secondary { background: var(--success); margin-top: 12px; }
-.logout-btn { background: var(--danger); padding: 12px 24px; border-radius: 8px; margin-top: 12px; width: 100%; color: var(--bg-page); font-size: 16px; font-weight: 600; border: none; cursor: pointer; }
+.btn-secondary { background: var(--primary-light); color: var(--primary); border: none; margin-top: 12px; }
+.logout-btn { background: var(--primary-light); color: var(--primary); padding: 12px 24px; border-radius: 8px; margin-top: 12px; width: 100%; font-size: 16px; font-weight: 600; border: none; cursor: pointer; }

@@ -6,6 +6,7 @@ import RoleBadge from './RoleBadge';
 import ThemeToggle from './ThemeToggle';
 import ChartFootnote from './charts/ChartFootnote';
 import { useIsMobile } from '../customHooks/useIsMobile';
+import { useThemeSync } from '../customHooks/useThemeSync';
 import '../styles/Layout.css';
 
 function FootnoteModal({ onClose }) {
@@ -43,6 +44,7 @@ function TransactionsInfoModal({ onClose }) {
 }
 
 export default function Layout() {
+    useThemeSync();
     const location = useLocation();
     const navigate = useNavigate();
     const isMobile = useIsMobile();

@@ -26,6 +26,8 @@ export default function CategoryRecolor({
     applyingColor,
     applyColor,
     resetToDefaults,
+    applyThemeColors,
+    applyingThemeColors,
 }) {
     // Seed the wheel with whichever colour the first selected category
     // already has, so opening the picker doesn't always reset to some
@@ -38,6 +40,17 @@ export default function CategoryRecolor({
     return (
         <>
             <Text style={styles.slicerLabel}>Customise Category Colours</Text>
+
+            <TouchableOpacity
+                style={[styles.chip, applyingThemeColors && styles.dropdownToggleDisabled]}
+                onPress={applyThemeColors}
+                disabled={applyingThemeColors}
+            >
+                <Text style={styles.chipText}>
+                    {applyingThemeColors ? 'Applying…' : 'Apply theme palette'}
+                </Text>
+            </TouchableOpacity>
+
             <View style={styles.chipRow}>
                 <TouchableOpacity style={styles.chip} onPress={recolorSelectAll}>
                     <Text style={styles.chipText}>Select All</Text>

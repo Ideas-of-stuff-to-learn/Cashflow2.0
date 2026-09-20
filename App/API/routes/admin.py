@@ -12,6 +12,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_tok
 import bcrypt
 
 from extensions import app, limiter, IMPERSONATION_TOKEN_EXPIRES
+from rate_limits import RL_READ_ADMIN, RL_CATEGORY_WRITE, RL_ADMIN_SENSITIVE
 from database import get_connection, release_connection
 from permissions import (
     require_permission, get_user_role_and_permissions,
@@ -25,7 +26,7 @@ from permissions import (
 @app.route('/admin/permissions', methods=['GET'])
 @jwt_required()
 @require_permission('roles.view')
-@limiter.limit("100 per day")
+@limiter.limit(RL_READ_ADMIN)
 def admin_list_permissions():
     """The master list of every permission key that exists - what
     CLI/admin-panel checklists build their options from."""
@@ -42,7 +43,7 @@ def admin_list_permissions():
 @app.route('/admin/roles', methods=['GET'])
 @jwt_required()
 @require_permission('roles.view')
-@limiter.limit("100 per day")
+@limiter.limit(RL_READ_ADMIN)
 def admin_list_roles():
     conn = get_connection()
     try:
@@ -57,7 +58,7 @@ def admin_list_roles():
 @app.route('/admin/roles', methods=['POST'])
 @jwt_required()
 @require_permission('roles.manage')
-@limiter.limit("20 per day")
+@limiter.limit(RL_CATEGORY_WRITE)
 def admin_create_role():
     """Creates a new custom role. The caller's own level acts as a
     ceiling: you cannot create a role at or above your own level (an
@@ -100,7 +101,7 @@ def admin_create_role():
 @app.route('/admin/roles/<int:role_id>', methods=['PATCH'])
 @jwt_required()
 @require_permission('roles.manage')
-@limiter.limit("20 per day")
+@limiter.limit(RL_CATEGORY_WRITE)
 def admin_update_role(role_id):
     """Edits a role's level and/or permission bundle (permissions, if
     given, REPLACES the whole set - not additive, matching this app's
@@ -141,7 +142,7 @@ def admin_update_role(role_id):
 @app.route('/admin/roles/<int:role_id>', methods=['DELETE'])
 @jwt_required()
 @require_permission('roles.manage')
-@limiter.limit("20 per day")
+@limiter.limit(RL_CATEGORY_WRITE)
 def admin_delete_role(role_id):
     conn = get_connection()
     try:
@@ -162,7 +163,7 @@ def admin_delete_role(role_id):
 @app.route('/admin/users', methods=['GET'])
 @jwt_required()
 @require_permission('users.view')
-@limiter.limit("100 per day")
+@limiter.limit(RL_READ_ADMIN)
 def admin_list_users():
     conn = get_connection()
     try:
@@ -177,7 +178,7 @@ def admin_list_users():
 @app.route('/admin/users/<int:target_user_id>/role', methods=['PATCH'])
 @jwt_required()
 @require_permission('users.assign_role')
-@limiter.limit("20 per day")
+@limiter.limit(RL_CATEGORY_WRITE)
 def admin_assign_role(target_user_id):
     """Assigns a role to another user, by role name. Same level-ceiling
     guard as role creation/editing: a non-owner with users.assign_role
@@ -222,7 +223,7 @@ def admin_assign_role(target_user_id):
 @app.route('/admin/users/<int:target_user_id>/permissions', methods=['PATCH'])
 @jwt_required()
 @require_permission('users.manage_permissions')
-@limiter.limit("20 per day")
+@limiter.limit(RL_CATEGORY_WRITE)
 def admin_set_permission_override(target_user_id):
     """Grants, revokes, or clears ONE individual permission override for
     ONE user - the fine-grained, per-person exception mechanism
@@ -267,7 +268,7 @@ def admin_set_permission_override(target_user_id):
 @app.route('/admin/users', methods=['POST'])
 @jwt_required()
 @require_permission('users.create')
-@limiter.limit("20 per day")
+@limiter.limit(RL_CATEGORY_WRITE)
 def admin_create_user():
     """Creates a new user account directly, as an elevated action -
     distinct from the public, self-service /auth/signup (no permission
@@ -305,7 +306,7 @@ def admin_create_user():
 @app.route('/admin/users/<int:target_user_id>', methods=['DELETE'])
 @jwt_required(fresh=True)
 @require_permission('users.delete')
-@limiter.limit("20 per day")
+@limiter.limit(RL_CATEGORY_WRITE)
 def admin_delete_user(target_user_id):
     """Deletes a user account outright - CASCADES to their
     transactions, uploaded_files, personal category_records, and any
@@ -353,7 +354,7 @@ def admin_delete_user(target_user_id):
 @app.route('/admin/users/<int:target_user_id>/credentials', methods=['PATCH'])
 @jwt_required(fresh=True)
 @require_permission('users.edit')
-@limiter.limit("20 per day")
+@limiter.limit(RL_CATEGORY_WRITE)
 def admin_edit_user_credentials(target_user_id):
     """Changes a user's username and/or password - at least one of the
     two must be given, the other is left untouched. New values go
@@ -416,7 +417,7 @@ def admin_edit_user_credentials(target_user_id):
 @app.route('/admin/users/<int:target_user_id>/impersonate', methods=['POST'])
 @jwt_required(fresh=True)
 @require_permission('users.impersonate')
-@limiter.limit("20 per day")
+@limiter.limit(RL_CATEGORY_WRITE)
 def admin_impersonate_user(target_user_id):
     """Issues a fresh, fully valid access token for another user's
     account, without needing or ever seeing their password - "log in
@@ -483,7 +484,7 @@ def admin_impersonate_user(target_user_id):
 @app.route('/admin/impersonation-log', methods=['GET'])
 @jwt_required()
 @require_permission('audit.view')
-@limiter.limit("100 per day")
+@limiter.limit(RL_READ_ADMIN)
 def admin_impersonation_log():
     """Read-only audit trail of every impersonation ever performed -
     who (actor), whom (target), which token (jti - usable with
@@ -528,7 +529,7 @@ def admin_impersonation_log():
 @app.route('/admin/tokens/revoke', methods=['POST'])
 @jwt_required()
 @require_permission('users.impersonate')
-@limiter.limit("60 per hour")
+@limiter.limit(RL_ADMIN_SENSITIVE)
 def admin_revoke_token():
     """Revokes one specific token by its jti - lets an admin end an
     impersonation session early (wrong user picked, task finished

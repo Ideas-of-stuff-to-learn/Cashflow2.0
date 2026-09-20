@@ -1,0 +1,163 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   WARM — terracotta / amber primary, cream backgrounds.
+   Personal, cosy, approachable.
+   ───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --theme-name: warm; /* read by JS (getComputedStyle) to look up chart colour palette */
+
+  /* ── PRIMARY COLOUR ──────────────────────────────────────────────────────
+     The single most visible colour in the app.
+     Changing this changes the feel of everything interactive. */
+
+  --primary:         #C26D3A; /* Main CTA buttons (Choose CSV, Auto-categorise, Go to Transactions),
+                                 active Year/Month chart toggle, back button border + text,
+                                 "Select" action text in transactions, active nav highlight,
+                                 progress bar fill, manual review remaining badge text,
+                                 category filter active dot, checkbox tick colour,
+                                 links and interactive labels throughout */
+
+  --primary-hover:   #a85c2e; /* Darker shade of primary — hover state on all primary buttons
+                                 and interactive primary-coloured elements */
+
+  --primary-light:   #fdf0e6; /* Very light primary tint — pill/badge backgrounds,
+                                 manual review remaining badge background,
+                                 back button hover background, light chip fills */
+
+  --primary-lighter: #fae4d0; /* Even lighter tint — secondary hover states,
+                                 subtle active area backgrounds */
+
+  --primary-muted:   #f0bfa0; /* Muted/washed-out primary — border accents on selected elements,
+                                 light decorative lines */
+
+  /* ── BACKGROUNDS ─────────────────────────────────────────────────────────
+     Controls the layers of depth in the UI.
+     Page → Surface → Subtle creates the visual hierarchy. */
+
+  --bg-page:        #fffcf8; /* Outermost background — the full page canvas,
+                                html/body fill, modal backdrops, header bar,
+                                dropdown panels, top + bottom strips */
+
+  --bg-surface:     #fff8f2; /* First layer up from page — sidebar background (dashboard left panel,
+                                transactions category filter panel), card backgrounds,
+                                tooltip/popover backgrounds, upload popup interior */
+
+  --bg-subtle:      #fdf6ef; /* Second layer — alternate/striped section backgrounds,
+                                inner card sections, footnote panel interior sections */
+
+  --bg-input:       #fdf4eb; /* Text input and search bar backgrounds — the search field in
+                                Transactions, text inputs in any form or modal */
+
+  --bg-header-row:  #f9ece0; /* Table header row (DATE / DESCRIPTION / AMOUNT / CATEGORY row),
+                                column header backgrounds in transaction table */
+
+  --bg-muted:       #f7f1e8; /* Muted/dimmed backgrounds — hover state on secondary list items,
+                                disabled or inactive area fills */
+
+  --bg-highlight:   #fde8d0; /* Warm highlight tint — highlighted/flagged transaction rows,
+                                special callout backgrounds, "needs attention" areas */
+
+  --bg-warning:     #fff8e0; /* Warning banner background — e.g. "out of sync" upload warning,
+                                any yellow-tinted status banners */
+
+  --bg-error:       #fff1ee; /* Error state background — red-tinted inputs on validation fail,
+                                error message backgrounds */
+
+  --bg-selected:    #fde0c8; /* Active/selected item fill — currently selected category in
+                                filter sidebar, selected rows in bulk-select mode,
+                                active chip/tag backgrounds */
+
+  /* ── TEXT ────────────────────────────────────────────────────────────────
+     Four levels of text hierarchy.
+     In dark mode these need to be light enough to read comfortably. */
+
+  --text-primary:   #1c1208; /* Main readable text — transaction descriptions, amounts,
+                                category names, page headings, modal titles,
+                                sidebar category labels, table cell content */
+
+  --text-secondary: #5a3820; /* Supporting text — "Past files uploaded: 12" counter,
+                                "Files uploaded this session" label, sub-headings,
+                                secondary info in modals, filter section headings */
+
+  --text-muted:     #927058; /* De-emphasised text — placeholder text in search bar,
+                                "Drag to reorder — top of list = top of bar" instruction,
+                                date labels on chart x-axis, column headers (DATE/DESCRIPTION etc.),
+                                minor metadata, helper captions */
+
+  --text-faint:     #c8aa96; /* Almost invisible text — footnotes, ultra-secondary labels,
+                                disabled state text, very light watermark-style text */
+
+  /* ── BORDERS ─────────────────────────────────────────────────────────────
+     Four levels of border weight.
+     Lighter borders = subtle dividers. Stronger = card edges, modal frames. */
+
+  --border:         #f0ddd0; /* Lightest border — row separators in transaction list,
+                                inner card dividers, light input outlines,
+                                very subtle section separators */
+
+  --border-medium:  #e8cab8; /* Medium border — card outlines, dropdown borders,
+                                modal/popup edges, sidebar panel borders,
+                                chart area frame */
+
+  --border-strong:  #d4b0a0; /* Strong border — active element outlines,
+                                focus rings on inputs, prominent dividers */
+
+  --border-table:   #ead5c4; /* Specifically for transaction table — column grid lines,
+                                row borders in the table, header row bottom border */
+
+  /* ── FOOTNOTE / USER INFORMATION MODAL ──────────────────────────────────
+     These ONLY affect the "User Information" popup modal (the green card
+     that appears when you click User Information in the header).
+     Completely independent from the rest of the palette. */
+
+  --footnote-bg:        #f8f0e4; /* Background of the User Information modal card */
+  --footnote-text:      #3d2514; /* Body paragraph text inside User Information modal */
+  --footnote-border:    rgba(100, 60, 30, 0.12); /* Dividing lines between paragraphs in the modal */
+  --footnote-head:      #2c1808; /* First paragraph / heading text in the modal */
+  --footnote-danger:    #8a1a20; /* The danger/warning paragraph (4th paragraph) in the modal */
+  --footnote-btn-color: #6a3a20; /* Text colour of "User Information" and "Data Security"
+                                    buttons in the app header */
+  --footnote-btn-bg:    rgba(100, 60, 30, 0.08); /* Background of those two header buttons */
+  --footnote-btn-hover: rgba(100, 60, 30, 0.18); /* Hover background of those two header buttons */
+}
+
+/* ── DARK MODE ───────────────────────────────────────────────────────────────
+   Same tokens, dark values. Brand colours lighten slightly to stay legible.
+   Text flips to near-white. Backgrounds become deep warm darks. */
+:root[data-theme="dark"] {
+  --primary:         #d4804e;
+  --primary-hover:   #bc6e3c;
+  --primary-light:   #2e1a0c;
+  --primary-lighter: #261408;
+  --primary-muted:   #3e2410;
+
+  --bg-page:        #1a1208;
+  --bg-surface:     #22180a;
+  --bg-subtle:      #281e0e;
+  --bg-input:       #2c2010;
+  --bg-header-row:  #281e0e;
+  --bg-muted:       #1e1408;
+  --bg-highlight:   #301a08;
+  --bg-warning:     #2a2000;
+  --bg-error:       #2a1010;
+  --bg-selected:    #301a0c;
+
+  --text-primary:   #f8f2ec;
+  --text-secondary: #dcc0a0;
+  --text-muted:     #b09070;
+  --text-faint:     #806850;
+
+  --border:         #30200c;
+  --border-medium:  #3e2c14;
+  --border-strong:  #503820;
+  --border-table:   #30200c;
+
+  --footnote-bg:        #261808;
+  --footnote-text:      #d4b890;
+  --footnote-border:    rgba(180, 120, 70, 0.15);
+  --footnote-head:      #ead4b4;
+  --footnote-danger:    #e06060;
+  --footnote-btn-color: #c49060;
+  --footnote-btn-bg:    rgba(180, 120, 70, 0.1);
+  --footnote-btn-hover: rgba(180, 120, 70, 0.22);
+}

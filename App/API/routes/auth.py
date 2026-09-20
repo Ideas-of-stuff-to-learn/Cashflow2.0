@@ -16,13 +16,14 @@ from flask_jwt_extended import (
 import bcrypt
 
 from extensions import app, limiter
+from rate_limits import RL_AUTH_ME, RL_AUTH_LOGIN, RL_AUTH_SIGNUP, RL_AUTH_REFRESH, RL_ADMIN_SENSITIVE
 from database import get_connection, release_connection
 from permissions import get_user_role_and_permissions
 
 
 @app.route('/auth/me', methods=['GET'])
 @jwt_required()
-@limiter.limit("100 per day")
+@limiter.limit(RL_AUTH_ME)
 def auth_me():
     current_user = int(get_jwt_identity())
     conn = get_connection()
@@ -81,7 +82,7 @@ def create_user(conn, username, password_hash):
     return new_id
 
 @app.route('/auth/login', methods=['POST'])
-@limiter.limit("10 per minute")
+@limiter.limit(RL_AUTH_LOGIN)
 def login():
     data = request.get_json()
 
@@ -171,7 +172,7 @@ def validate_password(password):
 
 
 @app.route('/auth/signup', methods=['POST'])
-@limiter.limit("5 per minute")
+@limiter.limit(RL_AUTH_SIGNUP)
 def signup():
     data = request.get_json()
     if not data or 'username' not in data or 'password' not in data:
@@ -215,7 +216,7 @@ def signup():
 
 @app.route('/auth/refresh', methods=['POST'])
 @jwt_required(refresh=True)
-@limiter.limit("60 per hour")
+@limiter.limit(RL_AUTH_REFRESH)
 def refresh():
     """Exchanges a valid REFRESH token for a brand new, short-lived
     ACCESS token - lets the app stay "logged in" across the access
@@ -243,7 +244,7 @@ def refresh():
 
 @app.route('/auth/logout', methods=['POST'])
 @jwt_required()
-@limiter.limit("60 per hour")
+@limiter.limit(RL_ADMIN_SENSITIVE)
 def logout_route():
     """Actually revokes the calling token server-side - the first time
     "logout" has ever meant anything beyond a device deleting its own

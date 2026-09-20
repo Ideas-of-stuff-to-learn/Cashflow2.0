@@ -9,6 +9,7 @@ from flask import jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from extensions import app, limiter
+from rate_limits import RL_READ_CHARTS
 from database import get_connection, release_connection
 from checkingName import NEEDS_MANUAL_REVIEW
 from shared import TRANSIENT_CATEGORY_VALUES
@@ -16,7 +17,7 @@ from shared import TRANSIENT_CATEGORY_VALUES
 
 @app.route('/charts/summary', methods=['GET'])
 @jwt_required()
-@limiter.limit("100 per day")
+@limiter.limit(RL_READ_CHARTS)
 def charts_summary():
     """Pre-aggregated spending totals for the Charts screen - one row
     per (year, category) and, separately, one row per (year, month,

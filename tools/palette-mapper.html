@@ -148,8 +148,17 @@ textarea.paste-area:focus{border-color:var(--accent)}
 .right-panel{display:flex;flex-direction:column;height:100%;overflow:hidden}
 .prev-tabs{
   display:flex;border-bottom:1px solid var(--border);
-  background:var(--surface);flex-shrink:0;
+  background:var(--surface);flex-shrink:0;align-items:center;
 }
+.prev-dark-toggle{
+  margin-left:auto;margin-right:10px;
+  padding:4px 12px;font-size:11px;font-weight:600;
+  border:1px solid var(--border);border-radius:20px;
+  background:transparent;color:var(--text2);cursor:pointer;
+  transition:background .15s,color .15s;white-space:nowrap;
+}
+.prev-dark-toggle:hover{background:var(--surface2);color:var(--text)}
+.prev-dark-toggle.active{background:#1a2d3e;color:#c8dfef;border-color:#2E5C8A}
 .prev-tab{
   padding:10px 18px;font-size:12px;font-weight:600;
   border:none;background:transparent;color:var(--text2);cursor:pointer;
@@ -267,6 +276,7 @@ textarea.paste-area:focus{border-color:var(--accent)}
       <button class="prev-tab" onclick="switchPreview('review',this)">Review</button>
       <button class="prev-tab" onclick="switchPreview('modals',this)">Modals</button>
       <button class="prev-tab" onclick="switchPreview('states',this)">States</button>
+      <button class="prev-dark-toggle" id="darkToggle" onclick="togglePreviewDark()">☀ Light</button>
     </div>
     <div class="prev-content">
       <div id="prev-dashboard" class="prev-pane"></div>
@@ -361,17 +371,22 @@ const CATS = ['Groceries','Transport','Dining','Utilities','Entertainment','Shop
 // ═══════════════════════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════════════════════
-const original = {};  // token key → value as loaded from file / default
-const current  = {};  // token key → current edited value
+const original     = {};  // token key → value as loaded from file / default
+const current      = {};  // token key → current light-theme edited value
+const originalDark = {};  // token key → dark value as loaded from file / default
+const currentDark  = {};  // token key → current dark-theme edited value
 let fileHandle = null;
 let fileOriginalText = null;
 let activeSec = 'typography';
 let activePrev = 'dashboard';
+let previewDark = false;
 
 // Init from defaults
 SECTIONS.forEach(s => s.tokens.forEach(t => {
-  original[t.key] = t.default;
-  current[t.key]  = t.default;
+  original[t.key]     = t.default;
+  current[t.key]      = t.default;
+  originalDark[t.key] = t.default;
+  currentDark[t.key]  = t.default;
 }));
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -482,7 +497,9 @@ function refreshRow(key) {
 // SAVE BAR
 // ═══════════════════════════════════════════════════════════════════════════
 function countChanges() {
-  return SECTIONS.reduce((n, s) => n + s.tokens.filter(t => current[t.key] !== original[t.key]).length, 0);
+  const light = SECTIONS.reduce((n, s) => n + s.tokens.filter(t => current[t.key] !== original[t.key]).length, 0);
+  const dark  = SECTIONS.reduce((n, s) => n + s.tokens.filter(t => currentDark[t.key] !== originalDark[t.key]).length, 0);
+  return light + dark;
 }
 function updateSaveBar() {
   const n = countChanges();
@@ -516,19 +533,22 @@ async function loadFile() {
 }
 
 function parseFileIntoTokens(css) {
-  // Extract all CSS custom property values from :root {}
-  const rootMatch = css.match(/:root\s*\{([^}]*)\}/s);
-  if (!rootMatch) return;
-  const rootBlock = rootMatch[1];
-  const re = /(--[\w-]+)\s*:\s*([^;]+);/g;
-  let m;
-  while ((m = re.exec(rootBlock)) !== null) {
-    const key = m[1].trim(), val = m[2].trim();
-    if (key in original) {
-      original[key] = val;
-      current[key]  = val;
+  function loadBlock(block, orig, cur) {
+    const re = /(--[\w-]+)\s*:\s*([^;]+);/g; let m;
+    while ((m = re.exec(block)) !== null) {
+      const key = m[1].trim(), val = m[2].trim();
+      if (key in orig) { orig[key] = val; cur[key] = val; }
     }
   }
+  // Light: plain :root or :root[data-theme="light"]
+  const plainM = css.match(/:root\s*\{([^}]*)\}/s);
+  if (plainM) loadBlock(plainM[1], original, current);
+  const lightM = css.match(/:root\[data-theme=["']light["']\]\s*\{([^}]*)\}/s);
+  if (lightM) loadBlock(lightM[1], original, current);
+  // Dark
+  const darkM  = css.match(/:root\[data-theme=["']dark["']\]\s*\{([^}]*)\}/s);
+  if (darkM)  loadBlock(darkM[1],  originalDark, currentDark);
+
   buildTabs();
   buildRows();
   updatePreviews();
@@ -560,7 +580,7 @@ async function saveToFile() {
   const freshFile = await fileHandle.getFile();
   let css = await freshFile.text();
 
-  // In-place token substitution — replaces each changed token value exactly
+  // In-place token substitution for light tokens — replaces each changed value
   SECTIONS.forEach(s => s.tokens.forEach(t => {
     if (current[t.key] === original[t.key]) return;
     const escaped = t.key.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
@@ -568,12 +588,24 @@ async function saveToFile() {
     css = css.replace(re, `$1 ${current[t.key]}$3`);
   }));
 
+  // Write dark theme block if any dark tokens differ from defaults
+  const hasDarkChanges = SECTIONS.some(s => s.tokens.some(t => currentDark[t.key] !== originalDark[t.key]));
+  if (hasDarkChanges) {
+    // Remove existing dark block (any selector variant)
+    css = css.replace(/:root\[data-theme=["']dark["']\]\s*\{[^}]*\}/s, '').trimEnd();
+    const darkLines = SECTIONS.flatMap(s => s.tokens.map(t => `  ${t.key}: ${currentDark[t.key]};`));
+    css += `\n\n:root[data-theme="dark"] {\n${darkLines.join('\n')}\n}`;
+  }
+
   try {
     const writable = await fileHandle.createWritable();
     await writable.write(css);
     await writable.close();
     // Saved — promote current to original
-    SECTIONS.forEach(s => s.tokens.forEach(t => { original[t.key] = current[t.key]; }));
+    SECTIONS.forEach(s => s.tokens.forEach(t => {
+      original[t.key]     = current[t.key];
+      originalDark[t.key] = currentDark[t.key];
+    }));
     fileOriginalText = css;
     updateSaveBar();
     buildTabs();
@@ -617,15 +649,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const imp = raw.match(/@import\s+url\(['"]?([^'")\s]+)['"]?\)/);
     if (imp) injectFont(imp[1]);
 
-    // :root custom properties
-    const rootM = css.match(/:root\s*\{([^}]*)\}/s);
-    if (rootM) {
+    // Aliases: map common realtimecolors / generic CSS var names → app token names
+    const ALIASES = {
+      '--background': '--bg-page',
+      '--text':       '--text-primary',
+      '--accent':     '--primary',
+      '--secondary':  '--primary-light',
+    };
+    function applyRootBlock(block, target) {
       const re = /(--[\w-]+)\s*:\s*([^;]+);/g; let m;
-      while ((m = re.exec(rootM[1])) !== null) {
-        const key=m[1].trim(), val=m[2].trim();
-        if (key in current) { setToken(key, val); found++; }
+      while ((m = re.exec(block)) !== null) {
+        let key = m[1].trim(); const val = m[2].trim();
+        if (ALIASES[key]) key = ALIASES[key];
+        if (key in target) { target[key] = val; found++; }
       }
     }
+
+    // :root custom properties — plain :root + light theme → current (light)
+    // dark theme → currentDark
+    const plainRootM = css.match(/:root\s*\{([^}]*)\}/s);
+    if (plainRootM) applyRootBlock(plainRootM[1], current);
+    const lightRootM = css.match(/:root\[data-theme=["']light["']\]\s*\{([^}]*)\}/s);
+    if (lightRootM) applyRootBlock(lightRootM[1], current);
+    const darkRootM = css.match(/:root\[data-theme=["']dark["']\]\s*\{([^}]*)\}/s);
+    if (darkRootM) applyRootBlock(darkRootM[1], currentDark);
 
     // body font-family / font-weight
     const bodyM = css.match(/body\s*\{([^}]*)\}/s);
@@ -672,6 +719,8 @@ document.addEventListener('DOMContentLoaded', () => {
     status.className = found > 0 ? 'parse-status ok' : 'parse-status err';
     status.textContent = found > 0 ? `✓ ${found} value${found>1?'s':''} applied` : '⚠ No recognisable values found';
 
+    updateSaveBar();
+    buildTabs();
     buildRows();
     updatePreviews();
     injectPreviewTokens();
@@ -702,7 +751,8 @@ function injectFont(url) {
 function injectPreviewTokens() {
   let el = document.getElementById('_previewVars');
   if (!el) { el = document.createElement('style'); el.id = '_previewVars'; document.head.appendChild(el); }
-  const lines = SECTIONS.flatMap(s => s.tokens.map(t => `  ${t.key}: ${current[t.key]};`));
+  const src   = previewDark ? currentDark : current;
+  const lines = SECTIONS.flatMap(s => s.tokens.map(t => `  ${t.key}: ${src[t.key]};`));
   el.textContent = `.mock { ${lines.join('\n')} }`;
 }
 
@@ -717,7 +767,16 @@ function switchPreview(id, btn) {
   btn.classList.add('active');
 }
 
-function get(key) { return current[key] || original[key] || ''; }
+function togglePreviewDark() {
+  previewDark = !previewDark;
+  const btn = document.getElementById('darkToggle');
+  btn.textContent = previewDark ? '🌙 Dark' : '☀ Light';
+  btn.classList.toggle('active', previewDark);
+  updatePreviews();
+  injectPreviewTokens();
+}
+
+function get(key) { const src = previewDark ? currentDark : current; return src[key] || original[key] || ''; }
 
 function updatePreviews() {
   renderDashboard();

@@ -1,8 +1,6 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   THEME ENTRY POINT
-   To change typography / type scale: edit themes/_base.css
-   To switch colour palette:          edit themes/active.css (one line)
+   ACTIVE THEME — change this one import to switch the entire colour palette.
+   Options: warm | forest | polished | coral | midnight
    ───────────────────────────────────────────────────────────────────────── */
 
-@import './themes/_base.css';
-@import './themes/active.css';
+@import './polished.css';

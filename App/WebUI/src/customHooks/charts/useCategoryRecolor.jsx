@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useTransactions } from '../../appState';
 import { updateCategory, resetCategoryDefaults } from '../../api';
-import {toggleItem} from '../../utils/charts/chartUtils'
+import { toggleItem } from '../../utils/charts/chartUtils';
+import { getActiveThemeChartColors } from '../../styles/themes/chartColors';
 
 export function useCategoryRecolor(availableCategories) {
     const { setCategories } = useTransactions();
@@ -9,6 +10,7 @@ export function useCategoryRecolor(availableCategories) {
     const [recolorSelected, setRecolorSelected] = useState(new Set());
     const [colorPickerOpen, setColorPickerOpen] = useState(false);
     const [applyingColor, setApplyingColor] = useState(false);
+    const [applyingThemeColors, setApplyingThemeColors] = useState(false);
 
     function toggleRecolorCategory(cat) {
         toggleItem(recolorSelected, setRecolorSelected, cat);
@@ -65,14 +67,40 @@ export function useCategoryRecolor(availableCategories) {
         }
     }
 
+    // Applies the active theme's built-in colour palette to all categories
+    // in their current display order — categories[0] gets palette[0], etc.
+    // Only touches categories that exist in availableCategories, so
+    // extra palette slots are silently ignored and surplus categories
+    // fall back to their existing colour.
+    async function applyThemeColors() {
+        setApplyingThemeColors(true);
+        try {
+            const palette = getActiveThemeChartColors();
+            const updates = availableCategories
+                .map((name, i) => palette[i] ? { name, color: palette[i] } : null)
+                .filter(Boolean);
+            await Promise.all(updates.map(({ name, color }) => updateCategory(name, { color })));
+            const colorMap = Object.fromEntries(updates.map(({ name, color }) => [name, color]));
+            setCategories(prev => prev.map(c =>
+                colorMap[c.name] ? { ...c, color: colorMap[c.name] } : c
+            ));
+        } catch (e) {
+            console.warn('Apply theme colours failed:', e.message);
+        } finally {
+            setApplyingThemeColors(false);
+        }
+    }
+
     return {
         recolorSelected,
         colorPickerOpen, setColorPickerOpen,
         applyingColor,
+        applyingThemeColors,
         toggleRecolorCategory,
         recolorSelectAll,
         recolorDeselectAll,
         applyColor,
         resetToDefaults,
+        applyThemeColors,
     };
 }

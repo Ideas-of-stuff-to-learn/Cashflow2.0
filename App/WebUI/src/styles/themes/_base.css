@@ -1,0 +1,125 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   BASE — typography, type scale, font stacks, semantic colours, overlays.
+   These never change between themes. All palette colours live in themes/*.css
+   ───────────────────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@700&family=Inter+Tight:wght@400;500&display=swap');
+
+:root {
+  /* ── FONT STACKS ─────────────────────────────────────────────────────────
+     Change these to swap the typeface globally across the entire app. */
+
+  --font-body:    'Inter Tight', system-ui, -apple-system, sans-serif;
+  /* ↑ Every paragraph, label, button, input, table cell, sidebar item,
+       transaction description, amount, category name, chart axis text,
+       filter panel text, modal body text — everything that isn't a heading */
+
+  --font-heading: 'Inter', system-ui, -apple-system, sans-serif;
+  /* ↑ Page headings (h1–h5), modal titles, the app name in the header,
+       "Spending by month" chart title, section headings in modals */
+
+  --font-mono:    'JetBrains Mono', 'Fira Mono', monospace;
+  /* ↑ Not widely used in the UI currently — reserved for any code/technical
+       display values if added in future */
+
+  /* ── TYPE SCALE ──────────────────────────────────────────────────────────
+     All font sizes in the app derive from these.
+     Change font-size-base to scale everything up or down proportionally. */
+
+  --font-size-base: 1rem;      /* 16px — root size everything else scales from.
+                                   Increasing to 1.0625rem (17px) makes the whole
+                                   app feel roomier. Decreasing makes it more compact. */
+
+  --font-size-h1:   1.802rem;  /* ~29px — largest heading, rarely used */
+  --font-size-h2:   1.602rem;  /* ~26px — section headings in large modals */
+  --font-size-h3:   1.424rem;  /* ~23px — modal titles, major sub-sections */
+  --font-size-h4:   1.266rem;  /* ~20px — card headings, panel titles */
+  --font-size-h5:   1.125rem;  /* 18px  — "Spending by month" chart title,
+                                   manual review modal headings, info modal title */
+
+  --font-size-sm:   0.889rem;  /* ~14px — button text, table cell text, sidebar labels,
+                                   filter panel labels, most UI text in practice */
+
+  --font-size-xs:   0.75rem;   /* 12px  — "Drag to reorder" hint, column header labels
+                                   (DATE/DESCRIPTION/AMOUNT/CATEGORY), badges,
+                                   footnotes, timestamps, very small helper text */
+
+  /* ── WEIGHTS ─────────────────────────────────────────────────────────────
+     Controls boldness across the app. */
+
+  --font-weight-normal: 400;   /* Body text, transaction descriptions, amounts,
+                                   sidebar category names, filter counts */
+
+  --font-weight-medium: 500;   /* Slightly emphasised labels — column headers,
+                                   button text in some components, badge text */
+
+  --font-weight-bold:   700;   /* Headings, the app title, CTA button labels
+                                   (Choose CSV, Automatically categorise etc.),
+                                   the "Owner" badge, active state labels */
+
+  --line-height: 1.5;          /* Spacing between lines of text — affects readability
+                                   of long transaction descriptions and modal body text */
+
+  /* ── SEMANTIC COLOURS ────────────────────────────────────────────────────
+     These have fixed meaning regardless of theme.
+     They don't shift with the palette — change only if redesigning
+     what "danger" or "success" means in the app. */
+
+  --danger:         #D94F4F;   /* Transaction amounts (spend = red), error text,
+                                   "Log Out" button background, danger confirmation buttons
+                                   in modals, validation error messages */
+
+  --danger-hover:   #b83c3c;   /* Hover state on danger-coloured buttons */
+
+  --danger-bg:      rgba(217, 79, 79, 0.1);
+                               /* Light red background tint — error state inputs,
+                                  error banners, delete confirmation areas */
+
+  --success:        #3D8B5F;   /* Success indicators, "Automatically categorise" button background,
+                                   upload success state, completion checkmarks in modals */
+
+  --success-bright: #27AE60;   /* Brighter green — income line on the chart,
+                                   "done" circle in manual review modal,
+                                   positive amounts if ever shown */
+
+  --gold:           #C4A227;   /* Chart category colour slot 2 — e.g. Accommodation & Bills dot,
+                                   also used for the star/notification icon in the header */
+
+  --brown:          #7A5C3D;   /* Chart category colour slot 6 — e.g. Clothes dot,
+                                   earthy accent in chart legends */
+
+  --warning-text:   #856404;   /* Text inside yellow warning banners
+                                   (e.g. "out of sync" upload warning message text) */
+
+  /* ── OVERLAYS ────────────────────────────────────────────────────────────
+     Semi-transparent dark layers behind modals and popups. */
+
+  --overlay:      rgba(0, 0, 0, 0.45);
+  /* ↑ Standard modal backdrop — appears behind upload popup,
+       manual review modal, segment popup, info modal */
+
+  --overlay-dark: rgba(0, 0, 0, 0.60);
+  /* ↑ Heavier backdrop — used for more critical / full-screen overlays
+       like the manual review sequential modal */
+}
+
+/* ── GLOBAL TYPOGRAPHY APPLICATION ─────────────────────────────────────────
+   Applies the font tokens to actual HTML elements.
+   Don't need to touch this — change the tokens above instead. */
+body {
+  font-family: var(--font-body);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height);
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-heading);
+  font-weight: var(--font-weight-bold);
+}
+h1    { font-size: var(--font-size-h1); }
+h2    { font-size: var(--font-size-h2); }
+h3    { font-size: var(--font-size-h3); }
+h4    { font-size: var(--font-size-h4); }
+h5    { font-size: var(--font-size-h5); }
+small { font-size: var(--font-size-sm); }

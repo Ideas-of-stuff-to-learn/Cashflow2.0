@@ -6,6 +6,16 @@ No active task. Clean main branch.
 
 ## Recently Completed
 
+**Rate limiting overhaul — granular controls + theme/UI polish (2026-09-20):**
+- `App/API/rate_limits.py` — per-endpoint disable flags (`DISABLE_RL_READ_TRANSACTIONS`, `DISABLE_RL_READ_CATEGORIES`, etc.) + master kill switch `DISABLE_ALL_RATE_LIMITS`; all constants are callables so flags take effect at request time without restart
+- GET /transactions and GET /categories re-wired into rate_limits.py (were commented out); now individually disableable via flags
+- All route files updated to use specific constants (RL_READ_TRANSACTIONS, RL_READ_CATEGORIES, RL_READ_CHARTS, RL_READ_UPLOADS, RL_READ_ADMIN) instead of catch-all RL_READ_STANDARD
+- Secondary action buttons (btn-secondary, logout-btn) changed from hardcoded green/red to `var(--primary-light)` / `var(--primary)` themed fill
+- Chart colour theme system: per-theme 14-colour palettes in `App/WebUI/src/styles/themes/chartColors.js`; `useThemeSync` hook auto-pushes palette to server on page load when CSS `--theme-name` differs from `localStorage('appliedChartTheme')` — no manual button
+- Dashboard page scroll fixed: `.app-shell-locked` uses `height: 100%; min-height: 0` (not 100vh) to fit within `#root` which is `height: 100%; padding-top: 10px; box-sizing: border-box`
+
+## Recently Completed
+
 **App title, header layout, filter pane, mobile polish (2026-09-20):**
 - `appTitle.js` — single source of truth for app title; all three occurrences updated to import from it
 - Dashboard header title: ResizeObserver steps font from CSS base down to 9px floor to prevent wrapping

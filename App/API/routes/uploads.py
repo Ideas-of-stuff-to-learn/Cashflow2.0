@@ -16,6 +16,7 @@ from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from extensions import app, limiter
+from rate_limits import RL_READ_UPLOADS
 from database import get_connection, release_connection
 
 _VALID_UNITS = {'minutes', 'hours', 'days', 'months', 'years'}
@@ -28,7 +29,7 @@ DEFAULT_DURATION_UNIT = 'days'
 
 @app.route('/uploads/breakdown', methods=['GET'])
 @jwt_required()
-@limiter.limit("100 per day")
+@limiter.limit(RL_READ_UPLOADS)
 def get_upload_breakdown():
     current_user = int(get_jwt_identity())
 

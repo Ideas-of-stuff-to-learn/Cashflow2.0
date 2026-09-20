@@ -17,6 +17,7 @@ from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from extensions import app, limiter
+from rate_limits import RL_CATEGORISE_CACHED, RL_CATEGORISE_LLM, RL_CATEGORISE_BATCH
 from database import get_connection, release_connection
 from cache import CategoryCache
 from categorise.pipeline import run_cache_tiers
@@ -32,7 +33,7 @@ from shared import update_transaction_categories
 
 @app.route('/categorize/cached', methods=['POST'])
 @jwt_required()
-@limiter.limit("100 per day")
+@limiter.limit(RL_CATEGORISE_CACHED)
 def categorize_cached():
     current_user = int(get_jwt_identity())
     data = request.get_json()
@@ -60,7 +61,7 @@ def categorize_cached():
 
 @app.route('/categorize/cached/exact', methods=['POST'])
 @jwt_required()
-@limiter.limit("100 per day")
+@limiter.limit(RL_CATEGORISE_CACHED)
 def categorize_cached_exact():
     current_user = int(get_jwt_identity())
     data = request.get_json()
@@ -104,7 +105,7 @@ def categorize_cached_exact():
 
 @app.route('/categorize/cached/merchant', methods=['POST'])
 @jwt_required()
-@limiter.limit("100 per day")
+@limiter.limit(RL_CATEGORISE_CACHED)
 def categorize_cached_merchant():
     current_user = int(get_jwt_identity())
     data = request.get_json()
@@ -132,7 +133,7 @@ def categorize_cached_merchant():
 
 @app.route('/categorize/cached/similarity', methods=['POST'])
 @jwt_required()
-@limiter.limit("100 per day")
+@limiter.limit(RL_CATEGORISE_CACHED)
 def categorize_cached_similarity():
     current_user = int(get_jwt_identity())
     data = request.get_json()
@@ -160,7 +161,7 @@ def categorize_cached_similarity():
 
 @app.route('/categorize/llm', methods=['POST'])
 @jwt_required()
-@limiter.limit("20 per day")
+@limiter.limit(RL_CATEGORISE_LLM)
 def categorize_llm():
     current_user = int(get_jwt_identity())
     data = request.get_json()
@@ -228,7 +229,7 @@ def categorize_llm():
 
 @app.route('/categorize/resolve', methods=['POST'])
 @jwt_required()
-@limiter.limit("100 per day")
+@limiter.limit(RL_CATEGORISE_CACHED)
 def resolve_manual():
     current_user = int(get_jwt_identity())
     data = request.get_json()
@@ -310,7 +311,7 @@ def resolve_manual():
         
 @app.route('/categorize/resolve-and-exit', methods=['POST'])
 @jwt_required()
-@limiter.limit("50 per day")
+@limiter.limit(RL_CATEGORISE_BATCH)
 def resolve_and_exit():
     """Combined exit endpoint: saves any accumulated picks then bulk-resolves
     whatever is still NEEDS_MANUAL_REVIEW to Other, all in one DB transaction.
@@ -399,7 +400,7 @@ def resolve_and_exit():
 
 @app.route('/categorize/resolve-remaining-to-other', methods=['POST'])
 @jwt_required()
-@limiter.limit("50 per day")
+@limiter.limit(RL_CATEGORISE_BATCH)
 def resolve_remaining_to_other():
     """The sendBeacon safety net for the manual-review blocking flow -
     if someone leaves mid-flow (closes the tab, force-quits) before

@@ -6,6 +6,21 @@ No active task. Clean main branch.
 
 ## What Was Just Done
 
+**Rate limiting overhaul — granular disable flags (2026-09-20):**
+- `App/API/rate_limits.py` rebuilt with per-endpoint callable constants
+- `DISABLE_ALL_RATE_LIMITS = False` (line 33) — one toggle to kill everything
+- Individual flags: `DISABLE_RL_READ_TRANSACTIONS`, `DISABLE_RL_READ_CATEGORIES`, `DISABLE_RL_READ_CHARTS`, `DISABLE_RL_READ_UPLOADS`, `DISABLE_RL_READ_ADMIN`, `DISABLE_RL_AUTH_*`, `DISABLE_RL_PREFERENCES_*`, `DISABLE_RL_CATEGORY_WRITE`, `DISABLE_RL_CATEGORISE_*`, `DISABLE_RL_UPLOAD`, `DISABLE_RL_ADMIN_SENSITIVE`
+- GET /transactions and GET /categories: decorators re-enabled (were commented out), wired to new constants; toggle via flags, not comments
+- Route files: charts.py→RL_READ_CHARTS, uploads.py→RL_READ_UPLOADS, admin.py→RL_READ_ADMIN, categories.py→RL_READ_CATEGORIES, crud.py→RL_READ_TRANSACTIONS + RL_READ_UPLOADS
+- Callable pattern: `@limiter.limit(RL_READ_TRANSACTIONS)` calls the function at request time — flag changes take effect immediately without server restart
+
+**UI polish + chart theme system (2026-09-20):**
+- btn-secondary + logout-btn: themed fill (var(--primary-light) / var(--primary)) instead of hardcoded green/red
+- chartColors.js: 14-colour palettes per theme; useThemeSync auto-pushes on load when theme has changed
+- Dashboard scroll fixed: app-shell-locked height: 100% + min-height: 0
+
+## What Was Just Done
+
 **Theme system — CSS tokens + light/dark toggle (2026-09-20):**
 - `src/styles/theme.css` — single source of truth: all UI colour tokens as CSS custom properties on `:root`, with `:root[data-theme="dark"]` overrides for backgrounds, text and borders. Brand colours (primary, danger, success, gold) unchanged in dark mode.
 - `src/theme.js` — JS-facing exports: `ROLE_COLORS`, `DEFAULT_ROLE_COLOR`, `FALLBACK_CATEGORY_COLOR`, `CHART_COLORS` (14-colour rotation, ready to swap), `initTheme()`, `toggleTheme()`, `getTheme()`.

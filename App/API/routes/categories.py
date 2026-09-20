@@ -11,6 +11,7 @@ from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from extensions import app, limiter
+from rate_limits import RL_CATEGORY_WRITE, RL_READ_CATEGORIES
 from database import get_connection, release_connection
 from cache import CategoryCache
 from matching import patch_merchants_category_rename
@@ -20,7 +21,7 @@ import re
 
 @app.route('/categories', methods=['GET'])
 @jwt_required()
-@limiter.limit("100 per day")
+@limiter.limit(RL_READ_CATEGORIES)
 def get_categories():
     """Returns every user-facing category, in display order, with its
     colour - the live replacement for the old static CATEGORY_ORDER/
@@ -46,7 +47,7 @@ def get_categories():
 
 @app.route('/categories', methods=['PATCH'])
 @jwt_required()
-@limiter.limit("20 per day")
+@limiter.limit(RL_CATEGORY_WRITE)
 def update_category():
     """Renames a category and/or changes its colour.
 
@@ -146,7 +147,7 @@ def update_category():
 @app.route('/categories/combine', methods=['PATCH'])
 @jwt_required()
 @require_permission('categories.combine')
-@limiter.limit("20 per day")
+@limiter.limit(RL_CATEGORY_WRITE)
 def combine_categories():
     """Merges 2+ existing categories into one, under new_name.
 
@@ -246,7 +247,7 @@ def combine_categories():
 @app.route('/categories', methods=['DELETE'])
 @jwt_required()
 @require_permission('categories.delete')
-@limiter.limit("20 per day")
+@limiter.limit(RL_CATEGORY_WRITE)
 def delete_category():
     """Deletes a category entirely - admin-only, same reasoning as the
     other category endpoints.
@@ -303,7 +304,7 @@ def delete_category():
 @app.route('/categories', methods=['POST'])
 @jwt_required()
 @require_permission('categories.create')
-@limiter.limit("20 per day")
+@limiter.limit(RL_CATEGORY_WRITE)
 def create_category():
     """Adds a brand new category - admin-only, same reasoning as
     rename/combine/recolour: this is global, shared structure.
@@ -365,7 +366,7 @@ def create_category():
 @app.route('/categories/order', methods=['PATCH'])
 @jwt_required()
 @require_permission('categories.reorder')
-@limiter.limit("20 per day")
+@limiter.limit(RL_CATEGORY_WRITE)
 def reorder_categories():
     """Sets the global display_order for all categories. `names` must be
     a list containing every existing category name exactly once - no
@@ -431,7 +432,7 @@ def reorder_categories():
 @app.route('/categories/reset-defaults', methods=['POST'])
 @jwt_required()
 @require_permission('categories.recolor')
-@limiter.limit("20 per day")
+@limiter.limit(RL_CATEGORY_WRITE)
 def reset_category_defaults():
     """Resets color back to default_color, scoped to whichever category
     names are given - same scoping convention as update_category's
@@ -475,7 +476,7 @@ def reset_category_defaults():
 @app.route('/categories/default-color', methods=['PATCH'])
 @jwt_required()
 @require_permission('categories.set_default_color')
-@limiter.limit("20 per day")
+@limiter.limit(RL_CATEGORY_WRITE)
 def update_default_color():
     """Admin-only: redefines what a category's DEFAULT colour is - i.e.
     what "reset to defaults" resets TO - as distinct from update_category,
