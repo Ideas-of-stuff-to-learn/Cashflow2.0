@@ -157,11 +157,11 @@ textarea.paste-area:focus{border-color:var(--accent)}
 }
 .prev-tab:hover{color:var(--text)}
 .prev-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-.prev-content{flex:1;padding:16px;overflow-y:auto;background:var(--bg);display:flex;flex-direction:column}
-.prev-pane{flex:1;display:flex;flex-direction:column}
-.prev-pane .mock{flex:1;display:flex;flex-direction:column}
-.prev-pane .mock-body{flex:1}
-.prev-pane .mock-main{flex:1}
+.prev-content{flex:1;padding:12px;overflow:hidden;background:var(--bg)}
+.prev-pane{height:100%;overflow:hidden}
+.mock{height:100%;display:flex;flex-direction:column;overflow:hidden}
+.mock-body{flex:1;overflow:hidden}
+.mock-main{flex:1;overflow:hidden}
 
 /* ── Preview shells ────────────────────────────────────────────────────── */
 .mock{border-radius:10px;overflow:hidden;border:1px solid var(--border);font-size:13px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
@@ -263,11 +263,19 @@ textarea.paste-area:focus{border-color:var(--accent)}
       <button class="prev-tab active" onclick="switchPreview('dashboard',this)">Dashboard</button>
       <button class="prev-tab" onclick="switchPreview('charts',this)">Charts</button>
       <button class="prev-tab" onclick="switchPreview('login',this)">Login</button>
+      <button class="prev-tab" onclick="switchPreview('upload',this)">Upload</button>
+      <button class="prev-tab" onclick="switchPreview('review',this)">Review</button>
+      <button class="prev-tab" onclick="switchPreview('modals',this)">Modals</button>
+      <button class="prev-tab" onclick="switchPreview('states',this)">States</button>
     </div>
     <div class="prev-content">
       <div id="prev-dashboard" class="prev-pane"></div>
       <div id="prev-charts"    class="prev-pane" hidden></div>
       <div id="prev-login"     class="prev-pane" hidden></div>
+      <div id="prev-upload"    class="prev-pane" hidden></div>
+      <div id="prev-review"    class="prev-pane" hidden></div>
+      <div id="prev-modals"    class="prev-pane" hidden></div>
+      <div id="prev-states"    class="prev-pane" hidden></div>
     </div>
   </div>
 
@@ -687,6 +695,10 @@ function updatePreviews() {
   renderDashboard();
   renderCharts();
   renderLogin();
+  renderUpload();
+  renderReview();
+  renderModals();
+  renderStates();
 }
 
 function css(key) { return `var(${key})`; }
@@ -781,22 +793,20 @@ function renderCharts() {
     [380,170,140,250,130,95],
   ];
   const maxTotal = Math.max(...DATA.map(m => m.reduce((a,b)=>a+b,0)));
-  const CHART_H = 160; // px
+  const CHART_H = 140;
+  const BAR_W = 38; // px — thin bars like the real app
 
-  // Build each column as absolutely-positioned segments stacked from bottom
   const bars = MONTHS.map((mo, mi) => {
-    const total = DATA[mi].reduce((a,b)=>a+b,0);
-    const colH = (total / maxTotal) * CHART_H;
     let bottomPx = 0;
     const segs = DATA[mi].map((val, ci) => {
-      const segH = Math.round((val / maxTotal) * CHART_H);
-      const seg = `<div style="position:absolute;left:0;right:0;bottom:${bottomPx}px;height:${segH}px;background:${CHART_COLORS[ci]};${ci===DATA[mi].length-1?'border-radius:3px 3px 0 0':''}"></div>`;
+      const segH = Math.max(2, Math.round((val / maxTotal) * CHART_H));
+      const seg = `<div style="position:absolute;left:0;right:0;bottom:${bottomPx}px;height:${segH}px;background:${CHART_COLORS[ci]};${ci===DATA[mi].length-1?'border-radius:2px 2px 0 0':''}"></div>`;
       bottomPx += segH;
       return seg;
     }).join('');
-    return `<div style="display:flex;flex-direction:column;align-items:center;flex:1">
-      <div style="position:relative;width:100%;height:${CHART_H}px">${segs}</div>
-      <div style="font-size:9px;margin-top:4px;color:${get('--text-muted')};font-family:${bodyF}">${mo}</div>
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:0">
+      <div style="position:relative;width:${BAR_W}px;height:${CHART_H}px">${segs}</div>
+      <div style="font-size:9px;margin-top:5px;color:${get('--text-muted')};font-family:${bodyF};white-space:nowrap">${mo}</div>
     </div>`;
   }).join('');
 
@@ -815,10 +825,10 @@ function renderCharts() {
         <span class="mock-btn" style="background:transparent;color:${get('--text-muted')};font-size:10px;padding:3px 10px;border-radius:20px">Yearly</span>
       </div>
     </div>
-    <div style="background:${get('--bg-page')};padding:16px">
+    <div class="mock-body" style="background:${get('--bg-page')};padding:14px;overflow:hidden">
       <div class="mock-card" style="background:${get('--bg-surface')};border-color:${get('--border')}">
         <div class="chart-title" style="font-family:${headF};color:${get('--text-primary')}">Monthly Spending — Sep 2026</div>
-        <div style="display:flex;gap:8px;align-items:flex-end;padding-bottom:4px">${bars}</div>
+        <div style="display:flex;gap:16px;align-items:flex-end;padding:8px 0 4px;justify-content:center">${bars}</div>
         <div class="chart-legend">${legend}</div>
       </div>
       <div style="display:flex;gap:8px;margin-top:10px">
@@ -830,7 +840,7 @@ function renderCharts() {
           <div class="mct" style="color:${get('--text-muted')}">Transport</div>
           <div style="font-size:16px;font-weight:700;color:${CHART_COLORS[1]};font-family:${headF}">$170</div>
         </div>
-        <div class="mock-card" style="flex:1;background:${get('--bg-highlight')};border-color:${get('--border')}">
+        <div class="mock-card" style="flex:1;background:${get('--bg-highlight')};border-color:${get('--danger')}">
           <div class="mct" style="color:${get('--text-muted')}">Dining</div>
           <div style="font-size:16px;font-weight:700;color:${CHART_COLORS[2]};font-family:${headF}">$140</div>
         </div>
@@ -857,6 +867,172 @@ function renderLogin() {
       <div style="margin-top:12px;font-size:10px;color:${get('--text-faint')}">Protected by end-to-end encryption</div>
     </div>
   </div>`;
+}
+
+// ── Upload popup ───────────────────────────────────────────────────────────
+function renderUpload() {
+  const bodyF = get('--font-body'), headF = get('--font-heading'), hw = get('--font-weight-bold');
+  const cats = ['Groceries','Transport','Dining','Utilities','Entertainment'];
+  const chips = cats.map((c,i) => `<span style="display:inline-flex;align-items:center;gap:4px;background:${get('--bg-surface')};border:1px solid ${CHART_COLORS[i]};border-radius:20px;padding:3px 9px;font-size:10px;color:${get('--text-primary')};margin:2px">
+    <span style="width:7px;height:7px;border-radius:50%;background:${CHART_COLORS[i]};display:inline-block"></span>${c}</span>`).join('');
+  document.getElementById('prev-upload').innerHTML = `
+  <div class="mock" style="font-family:${bodyF}">
+    <div class="mock-header" style="background:${get('--bg-surface')};border-color:${get('--border')};color:${get('--text-primary')}">
+      <span style="font-family:${headF};font-weight:${hw};font-size:13px">Personal Spending Pattern Visualisation Tool</span>
+      <span class="mock-pill" style="background:${get('--primary')};color:#fff">Owner</span>
+    </div>
+    <div class="mock-body" style="background:${get('--bg-page')};position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden">
+      <div style="position:absolute;inset:0;background:${get('--overlay')};backdrop-filter:blur(2px)"></div>
+      <div style="position:relative;z-index:1;background:${get('--bg-surface')};border:1px solid ${get('--border')};border-radius:10px;padding:20px;width:340px;max-width:90%">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <span style="font-family:${headF};font-weight:${hw};font-size:14px;color:${get('--text-primary')}">Upload Bank Statements</span>
+          <span style="color:${get('--text-muted')};font-size:16px;cursor:pointer">✕</span>
+        </div>
+        <div style="border:2px dashed ${get('--border-medium')};border-radius:8px;padding:20px;text-align:center;margin-bottom:12px;background:${get('--bg-subtle')}">
+          <div style="font-size:22px;margin-bottom:6px">📄</div>
+          <div style="font-size:12px;color:${get('--text-muted')}">Drop CSV or Excel files here</div>
+          <div style="font-size:11px;color:${get('--text-faint')};margin-top:2px">or click to browse</div>
+        </div>
+        <div style="background:${get('--bg-header-row')};border-radius:6px;padding:10px;margin-bottom:12px;font-size:11px;color:${get('--text-secondary')}">
+          <div style="font-weight:600;margin-bottom:4px;color:${get('--text-primary')}">commbank_sept.csv</div>
+          <div>3,847 rows · Ready to categorise</div>
+        </div>
+        <div style="font-size:11px;color:${get('--text-muted')};margin-bottom:6px">Existing categories</div>
+        <div style="margin-bottom:14px">${chips}</div>
+        <button style="width:100%;background:${get('--primary')};color:#fff;border:none;border-radius:7px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:${headF}">Categorise</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Manual review modal ────────────────────────────────────────────────────
+function renderReview() {
+  const bodyF = get('--font-body'), headF = get('--font-heading'), hw = get('--font-weight-bold');
+  const reviewCats = ['Groceries','Transport','Dining','Utilities','Entertainment','Shopping','Healthcare','Subscriptions'];
+  const catBtns = reviewCats.map((c,i) =>
+    `<button style="background:${get('--bg-surface')};border:1px solid ${get('--border-medium')};border-radius:6px;padding:7px 10px;font-size:11px;cursor:pointer;text-align:left;color:${get('--text-primary')};font-family:${bodyF};display:flex;align-items:center;gap:6px">
+      <span style="width:8px;height:8px;border-radius:50%;background:${CHART_COLORS[i]||'#aaa'};display:inline-block;flex-shrink:0"></span>${c}</button>`
+  ).join('');
+  document.getElementById('prev-review').innerHTML = `
+  <div class="mock" style="font-family:${bodyF}">
+    <div class="mock-header" style="background:${get('--bg-surface')};border-color:${get('--border')};color:${get('--text-primary')}">
+      <span style="font-family:${headF};font-weight:${hw};font-size:13px">Manual Review</span>
+      <span style="font-size:11px;color:${get('--text-muted')}">12 remaining</span>
+    </div>
+    <div class="mock-body" style="background:${get('--bg-page')};position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden">
+      <div style="position:absolute;inset:0;background:${get('--overlay')}"></div>
+      <div style="position:relative;z-index:1;background:${get('--bg-surface')};border:1px solid ${get('--border')};border-radius:10px;padding:18px;width:360px;max-width:90%">
+        <div style="background:${get('--bg-subtle')};border-radius:7px;padding:10px 12px;margin-bottom:14px;border:1px solid ${get('--border')}">
+          <div style="font-size:10px;color:${get('--text-muted')};margin-bottom:2px">Transaction</div>
+          <div style="font-weight:600;font-size:13px;color:${get('--text-primary')}">WOOLWORTHS 0234 SYDNEY</div>
+          <div style="display:flex;justify-content:space-between;margin-top:4px">
+            <span style="font-size:11px;color:${get('--text-muted')}">15 Sep 2026</span>
+            <span style="font-size:13px;font-weight:700;color:${get('--danger')}">-$84.20</span>
+          </div>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:${get('--text-secondary')};margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">Select category</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px">${catBtns}</div>
+        <div style="display:flex;gap:8px">
+          <button style="flex:1;background:${get('--bg-subtle')};border:1px solid ${get('--border-medium')};border-radius:6px;padding:8px;font-size:12px;cursor:pointer;color:${get('--text-secondary')};font-family:${bodyF}">Skip</button>
+          <button style="flex:1;background:${get('--danger')};color:#fff;border:none;border-radius:6px;padding:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:${bodyF}">Exit Review</button>
+        </div>
+        <div style="margin-top:10px;background:${get('--bg-page')};border-radius:6px;overflow:hidden;height:5px">
+          <div style="height:100%;width:65%;background:${get('--primary')};border-radius:6px"></div>
+        </div>
+        <div style="font-size:10px;color:${get('--text-faint')};text-align:center;margin-top:4px">8 of 12 reviewed</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Modals (exit confirm + saving + logout confirm) ────────────────────────
+function renderModals() {
+  const bodyF = get('--font-body'), headF = get('--font-heading'), hw = get('--font-weight-bold');
+  document.getElementById('prev-modals').innerHTML = `
+  <div style="height:100%;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:10px;font-family:${bodyF}">
+
+    <!-- Exit confirm -->
+    <div style="background:${get('--bg-surface')};border:1px solid ${get('--border')};border-radius:10px;padding:16px;display:flex;flex-direction:column;justify-content:center">
+      <div style="font-size:11px;font-weight:700;color:${get('--text-muted')};text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Exit Review</div>
+      <div style="font-size:13px;font-weight:600;color:${get('--text-primary')};margin-bottom:6px">Exit manual review?</div>
+      <div style="font-size:11px;color:${get('--text-muted')};margin-bottom:14px">4 remaining transactions will be set to <em>Other</em>.</div>
+      <div style="display:flex;gap:8px">
+        <button style="flex:1;background:${get('--bg-subtle')};border:1px solid ${get('--border-medium')};border-radius:6px;padding:7px;font-size:11px;color:${get('--text-secondary')};cursor:pointer">Go back</button>
+        <button style="flex:1;background:${get('--danger')};color:#fff;border:none;border-radius:6px;padding:7px;font-size:11px;font-weight:700;cursor:pointer">Confirm exit</button>
+      </div>
+    </div>
+
+    <!-- Saving / spinner -->
+    <div style="background:${get('--bg-surface')};border:1px solid ${get('--border')};border-radius:10px;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">
+      <div style="width:32px;height:32px;border-radius:50%;border:3px solid ${get('--border-medium')};border-top-color:${get('--primary')};animation:spin 0.8s linear infinite"></div>
+      <div style="font-size:13px;font-weight:600;color:${get('--text-primary')}">Saving…</div>
+      <div style="font-size:11px;color:${get('--text-muted')}">Categorising 3,847 transactions</div>
+    </div>
+
+    <!-- Session expired -->
+    <div style="background:${get('--bg-surface')};border:1px solid ${get('--border')};border-radius:10px;padding:16px;display:flex;flex-direction:column;justify-content:center">
+      <div style="font-size:11px;font-weight:700;color:${get('--danger')};text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Session Expired</div>
+      <div style="font-size:13px;font-weight:600;color:${get('--text-primary')};margin-bottom:6px">You've been signed out</div>
+      <div style="font-size:11px;color:${get('--text-muted')};margin-bottom:14px">Your session timed out after 30 minutes of inactivity.</div>
+      <button style="background:${get('--primary')};color:#fff;border:none;border-radius:6px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:${bodyF}">Sign in again</button>
+    </div>
+
+    <!-- Save success -->
+    <div style="background:${get('--bg-surface')};border:1px solid ${get('--border')};border-radius:10px;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
+      <div style="width:36px;height:36px;border-radius:50%;background:${get('--success')};display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:700">✓</div>
+      <div style="font-size:13px;font-weight:600;color:${get('--text-primary')}">All done!</div>
+      <div style="font-size:11px;color:${get('--text-muted')};text-align:center">3,847 transactions categorised successfully</div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button style="background:${get('--bg-subtle')};border:1px solid ${get('--border-medium')};border-radius:6px;padding:6px 12px;font-size:11px;color:${get('--text-secondary')};cursor:pointer">View transactions</button>
+        <button style="background:${get('--primary')};color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer">Go to charts</button>
+      </div>
+    </div>
+  </div>
+  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>`;
+}
+
+// ── States (loading / boot / error / empty) ────────────────────────────────
+function renderStates() {
+  const bodyF = get('--font-body'), headF = get('--font-heading'), hw = get('--font-weight-bold');
+  document.getElementById('prev-states').innerHTML = `
+  <div style="height:100%;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:10px;font-family:${bodyF}">
+
+    <!-- Boot / wake up screen -->
+    <div style="background:${get('--bg-page')};border:1px solid ${get('--border')};border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">
+      <div style="font-family:${headF};font-weight:${hw};font-size:13px;color:${get('--primary')};letter-spacing:.08em">CASHFLOW</div>
+      <div style="font-size:10px;color:${get('--text-muted')}">Waking up server…</div>
+      <div style="width:120px;height:3px;background:${get('--border')};border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:45%;background:${get('--primary')};border-radius:3px;animation:shimmer 1.2s ease-in-out infinite"></div>
+      </div>
+      <div style="font-size:10px;color:${get('--text-faint')}">Free tier — may take ~30s</div>
+    </div>
+
+    <!-- Loading skeleton -->
+    <div style="background:${get('--bg-surface')};border:1px solid ${get('--border')};border-radius:10px;padding:14px">
+      <div style="height:10px;width:60%;background:${get('--bg-header-row')};border-radius:4px;margin-bottom:10px;animation:shimmer 1.2s ease-in-out infinite"></div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        ${[1,2,3].map(()=>`<div style="flex:1;height:50px;background:${get('--bg-header-row')};border-radius:6px;animation:shimmer 1.2s ease-in-out infinite"></div>`).join('')}
+      </div>
+      ${[1,2,3,4].map(()=>`<div style="height:8px;width:${80+Math.random()*15|0}%;background:${get('--bg-header-row')};border-radius:3px;margin-bottom:7px;animation:shimmer 1.2s ease-in-out infinite"></div>`).join('')}
+    </div>
+
+    <!-- Network error -->
+    <div style="background:${get('--bg-surface')};border:1px solid ${get('--border')};border-radius:10px;padding:16px;display:flex;flex-direction:column;justify-content:center">
+      <div style="font-size:11px;font-weight:700;color:${get('--danger')};text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Connection Error</div>
+      <div style="font-size:13px;font-weight:600;color:${get('--text-primary')};margin-bottom:4px">Couldn't reach the server</div>
+      <div style="font-size:11px;color:${get('--text-muted')};margin-bottom:14px">Check your internet connection and try again.</div>
+      <button style="background:${get('--primary')};color:#fff;border:none;border-radius:6px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:${bodyF}">Retry</button>
+    </div>
+
+    <!-- Empty state -->
+    <div style="background:${get('--bg-surface')};border:1px solid ${get('--border')};border-radius:10px;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center">
+      <div style="font-size:28px;margin-bottom:4px">📂</div>
+      <div style="font-size:13px;font-weight:600;color:${get('--text-primary')}">No transactions yet</div>
+      <div style="font-size:11px;color:${get('--text-muted')};max-width:200px">Upload a CSV or Excel file from your bank to get started.</div>
+      <button style="margin-top:8px;background:${get('--primary')};color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:${bodyF}">Upload files</button>
+    </div>
+  </div>
+  <style>@keyframes shimmer{0%,100%{opacity:1}50%{opacity:.4}}</style>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
