@@ -1,8 +1,20 @@
 # Cashflow2.0 — Handoff
 
-## Status (2026-09-17)
+## Status (2026-09-20)
 
 No active task. Clean main branch.
+
+## What Was Just Done
+
+**App title centralisation, header layout overhaul, filter pane, mobile polish (2026-09-20):**
+
+- **`App/WebUI/src/appTitle.js`** — new single-source constant `APP_TITLE = 'Personal Spending Pattern Visualisation Tool'`. All three previous hardcoded title strings replaced with this import (Layout.jsx, homepageInfo.jsx, LoginScreen.jsx). Change title by editing one line only.
+- **`Layout.jsx` — dynamic title font scaling** — ResizeObserver on the dashboard `<h1>` steps font-size down from CSS base (15px) by 0.5px until `scrollWidth <= offsetWidth`; floor 9px. Reads base from `getComputedStyle` so CSS is authoritative.
+- **`homepageInfo.jsx` — same ResizeObserver** applied to the mobile home title (CSS base 24px, floor 10px). `white-space: nowrap; overflow: hidden` added to `.title` class in `homePage.css`.
+- **`Layout.jsx` header — flex layout replacing CSS grid** — three explicit wrappers: `.app-header-left` (`flex: 0 1 auto`, shrinks to title content), `.app-header-center` (`flex: 1`, fills gap and centers buttons within it), `.app-header-right` (`flex: 0 0 auto; min-width: 80px`, always reserves badge space so centering is symmetric even when RoleBadge returns null). Result: center buttons always sit midway between title right-edge and badge left-edge, tracking the title as it scales.
+- **Mobile pills routing** — `(isDashboard || isCharts)` condition replaced with `(isDashboard || (isCharts && !isMobile) || (isHome && isMobile))`. User Information / Data Security now hidden on mobile `/charts`; added to mobile `/home`.
+- **Filter pane spacing** — header border-bottom removed; `.filter-pane-header` margin/padding halved; section margins reduced 6→3px; checkbox row padding 2→1px; section-title/hint margins 4→2px; pane gap 2→1px; pane padding 12→10px vertical. Base font bumped 13→14px so JS auto-scale lands higher.
+- **User Information popup mobile** — `max-height: calc(100vh - 32px); overflow-y: auto; scrollbar-width: none` + `::-webkit-scrollbar { display: none }` on `.info-modal`. Close button changed from `position: absolute` to `position: sticky; top: 0; float: right` so it stays visible while content scrolls. Same `max-height` + scroll applied to `.info-modal-footnote`.
 
 ## What Was Just Done
 

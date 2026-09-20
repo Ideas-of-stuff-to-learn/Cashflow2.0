@@ -42,8 +42,8 @@
 | [16](#16--full-automated-test-suite) | Full automated test suite | 🟢 P4 | 2–4 weeks | Very High |
 | [17](#17--owner-admin-page) | Owner admin page (CLI + SQL tools in UI) | 🟢 P4 | 2–3 days | Medium |
 | [18](#18--migrate-github-pages-deployment-to-private-repo--alternative-host) | Migrate GitHub Pages to private repo + new host | 🟢 P4 | 1–2 days | Medium |
-| [19](#19--filter-pane-no-scroll--fully-visible) | Filter pane: no scroll, always fully visible | 🟡 P3 | 0.5 day | Low |
-| [20](#20--rename-app-title-to-personal-spending-pattern-visualisation-tool) | Rename app title to "Personal Spending…" | 🟡 P3 | 0.5 day | Low |
+| [19](#19--filter-pane-no-scroll--fully-visible) | ~~Filter pane: no scroll, always fully visible~~ | 🟡 P3 | 0.5 day | Low |
+| [20](#20--rename-app-title-to-personal-spending-pattern-visualisation-tool) | ~~Rename app title to "Personal Spending…"~~ | 🟡 P3 | 0.5 day | Low |
 | [21](#21--auth-service-oauth--security-controls) | Auth service: OAuth providers + security controls | 🟠 P2 | 1–2 weeks | High |
 
 ---
@@ -409,9 +409,9 @@ Repo visibility settings · GitHub Pages config · `context/gitContext.md` · `c
 
 ---
 
-## 19 — Filter pane: no scroll, always fully visible
+## ~~19 — Filter pane: no scroll, always fully visible~~ ✅
 
-**Status:** `[ ]` &nbsp;·&nbsp; **Priority:** 🟡 P3 &nbsp;·&nbsp; **Effort:** 0.5 day &nbsp;·&nbsp; **Complexity:** Low
+**Status:** `[x]` Done — 2026-09-20 &nbsp;·&nbsp; **Priority:** 🟡 P3 &nbsp;·&nbsp; **Effort:** 0.5 day &nbsp;·&nbsp; **Complexity:** Low
 
 The filter pane currently has `overflow-y: auto` and `.filter-pane-scroll-list` is capped at `max-height: 280px`, which means when there are many categories the list scrolls internally. The goal is to remove all scrolling from the pane — it should always show every category at once and still bottom-align with the action buttons column, with zero page scroll.
 
@@ -426,9 +426,9 @@ The filter pane currently has `overflow-y: auto` and `.filter-pane-scroll-list` 
 
 ---
 
-## 20 — Rename app title to "Personal Spending Pattern Visualisation Tool"
+## ~~20 — Rename app title to "Personal Spending Pattern Visualisation Tool"~~ ✅
 
-**Status:** `[ ]` &nbsp;·&nbsp; **Priority:** 🟡 P3 &nbsp;·&nbsp; **Effort:** 0.5 day &nbsp;·&nbsp; **Complexity:** Low
+**Status:** `[x]` Done — 2026-09-20 &nbsp;·&nbsp; **Priority:** 🟡 P3 &nbsp;·&nbsp; **Effort:** 0.5 day &nbsp;·&nbsp; **Complexity:** Low
 
 The login screen and browser tab currently show "Transaction Categorizer" / "Spending Pattern Visualisation Tool". Adding "Personal" before the title better describes the single-user, personal-finance nature of the product.
 

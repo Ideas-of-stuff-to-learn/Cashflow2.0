@@ -4,6 +4,7 @@ import { login, getMe } from '../api';
 import { useAuth } from '../appState';
 import '../styles/LoginScreen.css'
 import { POST_LOGIN_ROUTE } from '../config/routes';
+import { APP_TITLE } from '../appTitle';
 
 // Progress bar easing: returns a % target given elapsed seconds.
 // Deliberately slows near the top — bar sits at ~93% until getMe() responds.
@@ -172,7 +173,7 @@ export default function LoginScreen() {
     if (checkingStoredSession) {
         return (
             <div className="login-container">
-                <h1 className="login-title">Spending Pattern Visualisation Tool</h1>
+                <h1 className="login-title">{APP_TITLE}</h1>
                 {error ? (
                     <>
                         <p className="login-error" style={{ textAlign: 'center', marginTop: 24 }}>{error}</p>

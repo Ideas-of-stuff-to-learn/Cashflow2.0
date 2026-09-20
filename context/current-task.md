@@ -1,8 +1,20 @@
 # Cashflow2.0 — Current Task
 
-## Status (2026-09-17)
+## Status (2026-09-20)
 
 No active task. Clean main branch.
+
+## Recently Completed
+
+**App title, header layout, filter pane, mobile polish (2026-09-20):**
+- `appTitle.js` — single source of truth for app title; all three occurrences updated to import from it
+- Dashboard header title: ResizeObserver steps font from CSS base down to 9px floor to prevent wrapping
+- Mobile home title: same ResizeObserver, base 24px, floor 10px
+- Header changed from 3-column CSS grid to flex with explicit left/center/right wrappers; center always midway between title edge and badge edge; min-width: 80px on right reserves badge space even when RoleBadge returns null
+- Mobile pills (User Information / Data Security) now hidden on `/charts`, shown on `/home`
+- Filter pane: header divider removed, all spacing tightened, base font 13→14px
+- User Information popup: max-height + invisible scroll + sticky close button for mobile
+- Tasks 19 and 20 marked done in backlog.md
 
 ## Recently Completed
 

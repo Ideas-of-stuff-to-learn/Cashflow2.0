@@ -1,15 +1,15 @@
 .filter-pane {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
     background: #F8F9FA;
     border: 1px solid #eee;
     border-radius: 8px;
-    padding: 12px;
+    padding: 10px 12px;
     width: 220px;
     flex-shrink: 0;
     overflow: hidden;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .filter-pane-collapsed {
@@ -21,9 +21,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #ddd;
+    margin-bottom: 4px;
+    padding-bottom: 0;
 }
 
 .filter-pane-collapsed .filter-pane-header {
@@ -58,8 +57,8 @@
 }
 
 .filter-pane-section {
-    margin-bottom: 6px;
-    padding-bottom: 6px;
+    margin-bottom: 3px;
+    padding-bottom: 3px;
     border-bottom: 1px solid #eee;
     display: flex;
     flex-direction: column;
@@ -76,27 +75,27 @@
 }
 
 /* Font sizes inside are em-relative — JS on the pane root steps font-size
-   down from 13px until scrollHeight <= clientHeight, so all items fit
+   down from 14px until scrollHeight <= clientHeight, so all items fit
    without scrolling regardless of how many categories there are. */
 
 .filter-pane-section-title {
     font-size: 1em;
     font-weight: 600;
     color: #333;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .filter-pane-hint {
     font-size: 0.9em;
     color: #888;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .filter-pane-checkbox-row {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 2px 0;
+    padding: 1px 0;
     font-size: 1em;
     color: #333;
     cursor: pointer;

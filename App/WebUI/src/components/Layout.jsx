@@ -1,6 +1,7 @@
 // components/Layout.jsx
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { APP_TITLE } from '../appTitle';
 import RoleBadge from './RoleBadge';
 import ChartFootnote from './charts/ChartFootnote';
 import { useIsMobile } from '../customHooks/useIsMobile';
@@ -47,40 +48,63 @@ export default function Layout() {
     const isContents = location.pathname === '/contents';
     const isCharts = location.pathname === '/charts';
     const isDashboard = location.pathname === '/dashboard';
+    const isHome = location.pathname === '/home';
     const [showInfo, setShowInfo] = useState(false);
     const [showFootnote, setShowFootnote] = useState(false);
+    const titleRef = useRef(null);
+
+    useEffect(() => {
+        const el = titleRef.current;
+        if (!el) return;
+        const fit = () => {
+            el.style.fontSize = '';
+            const base = parseFloat(getComputedStyle(el).fontSize);
+            let size = base;
+            while (el.scrollWidth > el.offsetWidth && size > 9) {
+                size -= 0.5;
+                el.style.fontSize = `${size}px`;
+            }
+        };
+        fit();
+        const ro = new ResizeObserver(fit);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
 
     return (
         <div className={`app-shell${isDashboard ? ' app-shell-locked' : ''}`}>
             <header className="app-header">
-                {/* col 1: back button / title / spacer */}
-                {isDashboard
-                    ? <h1 className="title app-header-title">Spending Pattern Visualisation Tool</h1>
-                    : isContents
-                        ? <button className="app-header-back-btn" onClick={() => navigate(isMobile ? '/home' : '/dashboard')}>
-                            {isMobile ? '← Home' : '← Dashboard'}
-                          </button>
-                        : (isCharts && isMobile)
-                            ? <button className="app-header-back-btn" onClick={() => navigate('/home')}>
-                                ← Home
+                <div className="app-header-left">
+                    {isDashboard
+                        ? <h1 className="title app-header-title" ref={titleRef}>{APP_TITLE}</h1>
+                        : isContents
+                            ? <button className="app-header-back-btn" onClick={() => navigate(isMobile ? '/home' : '/dashboard')}>
+                                {isMobile ? '← Home' : '← Dashboard'}
                               </button>
-                            : <div />
-                }
-                {/* col 2: center title (always present so col 3 stays right) */}
-                {isContents
-                    ? <span className="app-header-page-title">
-                        Transactions
-                        <button className="info-icon-btn" onClick={() => setShowInfo(true)} title="About this page">ℹ</button>
-                      </span>
-                    : (isDashboard || isCharts)
-                        ? <span className="header-pill-group">
-                            <button className="info-btn-footnote" onClick={() => setShowFootnote(true)} title="About this tool">User Information</button>
-                            <button className="info-btn-footnote info-btn-security" onClick={() => navigate('/data-security')} title="Data security">🔒 Data Security</button>
+                            : (isCharts && isMobile)
+                                ? <button className="app-header-back-btn" onClick={() => navigate('/home')}>
+                                    ← Home
+                                  </button>
+                                : null
+                    }
+                </div>
+                <div className="app-header-center">
+                    {isContents
+                        ? <span className="app-header-page-title">
+                            Transactions
+                            <button className="info-icon-btn" onClick={() => setShowInfo(true)} title="About this page">ℹ</button>
                           </span>
-                        : <div />
-                }
-                {/* col 3: always right */}
-                <RoleBadge />
+                        : (isDashboard || (isCharts && !isMobile) || (isHome && isMobile))
+                            ? <span className="header-pill-group">
+                                <button className="info-btn-footnote" onClick={() => setShowFootnote(true)} title="About this tool">User Information</button>
+                                <button className="info-btn-footnote info-btn-security" onClick={() => navigate('/data-security')} title="Data security">🔒 Data Security</button>
+                              </span>
+                            : null
+                    }
+                </div>
+                <div className="app-header-right">
+                    <RoleBadge />
+                </div>
             </header>
             <div className="app-content">
                 <Outlet />
