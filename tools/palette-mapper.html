@@ -8,632 +8,839 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@700&family=Inter+Tight:wght@400;500&display=swap" rel="stylesheet" />
 <style>
+/* ── Tool chrome ───────────────────────────────────────────────────────── */
 :root {
-  --bg:           #f5f5f3;
-  --surface:      #ffffff;
-  --surface2:     #f0f0ee;
-  --border:       #e0e0dc;
-  --text:         #1a1a1a;
-  --text2:        #777;
-  --accent:       #2E5C8A;
-  --accent-light: #ebf2f9;
-  --success:      #3D8B5F;
-  --mono: 'JetBrains Mono', 'Fira Mono', monospace;
+  --bg:      #f4f4f2; --surface: #ffffff; --surface2: #efefed;
+  --border:  #e0e0db; --text:    #1a1a1a; --text2:    #777;
+  --accent:  #2E5C8A; --success: #3D8B5F; --danger:   #C0392B;
+  --mono: 'JetBrains Mono','Fira Mono',monospace;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #161616; --surface: #202020; --surface2: #2a2a2a;
-    --border: #333; --text: #e8e8e8; --text2: #888;
-    --accent: #4a85be; --accent-light: #1a2d3e;
-  }
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#161616;--surface:#202020;--surface2:#2a2a2a;--border:#333;
+  --text:#e8e8e8;--text2:#888;--accent:#4a85be;
+}}
+:root[data-theme="dark"]{
+  --bg:#161616;--surface:#202020;--surface2:#2a2a2a;--border:#333;
+  --text:#e8e8e8;--text2:#888;--accent:#4a85be;
 }
-:root[data-theme="dark"] {
-  --bg: #161616; --surface: #202020; --surface2: #2a2a2a;
-  --border: #333; --text: #e8e8e8; --text2: #888;
-  --accent: #4a85be; --accent-light: #1a2d3e;
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'Inter Tight',system-ui,sans-serif;font-size:14px;
+  background:var(--bg);color:var(--text);
+  padding:0 0 60px;
 }
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 100%; }
-body {
-  font-family: 'Inter Tight', system-ui, sans-serif;
-  font-size: 0.9375rem;
-  background: var(--bg);
-  color: var(--text);
-  padding: 24px 16px 56px;
-  max-width: 960px;
-  margin: 0 auto;
-}
-h1 { font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 1.25rem; margin-bottom: 3px; }
-h2 { font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 0.7rem; text-transform: uppercase; letter-spacing: .07em; color: var(--text2); margin-bottom: 14px; }
-.subtitle { font-size: 0.85rem; color: var(--text2); margin-bottom: 28px; }
-.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
-.panel-row { display: flex; gap: 16px; flex-wrap: wrap; }
 
-/* ── Paste area ── */
-.paste-area {
-  width: 100%; min-height: 130px; resize: vertical;
-  font-family: var(--mono); font-size: 12px; line-height: 1.6;
-  background: var(--surface2); color: var(--text);
-  border: 1px solid var(--border); border-radius: 7px;
-  padding: 12px; outline: none;
+/* ── Save bar ──────────────────────────────────────────────────────────── */
+#saveBar{
+  position:sticky;top:0;z-index:200;
+  display:flex;align-items:center;gap:12px;
+  background:#1a2d3e;color:#e8f0f8;
+  padding:10px 20px;border-bottom:2px solid #2E5C8A;
+  transform:translateY(-100%);transition:transform .2s ease;
 }
-.paste-area:focus { border-color: var(--accent); }
-.parse-status { font-size: 12px; margin-top: 8px; min-height: 18px; color: var(--text2); }
-.parse-status.ok  { color: var(--success); }
-.parse-status.err { color: #D94F4F; }
-
-/* ── Colour roles ── */
-.role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-@media (min-width: 560px) { .role-grid { grid-template-columns: repeat(3,1fr); } }
-@media (min-width: 800px) { .role-grid { grid-template-columns: repeat(5,1fr); } }
-.role-item label { display: block; font-size: 10px; font-weight: 500; color: var(--text2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .05em; }
-.swatch-row { display: flex; align-items: center; gap: 6px; }
-.swatch-row input[type="color"] { width: 34px; height: 30px; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; padding: 2px; background: none; }
-.swatch-row input[type="text"] {
-  flex: 1; font-family: var(--mono); font-size: 11px;
-  border: 1px solid var(--border); border-radius: 5px;
-  padding: 5px 7px; background: var(--surface2); color: var(--text); outline: none;
+#saveBar.visible{transform:translateY(0)}
+#saveBar .change-label{flex:1;font-size:13px;font-weight:500}
+#saveBar .btn-save{
+  background:#2E5C8A;color:#fff;border:none;border-radius:6px;
+  padding:7px 18px;font-size:13px;font-weight:700;cursor:pointer;
 }
-.swatch-row input[type="text"]:focus { border-color: var(--accent); }
-
-/* ── Font summary ── */
-.font-summary { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 4px; }
-.font-pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
-.font-pill .fp-label { color: var(--text2); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
-
-/* ── Preview ── */
-.preview-shell { border-radius: 8px; overflow: hidden; border: 1px solid var(--border); font-size: 13px; }
-.preview-header { display: flex; align-items: center; justify-content: space-between; padding: 9px 14px; font-weight: 600; font-size: 13px; }
-.preview-header .pill { font-size: 10px; font-weight: 700; border-radius: 20px; padding: 3px 10px; }
-.preview-body { display: flex; min-height: 190px; }
-.preview-sidebar { width: 130px; flex-shrink: 0; padding: 10px; border-right: 1px solid; }
-.preview-sidebar .item { padding: 5px 7px; border-radius: 5px; margin-bottom: 2px; font-size: 11px; }
-.preview-main { flex: 1; padding: 10px 14px; }
-.preview-cards { display: flex; gap: 8px; margin-bottom: 8px; }
-.preview-card { flex: 1; border-radius: 6px; padding: 10px 12px; border: 1px solid; }
-.preview-card .ct { font-size: 10px; color: #888; margin-bottom: 2px; }
-.preview-card .cv { font-size: 20px; font-weight: 700; }
-.preview-table-row { display: flex; border-bottom: 1px solid; padding: 5px 0; font-size: 11px; }
-.preview-table-row span { flex: 1; }
-.preview-table-row .amt { text-align: right; font-weight: 500; }
-.preview-btns { display: flex; gap: 8px; margin-top: 10px; }
-.preview-btn { padding: 6px 14px; border-radius: 5px; font-size: 11px; font-weight: 600; }
-.preview-input { border: 1px solid; border-radius: 5px; padding: 5px 9px; font-size: 11px; width: 100%; margin-top: 8px; outline: none; }
-.chart-bars { display: flex; align-items: flex-end; gap: 5px; height: 70px; margin-top: 10px; }
-.chart-bar { flex: 1; border-radius: 3px 3px 0 0; }
-
-/* ── Output ── */
-.output-area {
-  font-family: var(--mono); font-size: 11.5px; line-height: 1.7;
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 8px; padding: 16px; white-space: pre; overflow-x: auto; color: var(--text);
+#saveBar .btn-save:hover{background:#245075}
+#saveBar .btn-discard{
+  background:transparent;color:#aac;border:1px solid #446;
+  border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;
 }
-.btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-.btn {
-  padding: 8px 18px; border: none; border-radius: 6px;
-  font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .15s;
+#saveBar .file-badge{
+  font-size:11px;color:#7a9;background:rgba(61,139,95,.15);
+  border:1px solid rgba(61,139,95,.3);border-radius:4px;padding:2px 8px;
 }
-.btn:hover { opacity: .85; }
-.btn-primary  { background: var(--accent); color: #fff; }
-.btn-success  { background: var(--success); color: #fff; }
-.btn.active   { background: var(--success); color: #fff; }
-.btn-outline  { background: transparent; border: 1px solid var(--border); color: var(--text); }
-.write-status { font-size: 12px; color: var(--text2); margin-top: 8px; min-height: 18px; }
-.write-status.ok  { color: var(--success); }
-.write-status.err { color: #D94F4F; }
-.tip { font-size: 11.5px; color: var(--text2); margin-top: 8px; line-height: 1.55; }
-code { font-family: var(--mono); font-size: .9em; background: var(--surface2); padding: 1px 4px; border-radius: 3px; }
+
+/* ── Page layout ───────────────────────────────────────────────────────── */
+.page-header{padding:20px 20px 0;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.page-header h1{font-family:'Inter',system-ui,sans-serif;font-weight:700;font-size:18px}
+.page-header .sub{font-size:12px;color:var(--text2)}
+.main-cols{display:grid;grid-template-columns:340px 1fr;gap:0;min-height:calc(100vh - 60px)}
+@media(max-width:900px){.main-cols{grid-template-columns:1fr;}}
+
+/* ── Left panel ────────────────────────────────────────────────────────── */
+.left-panel{border-right:1px solid var(--border);overflow-y:auto;max-height:calc(100vh - 40px);position:sticky;top:40px}
+.load-strip{
+  display:flex;align-items:center;gap:8px;padding:12px 16px;
+  border-bottom:1px solid var(--border);background:var(--surface2);
+}
+.btn-load{
+  background:var(--accent);color:#fff;border:none;border-radius:6px;
+  padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;
+}
+.btn-load:hover{opacity:.85}
+.file-name{font-size:11px;color:var(--text2);font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+
+/* Section tabs */
+.sec-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface)}
+.sec-tab{
+  flex:1;padding:9px 4px;font-size:11px;font-weight:600;text-align:center;
+  border:none;background:transparent;color:var(--text2);cursor:pointer;
+  border-bottom:2px solid transparent;transition:color .15s,border-color .15s;
+}
+.sec-tab:hover{color:var(--text)}
+.sec-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.sec-tab .dot{
+  display:inline-block;width:5px;height:5px;border-radius:50%;
+  background:transparent;margin-left:4px;vertical-align:middle;
+  transition:background .15s;
+}
+.sec-tab.dirty .dot{background:#E07A3E}
+
+/* Token rows */
+.sec-body{padding:6px 0}
+.token-row{
+  display:flex;align-items:center;gap:8px;
+  padding:5px 14px;border-bottom:1px solid var(--border);
+  transition:background .1s;
+}
+.token-row:hover{background:var(--surface2)}
+.token-row.modified{background:rgba(224,122,62,.07)}
+.token-key{font-family:var(--mono);font-size:10px;color:var(--text2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.token-row.modified .token-key{color:#C4722A;font-weight:600}
+.token-val-color{display:flex;align-items:center;gap:5px}
+input[type="color"]{width:28px;height:26px;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:1px;background:none}
+input.hex-input{
+  font-family:var(--mono);font-size:11px;width:72px;
+  border:1px solid var(--border);border-radius:4px;
+  padding:4px 6px;background:var(--surface2);color:var(--text);outline:none;
+}
+input.hex-input:focus{border-color:var(--accent)}
+input.str-input{
+  font-size:11px;flex:1;min-width:80px;
+  border:1px solid var(--border);border-radius:4px;
+  padding:4px 7px;background:var(--surface2);color:var(--text);outline:none;
+}
+input.str-input:focus{border-color:var(--accent)}
+.reset-dot{
+  width:14px;height:14px;border-radius:50%;cursor:pointer;
+  background:#E07A3E;border:none;flex-shrink:0;
+  display:none;transition:transform .15s;
+}
+.reset-dot:hover{transform:scale(1.2)}
+.token-row.modified .reset-dot{display:block}
+
+/* Paste section */
+.paste-panel{border-top:1px solid var(--border)}
+.paste-toggle{
+  width:100%;text-align:left;padding:9px 14px;background:var(--surface2);
+  border:none;border-bottom:1px solid var(--border);font-size:12px;
+  color:var(--text2);cursor:pointer;
+}
+.paste-toggle:hover{color:var(--text)}
+.paste-body{padding:10px 14px;display:none}
+.paste-body.open{display:block}
+textarea.paste-area{
+  width:100%;min-height:110px;resize:vertical;font-family:var(--mono);
+  font-size:11px;line-height:1.5;background:var(--surface2);color:var(--text);
+  border:1px solid var(--border);border-radius:6px;padding:10px;outline:none;
+}
+textarea.paste-area:focus{border-color:var(--accent)}
+.parse-status{font-size:11px;margin-top:6px;color:var(--text2);min-height:16px}
+.parse-status.ok{color:var(--success)}
+.parse-status.err{color:var(--danger)}
+
+/* ── Right panel ───────────────────────────────────────────────────────── */
+.right-panel{display:flex;flex-direction:column}
+.prev-tabs{
+  display:flex;border-bottom:1px solid var(--border);
+  background:var(--surface);flex-shrink:0;
+}
+.prev-tab{
+  padding:10px 18px;font-size:12px;font-weight:600;
+  border:none;background:transparent;color:var(--text2);cursor:pointer;
+  border-bottom:2px solid transparent;transition:color .15s,border-color .15s;
+}
+.prev-tab:hover{color:var(--text)}
+.prev-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.prev-content{flex:1;padding:16px;overflow-y:auto;background:var(--bg)}
+
+/* ── Preview shells ────────────────────────────────────────────────────── */
+.mock{border-radius:10px;overflow:hidden;border:1px solid var(--border);font-size:13px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+
+/* Dashboard mock */
+.mock-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;font-weight:600;font-size:13px;border-bottom:1px solid}
+.mock-pill{font-size:10px;font-weight:700;border-radius:20px;padding:3px 10px}
+.mock-body{display:flex;min-height:220px}
+.mock-sidebar{width:130px;flex-shrink:0;padding:10px;border-right:1px solid}
+.mock-nav-item{padding:6px 8px;border-radius:5px;margin-bottom:2px;font-size:11px;cursor:default}
+.mock-main{flex:1;padding:12px 14px}
+.mock-cards{display:flex;gap:8px;margin-bottom:10px}
+.mock-card{flex:1;border-radius:6px;padding:10px 12px;border:1px solid}
+.mock-card .mct{font-size:10px;color:#999;margin-bottom:3px}
+.mock-card .mcv{font-size:22px;font-weight:700}
+.mock-trow{display:flex;border-bottom:1px solid;padding:5px 0;font-size:11px}
+.mock-trow span{flex:1}
+.mock-trow .ma{text-align:right;font-weight:500}
+.mock-btns{display:flex;gap:8px;margin-top:10px}
+.mock-btn{padding:6px 14px;border-radius:5px;font-size:11px;font-weight:600}
+.mock-input{border:1px solid;border-radius:5px;padding:5px 9px;font-size:11px;width:100%;margin-top:8px;outline:none}
+
+/* Charts mock */
+.mock-chart-area{padding:16px}
+.chart-title{font-family:'Inter',system-ui,sans-serif;font-weight:700;font-size:14px;margin-bottom:12px}
+.stacked-chart{display:flex;align-items:flex-end;gap:10px;height:180px;padding-bottom:24px;position:relative}
+.stacked-col{display:flex;flex-direction:column-reverse;flex:1;height:100%;gap:1px}
+.stacked-col-wrap{display:flex;flex-direction:column;align-items:center;flex:1}
+.stacked-bar-seg{width:100%;border-radius:0}
+.stacked-bar-seg:last-child{border-radius:3px 3px 0 0}
+.col-label{font-size:9px;margin-top:4px;text-align:center}
+.chart-legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.legend-item{display:flex;align-items:center;gap:4px;font-size:10px}
+.legend-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+
+/* Login mock */
+.mock-login{display:flex;align-items:center;justify-content:center;min-height:240px;padding:24px}
+.login-card{width:100%;max-width:300px;border-radius:10px;padding:24px;border:1px solid;text-align:center}
+.login-logo{font-size:11px;font-weight:700;margin-bottom:16px;letter-spacing:.05em}
+.login-title{font-family:'Inter',system-ui,sans-serif;font-weight:700;font-size:15px;margin-bottom:4px}
+.login-sub{font-size:11px;color:#888;margin-bottom:16px}
+.login-input{
+  width:100%;border:1px solid;border-radius:6px;
+  padding:8px 10px;font-size:12px;margin-bottom:8px;outline:none;
+  background:transparent;color:inherit;
+}
+.login-btn{
+  width:100%;border:none;border-radius:6px;
+  padding:9px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;
+}
 </style>
 </head>
 <body>
 
-<h1>Palette Mapper</h1>
-<p class="subtitle">Paste a CSS block from realtimecolors (or any palette tool) → live preview → write directly to <code>theme.css</code>.</p>
-
-<!-- ── Step 1: Paste CSS ── -->
-<div class="panel">
-  <h2>Step 1 — Paste CSS from realtimecolors</h2>
-  <textarea class="paste-area" id="pasteArea" placeholder="Paste the exported CSS block here — @import, body {}, h1-h5 {}, font-size rules…&#10;&#10;Colour tokens will be picked up automatically if you also include :root { --primary: … } style blocks.&#10;&#10;Leave blank to use the colour pickers below only."></textarea>
-  <div class="parse-status" id="parseStatus">Waiting for input…</div>
-  <div class="font-summary" id="fontSummary" style="margin-top:10px"></div>
+<!-- ── Sticky save bar ──────────────────────────────────────────────────── -->
+<div id="saveBar">
+  <span class="change-label" id="changeLabel">0 changes</span>
+  <span class="file-badge" id="fileBadge" hidden></span>
+  <button class="btn-discard" onclick="discardAll()">Discard</button>
+  <button class="btn-save" onclick="saveToFile()">Save to theme.css</button>
 </div>
 
-<!-- ── Step 2: Colour roles ── -->
-<div class="panel">
-  <h2>Step 2 — Colour Roles</h2>
-  <div class="role-grid" id="roleGrid"></div>
-  <p class="tip" style="margin-top:10px">If your palette CSS includes colour variables these fill automatically. Otherwise paste hex codes directly.</p>
+<!-- ── Page header ─────────────────────────────────────────────────────── -->
+<div class="page-header">
+  <h1>Palette Mapper</h1>
+  <span class="sub">Edit tokens → preview updates live → save writes directly to theme.css</span>
 </div>
 
-<!-- ── Preview ── -->
-<div class="panel">
-  <h2>Live Preview</h2>
-  <div class="preview-shell" id="previewShell">
-    <div class="preview-header" id="ph">
-      <span id="phTitle">Personal Spending Pattern Visualisation Tool</span>
-      <span class="pill" id="pilOwner">Owner</span>
+<!-- ── Two-column layout ────────────────────────────────────────────────── -->
+<div class="main-cols">
+
+  <!-- LEFT: token editor -->
+  <div class="left-panel">
+
+    <!-- Load file strip -->
+    <div class="load-strip">
+      <button class="btn-load" onclick="loadFile()">Open theme.css</button>
+      <span class="file-name" id="loadedFileName">No file loaded — or paste CSS below</span>
     </div>
-    <div class="preview-body">
-      <div class="preview-sidebar" id="ps">
-        <div class="item" id="siActive">Dashboard</div>
-        <div class="item" id="siN1">Transactions</div>
-        <div class="item" id="siN2">Charts</div>
-        <div class="item" id="siN3">Settings</div>
-      </div>
-      <div class="preview-main" id="pm">
-        <div class="preview-cards">
-          <div class="preview-card" id="card1"><div class="ct">Total Spend</div><div class="cv" id="cv1">$4,821</div></div>
-          <div class="preview-card" id="card2"><div class="ct">Categories</div><div class="cv" id="cv2">14</div></div>
-        </div>
-        <div class="preview-card" id="card3" style="margin-bottom:0">
-          <div style="font-weight:600;font-size:12px;margin-bottom:6px">Transactions</div>
-          <div class="preview-table-row" id="tr1"><span>Date</span><span>Description</span><span class="amt">Amount</span></div>
-          <div class="preview-table-row" id="tr2"><span>15 Sep</span><span>Woolworths</span><span class="amt">-$84.20</span></div>
-          <div class="preview-table-row" id="tr3"><span>14 Sep</span><span>Netflix</span><span class="amt">-$19.99</span></div>
-        </div>
-        <div class="preview-btns">
-          <span class="preview-btn" id="btnP">Categorise</span>
-          <span class="preview-btn" id="btnD">Delete</span>
-        </div>
-        <input class="preview-input" id="prevInput" placeholder="Search transactions…" readonly />
-        <div class="chart-bars" id="chartBars"></div>
+
+    <!-- Section tabs -->
+    <div class="sec-tabs" id="secTabs"></div>
+    <div id="secBody" class="sec-body"></div>
+
+    <!-- Paste override -->
+    <div class="paste-panel">
+      <button class="paste-toggle" onclick="togglePaste(this)">▸ Paste CSS from realtimecolors / other tool</button>
+      <div class="paste-body" id="pasteBody">
+        <textarea class="paste-area" id="pasteArea" placeholder="Paste exported CSS — @import, body {}, h1-h5 {}, :root { --var: value } …&#10;Values override the token editor above."></textarea>
+        <div class="parse-status" id="parseStatus">Waiting…</div>
       </div>
     </div>
-  </div>
-</div>
 
-<!-- ── Output ── -->
-<div class="panel">
-  <h2>Generated theme.css block</h2>
-  <div class="output-area" id="outputBlock"></div>
-  <div class="btn-row">
-    <button class="btn btn-primary" onclick="copyOutput()" id="copyBtn">Copy to clipboard</button>
-    <button class="btn btn-success" onclick="writeToFile()" id="writeBtn">Write to theme.css…</button>
   </div>
-  <div class="write-status" id="writeStatus"></div>
-  <p class="tip">
-    <b>Write to theme.css</b> — click, navigate to <code>App/WebUI/src/styles/theme.css</code>, confirm.
-    The tool reads your current file, replaces only the colour and typography tokens, and saves it back.
-    Everything else (dark mode block, footnote tokens, overlays) is preserved.
-  </p>
+
+  <!-- RIGHT: preview -->
+  <div class="right-panel">
+    <div class="prev-tabs" id="prevTabs">
+      <button class="prev-tab active" onclick="switchPreview('dashboard',this)">Dashboard</button>
+      <button class="prev-tab" onclick="switchPreview('charts',this)">Charts</button>
+      <button class="prev-tab" onclick="switchPreview('login',this)">Login</button>
+    </div>
+    <div class="prev-content">
+      <div id="prev-dashboard" class="prev-pane"></div>
+      <div id="prev-charts"    class="prev-pane" hidden></div>
+      <div id="prev-login"     class="prev-pane" hidden></div>
+    </div>
+  </div>
+
 </div>
 
 <script>
-// ── State ──────────────────────────────────────────────────────────────────
-const CHART_COLS = ['#2E5C8A','#E07A3E','#3D8B5F','#9B3D8A','#C4A227','#D94F4F','#4FA8D9'];
-
-const ROLES = [
-  { key:'primary',     label:'Primary',      default:'#2E5C8A' },
-  { key:'danger',      label:'Danger',       default:'#D94F4F' },
-  { key:'success',     label:'Success',      default:'#3D8B5F' },
-  { key:'bgPage',      label:'Page Bg',      default:'#ffffff' },
-  { key:'bgSurface',   label:'Surface',      default:'#F8F9FA' },
-  { key:'bgInput',     label:'Input Bg',     default:'#f7f7f7' },
-  { key:'textPrimary', label:'Text Primary', default:'#1a1a1a' },
-  { key:'textMuted',   label:'Text Muted',   default:'#888888' },
-  { key:'border',      label:'Border Light', default:'#eeeeee' },
-  { key:'borderMed',   label:'Border Med',   default:'#dddddd' },
+// ═══════════════════════════════════════════════════════════════════════════
+// SCHEMA — all editable tokens grouped by section
+// ═══════════════════════════════════════════════════════════════════════════
+const SECTIONS = [
+  { id:'typography', label:'Type', tokens:[
+    { key:'--font-body',          type:'str',   label:'Body font',      default:"'Inter Tight', system-ui, -apple-system, sans-serif" },
+    { key:'--font-heading',       type:'str',   label:'Heading font',   default:"'Inter', system-ui, -apple-system, sans-serif" },
+    { key:'--font-size-base',     type:'str',   label:'Base size',      default:'1rem' },
+    { key:'--font-size-h1',       type:'str',   label:'h1',             default:'1.802rem' },
+    { key:'--font-size-h2',       type:'str',   label:'h2',             default:'1.602rem' },
+    { key:'--font-size-h3',       type:'str',   label:'h3',             default:'1.424rem' },
+    { key:'--font-size-h4',       type:'str',   label:'h4',             default:'1.266rem' },
+    { key:'--font-size-h5',       type:'str',   label:'h5',             default:'1.125rem' },
+    { key:'--font-size-sm',       type:'str',   label:'Small',          default:'0.889rem' },
+    { key:'--font-size-xs',       type:'str',   label:'XS',             default:'0.75rem' },
+    { key:'--font-weight-normal', type:'str',   label:'Weight normal',  default:'400' },
+    { key:'--font-weight-medium', type:'str',   label:'Weight medium',  default:'500' },
+    { key:'--font-weight-bold',   type:'str',   label:'Weight bold',    default:'700' },
+    { key:'--line-height',        type:'str',   label:'Line height',    default:'1.5' },
+  ]},
+  { id:'brand', label:'Brand', tokens:[
+    { key:'--primary',         type:'color', label:'Primary',          default:'#2E5C8A' },
+    { key:'--primary-hover',   type:'color', label:'Primary hover',    default:'#245075' },
+    { key:'--primary-light',   type:'color', label:'Primary light',    default:'#ebf1f8' },
+    { key:'--primary-lighter', type:'color', label:'Primary lighter',  default:'#dde9f5' },
+    { key:'--primary-muted',   type:'color', label:'Primary muted',    default:'#c5d9ee' },
+    { key:'--danger',          type:'color', label:'Danger',           default:'#D94F4F' },
+    { key:'--danger-hover',    type:'color', label:'Danger hover',     default:'#b83c3c' },
+    { key:'--success',         type:'color', label:'Success',          default:'#3D8B5F' },
+    { key:'--success-bright',  type:'color', label:'Success bright',   default:'#27AE60' },
+    { key:'--gold',            type:'color', label:'Gold',             default:'#C4A227' },
+    { key:'--brown',           type:'color', label:'Brown',            default:'#7A5C3D' },
+  ]},
+  { id:'backgrounds', label:'Bg', tokens:[
+    { key:'--bg-page',       type:'color', label:'Page bg',       default:'#ffffff' },
+    { key:'--bg-surface',    type:'color', label:'Surface',        default:'#F8F9FA' },
+    { key:'--bg-subtle',     type:'color', label:'Subtle',         default:'#fafafa' },
+    { key:'--bg-input',      type:'color', label:'Input',          default:'#f7f7f7' },
+    { key:'--bg-header-row', type:'color', label:'Header row',     default:'#F0F4F8' },
+    { key:'--bg-muted',      type:'color', label:'Muted',          default:'#f5f5f5' },
+    { key:'--bg-highlight',  type:'color', label:'Highlight',      default:'#FDEBD8' },
+    { key:'--bg-warning',    type:'color', label:'Warning',        default:'#FFF3CD' },
+    { key:'--bg-error',      type:'color', label:'Error',          default:'#FDECEA' },
+    { key:'--bg-selected',   type:'color', label:'Selected',       default:'#DCE8F5' },
+  ]},
+  { id:'text', label:'Text', tokens:[
+    { key:'--text-primary',   type:'color', label:'Primary',   default:'#1a1a1a' },
+    { key:'--text-secondary', type:'color', label:'Secondary', default:'#555555' },
+    { key:'--text-muted',     type:'color', label:'Muted',     default:'#888888' },
+    { key:'--text-faint',     type:'color', label:'Faint',     default:'#bbbbbb' },
+  ]},
+  { id:'borders', label:'Borders', tokens:[
+    { key:'--border',        type:'color', label:'Light',    default:'#eeeeee' },
+    { key:'--border-medium', type:'color', label:'Medium',   default:'#dddddd' },
+    { key:'--border-strong', type:'color', label:'Strong',   default:'#cccccc' },
+    { key:'--border-table',  type:'color', label:'Table',    default:'#e0e6ed' },
+  ]},
 ];
 
-const colours = {};
-ROLES.forEach(r => colours[r.key] = r.default);
+const CHART_COLORS = ['#2E5C8A','#E07A3E','#3D8B5F','#9B3D8A','#C4A227','#D94F4F','#4FA8D9','#7A5C3D'];
+const CATS = ['Groceries','Transport','Dining','Utilities','Entertainment','Shopping'];
 
-const fonts = {
-  bodyFamily:    "'Inter Tight', system-ui, sans-serif",
-  headingFamily: "'Inter', system-ui, sans-serif",
-  bodyWeight:    '400',
-  headingWeight: '700',
-  baseSize:      '1rem',
-  h1: '1.802rem', h2: '1.602rem', h3: '1.424rem', h4: '1.266rem', h5: '1.125rem',
-  sm: '0.889rem', xs: '0.75rem',
-  googleImport:  'https://fonts.googleapis.com/css2?family=Inter:wght@700&family=Inter+Tight:wght@400;500&display=swap',
-};
+// ═══════════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════════
+const original = {};  // token key → value as loaded from file / default
+const current  = {};  // token key → current edited value
+let fileHandle = null;
+let fileOriginalText = null;
+let activeSec = 'typography';
+let activePrev = 'dashboard';
 
-// ── Build colour inputs ────────────────────────────────────────────────────
-const grid = document.getElementById('roleGrid');
-ROLES.forEach(r => {
-  const div = document.createElement('div');
-  div.className = 'role-item';
-  div.innerHTML = `<label>${r.label}</label>
-    <div class="swatch-row">
-      <input type="color" id="col_${r.key}" value="${r.default}" />
-      <input type="text"  id="txt_${r.key}" value="${r.default}" maxlength="7" spellcheck="false" />
-    </div>`;
-  grid.appendChild(div);
+// Init from defaults
+SECTIONS.forEach(s => s.tokens.forEach(t => {
+  original[t.key] = t.default;
+  current[t.key]  = t.default;
+}));
 
-  const col = div.querySelector(`#col_${r.key}`);
-  const txt = div.querySelector(`#txt_${r.key}`);
-
-  col.addEventListener('input', () => { txt.value = col.value; colours[r.key] = col.value; update(); });
-  txt.addEventListener('input', () => {
-    const v = txt.value.trim();
-    if (/^#[0-9a-fA-F]{6}$/.test(v)) { col.value = v; colours[r.key] = v; update(); }
+// ═══════════════════════════════════════════════════════════════════════════
+// BUILD SECTION TABS + ROWS
+// ═══════════════════════════════════════════════════════════════════════════
+function buildTabs() {
+  const tabs = document.getElementById('secTabs');
+  tabs.innerHTML = '';
+  SECTIONS.forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'sec-tab' + (s.id === activeSec ? ' active' : '');
+    btn.dataset.sec = s.id;
+    btn.innerHTML = `${s.label}<span class="dot"></span>`;
+    btn.onclick = () => { activeSec = s.id; buildTabs(); buildRows(); };
+    tabs.appendChild(btn);
   });
-  txt.addEventListener('blur', () => {
-    if (!/^#[0-9a-fA-F]{6}$/.test(txt.value.trim())) txt.value = colours[r.key];
+  // Mark dirty tabs
+  SECTIONS.forEach(s => {
+    const dirty = s.tokens.some(t => current[t.key] !== original[t.key]);
+    if (dirty) tabs.querySelector(`[data-sec="${s.id}"]`).classList.add('dirty');
   });
-});
+}
 
-// ── CSS parser ─────────────────────────────────────────────────────────────
-function parseCSS(raw) {
-  const info = { fonts: {}, colours: {}, errors: [] };
+function buildRows() {
+  const body = document.getElementById('secBody');
+  body.innerHTML = '';
+  const sec = SECTIONS.find(s => s.id === activeSec);
+  if (!sec) return;
+  sec.tokens.forEach(t => {
+    const isModified = current[t.key] !== original[t.key];
+    const row = document.createElement('div');
+    row.className = 'token-row' + (isModified ? ' modified' : '');
+    row.dataset.key = t.key;
 
-  // @import Google Fonts URL
-  const imp = raw.match(/@import\s+url\(['"]?([^'")\s]+)['"]?\)/);
-  if (imp) info.fonts.googleImport = imp[1];
+    if (t.type === 'color') {
+      const safeColor = isValidHex(current[t.key]) ? current[t.key] : '#888888';
+      row.innerHTML = `
+        <span class="token-key" title="${t.key}">${t.label}</span>
+        <div class="token-val-color">
+          <input type="color" id="col_${cssId(t.key)}" value="${safeColor}" />
+          <input type="text" class="hex-input" id="txt_${cssId(t.key)}" value="${current[t.key]}" maxlength="9" spellcheck="false" />
+        </div>
+        <button class="reset-dot" title="Reset to original" onclick="resetToken('${t.key}')"></button>`;
+      row.querySelector(`#col_${cssId(t.key)}`).addEventListener('input', e => {
+        const v = e.target.value;
+        row.querySelector(`#txt_${cssId(t.key)}`).value = v;
+        setToken(t.key, v);
+      });
+      row.querySelector(`#txt_${cssId(t.key)}`).addEventListener('input', e => {
+        const v = e.target.value.trim();
+        if (isValidHex(v)) { row.querySelector(`#col_${cssId(t.key)}`).value = v; setToken(t.key, v); }
+      });
+      row.querySelector(`#txt_${cssId(t.key)}`).addEventListener('blur', e => {
+        if (!isValidHex(e.target.value.trim())) e.target.value = current[t.key];
+      });
+    } else {
+      row.innerHTML = `
+        <span class="token-key" title="${t.key}">${t.label}</span>
+        <input type="text" class="str-input" id="str_${cssId(t.key)}" value="${current[t.key]}" />
+        <button class="reset-dot" title="Reset to original" onclick="resetToken('${t.key}')"></button>`;
+      row.querySelector(`#str_${cssId(t.key)}`).addEventListener('input', e => setToken(t.key, e.target.value));
+    }
+    body.appendChild(row);
+  });
+}
 
-  // Strip comments
-  const css = raw.replace(/\/\*[\s\S]*?\*\//g, '');
+function cssId(key) { return key.replace(/[^a-zA-Z0-9]/g, '_'); }
+function isValidHex(v) { return /^#[0-9a-fA-F]{3,8}$/.test(v); }
 
-  // Helper: grab declarations from a block
-  function decls(block) {
-    const out = {};
-    const re = /([\w-]+)\s*:\s*([^;]+);/g;
-    let m;
-    while ((m = re.exec(block)) !== null) out[m[1].trim()] = m[2].trim();
-    return out;
+// ═══════════════════════════════════════════════════════════════════════════
+// TOKEN MUTATIONS
+// ═══════════════════════════════════════════════════════════════════════════
+function setToken(key, value) {
+  current[key] = value;
+  updateSaveBar();
+  buildTabs();
+  refreshRow(key);
+  updatePreviews();
+  injectPreviewTokens();
+}
+
+function resetToken(key) {
+  current[key] = original[key];
+  updateSaveBar();
+  buildTabs();
+  buildRows();
+  updatePreviews();
+  injectPreviewTokens();
+}
+
+function discardAll() {
+  SECTIONS.forEach(s => s.tokens.forEach(t => { current[t.key] = original[t.key]; }));
+  updateSaveBar();
+  buildTabs();
+  buildRows();
+  updatePreviews();
+  injectPreviewTokens();
+}
+
+function refreshRow(key) {
+  const row = document.querySelector(`.token-row[data-key="${key}"]`);
+  if (!row) return;
+  const isModified = current[key] !== original[key];
+  row.classList.toggle('modified', isModified);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SAVE BAR
+// ═══════════════════════════════════════════════════════════════════════════
+function countChanges() {
+  return SECTIONS.reduce((n, s) => n + s.tokens.filter(t => current[t.key] !== original[t.key]).length, 0);
+}
+function updateSaveBar() {
+  const n = countChanges();
+  const bar = document.getElementById('saveBar');
+  bar.classList.toggle('visible', n > 0);
+  document.getElementById('changeLabel').textContent = `${n} unsaved change${n !== 1 ? 's' : ''}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FILE SYSTEM ACCESS
+// ═══════════════════════════════════════════════════════════════════════════
+async function loadFile() {
+  if (!('showOpenFilePicker' in window)) {
+    alert('File System Access API requires Chrome or Edge.');
+    return;
+  }
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      types: [{ description: 'CSS', accept: { 'text/css': ['.css'] } }],
+    });
+    fileHandle = handle;
+    const file = await handle.getFile();
+    fileOriginalText = await file.text();
+    document.getElementById('loadedFileName').textContent = handle.name;
+    document.getElementById('fileBadge').textContent = handle.name;
+    document.getElementById('fileBadge').hidden = false;
+    parseFileIntoTokens(fileOriginalText);
+  } catch(e) {
+    if (e.name !== 'AbortError') alert('Could not open file: ' + e.message);
+  }
+}
+
+function parseFileIntoTokens(css) {
+  // Extract all CSS custom property values from :root {}
+  const rootMatch = css.match(/:root\s*\{([^}]*)\}/s);
+  if (!rootMatch) return;
+  const rootBlock = rootMatch[1];
+  const re = /(--[\w-]+)\s*:\s*([^;]+);/g;
+  let m;
+  while ((m = re.exec(rootBlock)) !== null) {
+    const key = m[1].trim(), val = m[2].trim();
+    if (key in original) {
+      original[key] = val;
+      current[key]  = val;
+    }
+  }
+  buildTabs();
+  buildRows();
+  updatePreviews();
+  injectPreviewTokens();
+  updateSaveBar();
+}
+
+async function saveToFile() {
+  if (!fileHandle) {
+    if (!('showOpenFilePicker' in window)) { alert('Chrome or Edge required for file write.'); return; }
+    try {
+      const [handle] = await window.showOpenFilePicker({
+        types: [{ description: 'CSS', accept: { 'text/css': ['.css'] } }],
+      });
+      fileHandle = handle;
+      const file = await handle.getFile();
+      fileOriginalText = await file.text();
+      document.getElementById('loadedFileName').textContent = handle.name;
+      document.getElementById('fileBadge').textContent = handle.name;
+      document.getElementById('fileBadge').hidden = false;
+      parseFileIntoTokens(fileOriginalText);
+    } catch(e) {
+      if (e.name !== 'AbortError') alert('Could not open file: ' + e.message);
+      return;
+    }
   }
 
-  // Parse all rule blocks
-  const ruleRe = /([^{}]+)\{([^{}]*)\}/g;
-  let rm;
-  while ((rm = ruleRe.exec(css)) !== null) {
-    const sel = rm[1].trim().toLowerCase();
-    const d   = decls(rm[2]);
+  // Re-read latest file content (may have changed externally)
+  const freshFile = await fileHandle.getFile();
+  let css = await freshFile.text();
 
-    // CSS custom properties (colours)
-    for (const [k,v] of Object.entries(d)) {
-      if (k.startsWith('--')) info.colours[k] = v;
+  // In-place token substitution — replaces each changed token value exactly
+  SECTIONS.forEach(s => s.tokens.forEach(t => {
+    if (current[t.key] === original[t.key]) return;
+    const escaped = t.key.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+    const re = new RegExp(`(${escaped}\\s*:)([^;]*)(;)`, 'g');
+    css = css.replace(re, `$1 ${current[t.key]}$3`);
+  }));
+
+  try {
+    const writable = await fileHandle.createWritable();
+    await writable.write(css);
+    await writable.close();
+    // Saved — promote current to original
+    SECTIONS.forEach(s => s.tokens.forEach(t => { original[t.key] = current[t.key]; }));
+    fileOriginalText = css;
+    updateSaveBar();
+    buildTabs();
+    buildRows();
+    // Flash confirmation
+    const bar = document.getElementById('saveBar');
+    bar.style.background = '#1a3d2a';
+    setTimeout(() => { bar.style.background = ''; }, 1200);
+  } catch(e) {
+    alert('Write failed: ' + e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CSS PASTE PARSER
+// ═══════════════════════════════════════════════════════════════════════════
+function togglePaste(btn) {
+  const body = document.getElementById('pasteBody');
+  const open = body.classList.toggle('open');
+  btn.textContent = (open ? '▾' : '▸') + ' Paste CSS from realtimecolors / other tool';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('pasteArea').addEventListener('input', function() {
+    const raw = this.value.trim();
+    const status = document.getElementById('parseStatus');
+    if (!raw) { status.className='parse-status'; status.textContent='Waiting…'; return; }
+
+    const css = raw.replace(/\/\*[\s\S]*?\*\//g, '');
+    let found = 0;
+
+    // Google Fonts import → inject for preview
+    const imp = raw.match(/@import\s+url\(['"]?([^'")\s]+)['"]?\)/);
+    if (imp) injectFont(imp[1]);
+
+    // :root custom properties
+    const rootM = css.match(/:root\s*\{([^}]*)\}/s);
+    if (rootM) {
+      const re = /(--[\w-]+)\s*:\s*([^;]+);/g; let m;
+      while ((m = re.exec(rootM[1])) !== null) {
+        const key=m[1].trim(), val=m[2].trim();
+        if (key in current) { setToken(key, val); found++; }
+      }
     }
 
-    // body → font-body
-    if (sel === 'body' || sel === 'body, html' || sel === 'html, body') {
-      if (d['font-family']) info.fonts.bodyFamily = d['font-family'].replace(/;$/, '').trim();
-      if (d['font-weight']) info.fonts.bodyWeight  = d['font-weight'].trim();
+    // body font-family / font-weight
+    const bodyM = css.match(/body\s*\{([^}]*)\}/s);
+    if (bodyM) {
+      const ff = bodyM[1].match(/font-family\s*:\s*([^;]+)/);
+      const fw = bodyM[1].match(/font-weight\s*:\s*([^;]+)/);
+      if (ff) { setToken('--font-body', ff[1].trim()); found++; }
+      if (fw) { setToken('--font-weight-normal', fw[1].trim()); found++; }
     }
 
-    // html → base font-size
-    if (sel === 'html') {
-      if (d['font-size']) info.fonts.baseSize = d['font-size'].trim();
+    // html font-size
+    const htmlM = css.match(/html\s*\{([^}]*)\}/s);
+    if (htmlM) {
+      const fs = htmlM[1].match(/font-size\s*:\s*([^;]+)/);
+      if (fs) { setToken('--font-size-base', fs[1].trim()); found++; }
     }
 
-    // heading selectors
-    if (/h[1-5]/.test(sel) && (d['font-family'] || d['font-weight'])) {
-      if (d['font-family']) info.fonts.headingFamily = d['font-family'].replace(/;$/, '').trim();
-      if (d['font-weight']) info.fonts.headingWeight  = d['font-weight'].trim();
+    // heading font-family / font-weight
+    const headM = css.match(/h[1-5][^{]*\{([^}]*)\}/s);
+    if (headM) {
+      const ff = headM[1].match(/font-family\s*:\s*([^;]+)/);
+      const fw = headM[1].match(/font-weight\s*:\s*([^;]+)/);
+      if (ff) { setToken('--font-heading', ff[1].trim()); found++; }
+      if (fw) { setToken('--font-weight-bold', fw[1].trim()); found++; }
     }
 
     // individual h sizes
     ['h1','h2','h3','h4','h5'].forEach(h => {
-      if (sel === h || sel.split(',').map(s=>s.trim()).includes(h)) {
-        if (d['font-size']) info.fonts[h] = d['font-size'].trim();
+      const re2 = new RegExp(`\\b${h}\\s*\\{([^}]*)\\}`, 's');
+      const m2 = css.match(re2);
+      if (m2) {
+        const fs2 = m2[1].match(/font-size\s*:\s*([^;]+)/);
+        if (fs2) { setToken(`--font-size-${h}`, fs2[1].trim()); found++; }
       }
     });
 
     // small
-    if (sel === 'small') {
-      if (d['font-size']) info.fonts.sm = d['font-size'].trim();
+    const smallM = css.match(/small\s*\{([^}]*)\}/s);
+    if (smallM) {
+      const fs = smallM[1].match(/font-size\s*:\s*([^;]+)/);
+      if (fs) { setToken('--font-size-sm', fs[1].trim()); found++; }
     }
-  }
 
-  // Map known CSS custom property names to colour roles
-  const colMap = {
-    '--color-primary':    'primary',   '--primary':    'primary',
-    '--color-accent':     'primary',   '--accent':     'primary',
-    '--color-danger':     'danger',    '--danger':     'danger',
-    '--color-error':      'danger',
-    '--color-success':    'success',   '--success':    'success',
-    '--color-background': 'bgPage',    '--background': 'bgPage',  '--bg': 'bgPage',
-    '--color-surface':    'bgSurface', '--surface':    'bgSurface',
-    '--color-text':       'textPrimary','--text':      'textPrimary','--foreground':'textPrimary',
-    '--color-muted':      'textMuted', '--muted':      'textMuted',
-    '--color-border':     'border',    '--border':     'border',
-  };
-  for (const [cssVar, role] of Object.entries(colMap)) {
-    if (info.colours[cssVar] && /^#[0-9a-fA-F]{3,8}$/.test(info.colours[cssVar].trim())) {
-      info.colours[role] = info.colours[cssVar].trim();
-    }
-  }
+    status.className = found > 0 ? 'parse-status ok' : 'parse-status err';
+    status.textContent = found > 0 ? `✓ ${found} value${found>1?'s':''} applied` : '⚠ No recognisable values found';
 
-  return info;
-}
-
-function applyParsed(info) {
-  // Fonts
-  if (info.fonts.bodyFamily)    fonts.bodyFamily    = info.fonts.bodyFamily;
-  if (info.fonts.headingFamily) fonts.headingFamily = info.fonts.headingFamily;
-  if (info.fonts.bodyWeight)    fonts.bodyWeight    = info.fonts.bodyWeight;
-  if (info.fonts.headingWeight) fonts.headingWeight = info.fonts.headingWeight;
-  if (info.fonts.baseSize)      fonts.baseSize      = info.fonts.baseSize;
-  if (info.fonts.googleImport)  fonts.googleImport  = info.fonts.googleImport;
-  ['h1','h2','h3','h4','h5','sm','xs'].forEach(k => { if (info.fonts[k]) fonts[k] = info.fonts[k]; });
-
-  // Colours
-  ROLES.forEach(r => {
-    if (info.colours[r.key]) {
-      colours[r.key] = info.colours[r.key];
-      document.getElementById(`col_${r.key}`).value = colours[r.key];
-      document.getElementById(`txt_${r.key}`).value = colours[r.key];
-    }
+    buildRows();
+    updatePreviews();
+    injectPreviewTokens();
   });
-}
-
-// ── Paste handler ──────────────────────────────────────────────────────────
-document.getElementById('pasteArea').addEventListener('input', function() {
-  const raw = this.value.trim();
-  const status = document.getElementById('parseStatus');
-  const summary = document.getElementById('fontSummary');
-  summary.innerHTML = '';
-
-  if (!raw) { status.className = 'parse-status'; status.textContent = 'Waiting for input…'; update(); return; }
-
-  try {
-    const info = parseCSS(raw);
-    applyParsed(info);
-
-    const detected = [];
-    if (info.fonts.bodyFamily)    detected.push(['Body', stripFallbacks(info.fonts.bodyFamily)]);
-    if (info.fonts.headingFamily) detected.push(['Headings', stripFallbacks(info.fonts.headingFamily)]);
-    if (info.fonts.baseSize)      detected.push(['Base size', info.fonts.baseSize]);
-    if (info.fonts.h1)            detected.push(['h1', info.fonts.h1]);
-    const colCount = ROLES.filter(r => info.colours[r.key]).length;
-
-    detected.forEach(([label, val]) => {
-      const p = document.createElement('div');
-      p.className = 'font-pill';
-      p.innerHTML = `<span class="fp-label">${label}</span><span>${val}</span>`;
-      summary.appendChild(p);
-    });
-    if (colCount) {
-      const p = document.createElement('div');
-      p.className = 'font-pill';
-      p.innerHTML = `<span class="fp-label">Colours</span><span>${colCount} role${colCount>1?'s':''} detected</span>`;
-      summary.appendChild(p);
-    }
-
-    const total = detected.length + (colCount ? 1 : 0);
-    status.className = 'parse-status ok';
-    status.textContent = total > 0 ? `✓ Parsed — ${total} value${total>1?'s':''} applied` : '⚠ No recognisable values found — check the format';
-    if (total === 0) status.className = 'parse-status err';
-  } catch(e) {
-    status.className = 'parse-status err';
-    status.textContent = '✗ Parse error: ' + e.message;
-  }
-  update();
 });
 
-function stripFallbacks(f) {
-  return f.split(',')[0].trim().replace(/['"]/g, '');
+let injectedFont = '';
+function injectFont(url) {
+  if (url === injectedFont) return;
+  const old = document.getElementById('_injFont');
+  if (old) old.remove();
+  const lnk = document.createElement('link');
+  lnk.id = '_injFont'; lnk.rel = 'stylesheet';
+  lnk.href = url.includes('display=') ? url : url + '&display=swap';
+  document.head.appendChild(lnk);
+  injectedFont = url;
 }
 
-// ── Colour helpers ─────────────────────────────────────────────────────────
-function rgba(hex, a) {
-  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
-  return `rgba(${r},${g},${b},${a})`;
-}
-function lighten(hex, t) {
-  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
-  return '#'+[Math.round(r+(255-r)*t),Math.round(g+(255-g)*t),Math.round(b+(255-b)*t)].map(x=>x.toString(16).padStart(2,'0')).join('');
-}
-function darken(hex, t) {
-  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
-  return '#'+[Math.round(r*(1-t)),Math.round(g*(1-t)),Math.round(b*(1-t))].map(x=>x.toString(16).padStart(2,'0')).join('');
+// ═══════════════════════════════════════════════════════════════════════════
+// INJECT TOKENS INTO PAGE (so previews use CSS vars)
+// ═══════════════════════════════════════════════════════════════════════════
+function injectPreviewTokens() {
+  let el = document.getElementById('_previewVars');
+  if (!el) { el = document.createElement('style'); el.id = '_previewVars'; document.head.appendChild(el); }
+  const lines = SECTIONS.flatMap(s => s.tokens.map(t => `  ${t.key}: ${current[t.key]};`));
+  el.textContent = `.mock { ${lines.join('\n')} }`;
 }
 
-function tokens() {
-  const p=colours.primary, d=colours.danger, s=colours.success;
-  return {
-    '--primary':p,'--primary-hover':darken(p,.14),'--primary-light':lighten(p,.88),
-    '--primary-lighter':lighten(p,.84),'--primary-muted':lighten(p,.70),
-    '--danger':d,'--danger-hover':darken(d,.14),'--danger-bg':rgba(d,.10),
-    '--success':s,'--success-bright':lighten(s,.15),
-    '--bg-page':colours.bgPage,'--bg-surface':colours.bgSurface,
-    '--bg-subtle':lighten(colours.bgSurface,.4),'--bg-input':colours.bgInput,
-    '--bg-header-row':lighten(p,.93),'--bg-muted':lighten(colours.bgInput,.5),
-    '--bg-highlight':lighten(d,.90),'--bg-warning':'#FFF3CD',
-    '--bg-error':lighten(d,.90),'--bg-selected':lighten(p,.82),
-    '--text-primary':colours.textPrimary,'--text-secondary':lighten(colours.textPrimary,.33),
-    '--text-muted':colours.textMuted,'--text-faint':lighten(colours.textMuted,.50),
-    '--border':colours.border,'--border-medium':colours.borderMed,
-    '--border-strong':darken(colours.borderMed,.10),'--border-table':lighten(p,.87),
-  };
+// ═══════════════════════════════════════════════════════════════════════════
+// PREVIEWS
+// ═══════════════════════════════════════════════════════════════════════════
+function switchPreview(id, btn) {
+  activePrev = id;
+  document.querySelectorAll('.prev-pane').forEach(p => p.hidden = true);
+  document.getElementById(`prev-${id}`).hidden = false;
+  document.querySelectorAll('.prev-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
 }
 
-// ── Preview ────────────────────────────────────────────────────────────────
-function updatePreview(t) {
-  // Apply fonts to preview shell
-  const shell = document.getElementById('previewShell');
-  const bodyF = fonts.bodyFamily || "'Inter Tight',system-ui,sans-serif";
-  const headF = fonts.headingFamily || "'Inter',system-ui,sans-serif";
-  shell.style.fontFamily = bodyF;
-  document.getElementById('phTitle').style.fontFamily = headF;
-  document.getElementById('phTitle').style.fontWeight = fonts.headingWeight || '700';
+function get(key) { return current[key] || original[key] || ''; }
 
-  const ph = document.getElementById('ph');
-  ph.style.background = t['--bg-surface'];
-  ph.style.borderBottom = `1px solid ${t['--border']}`;
-  ph.style.color = t['--text-primary'];
-
-  const pil = document.getElementById('pilOwner');
-  pil.style.background = colours.primary; pil.style.color = '#fff';
-
-  const ps = document.getElementById('ps');
-  ps.style.background = t['--bg-subtle'];
-  ps.style.borderColor = t['--border'];
-
-  document.getElementById('siActive').style.cssText = `background:${t['--bg-selected']};color:${colours.primary};font-family:${bodyF}`;
-  ['siN1','siN2','siN3'].forEach(id => {
-    document.getElementById(id).style.cssText = `background:transparent;color:${t['--text-secondary']};font-family:${bodyF}`;
-  });
-
-  const pm = document.getElementById('pm');
-  pm.style.background = t['--bg-page'];
-
-  [document.getElementById('card1'),document.getElementById('card2'),document.getElementById('card3')].forEach(c => {
-    c.style.background = t['--bg-surface'];
-    c.style.borderColor = t['--border'];
-    c.style.color = t['--text-primary'];
-  });
-  document.getElementById('cv1').style.cssText = `color:${colours.primary};font-family:${headF};font-weight:${fonts.headingWeight||'700'}`;
-  document.getElementById('cv2').style.cssText = `color:${colours.primary};font-family:${headF};font-weight:${fonts.headingWeight||'700'}`;
-
-  ['tr1','tr2','tr3'].forEach(id => {
-    document.getElementById(id).style.borderColor = t['--border-table'];
-    document.getElementById(id).style.color = id==='tr1' ? t['--text-secondary'] : t['--text-primary'];
-  });
-
-  document.getElementById('btnP').style.cssText = `background:${colours.primary};color:#fff;font-family:${bodyF}`;
-  document.getElementById('btnD').style.cssText = `background:${colours.danger};color:#fff;font-family:${bodyF}`;
-
-  const pi = document.getElementById('prevInput');
-  pi.style.background = t['--bg-input'];
-  pi.style.borderColor = t['--border-medium'];
-  pi.style.color = t['--text-muted'];
-  pi.style.fontFamily = bodyF;
-
-  const bars = document.getElementById('chartBars');
-  bars.innerHTML = '';
-  [65,45,80,55,70,40,60].forEach((h,i) => {
-    const b=document.createElement('div');
-    b.className='chart-bar';
-    b.style.cssText=`height:${h}%;background:${CHART_COLS[i]}`;
-    bars.appendChild(b);
-  });
-
-  document.getElementById('previewShell').style.background = t['--bg-page'];
+function updatePreviews() {
+  renderDashboard();
+  renderCharts();
+  renderLogin();
 }
 
-// ── Output builder ─────────────────────────────────────────────────────────
-function pad(s,n){ return s.padEnd(n,' '); }
+function css(key) { return `var(${key})`; }
 
-function buildOutput(t) {
-  const lines = [];
-  lines.push('/* ── Typography ─────────────────── */');
-  lines.push(`  ${pad('--font-body:',22)} ${fonts.bodyFamily};`);
-  lines.push(`  ${pad('--font-heading:',22)} ${fonts.headingFamily};`);
-  lines.push(`  ${pad('--font-mono:',22)} 'JetBrains Mono', 'Fira Mono', monospace;`);
-  lines.push('');
-  lines.push(`  ${pad('--font-size-base:',22)} ${fonts.baseSize};`);
-  ['h1','h2','h3','h4','h5'].forEach(h => lines.push(`  ${pad(`--font-size-${h}:`,22)} ${fonts[h]};`));
-  lines.push(`  ${pad('--font-size-sm:',22)} ${fonts.sm};`);
-  lines.push(`  ${pad('--font-size-xs:',22)} ${fonts.xs};`);
-  lines.push('');
-  lines.push(`  ${pad('--font-weight-normal:',22)} ${fonts.bodyWeight};`);
-  lines.push(`  ${pad('--font-weight-medium:',22)} 500;`);
-  lines.push(`  ${pad('--font-weight-bold:',22)} ${fonts.headingWeight};`);
-  lines.push(`  ${pad('--line-height:',22)} 1.5;`);
-  lines.push('');
-  const groups = [
-    { hdr:'/* ── Brand ─────────────────────── */', keys:['--primary','--primary-hover','--primary-light','--primary-lighter','--primary-muted','--danger','--danger-hover','--danger-bg','--success','--success-bright'] },
-    { hdr:'/* ── Backgrounds ───────────────── */', keys:['--bg-page','--bg-surface','--bg-subtle','--bg-input','--bg-header-row','--bg-muted','--bg-highlight','--bg-warning','--bg-error','--bg-selected'] },
-    { hdr:'/* ── Text ──────────────────────── */', keys:['--text-primary','--text-secondary','--text-muted','--text-faint'] },
-    { hdr:'/* ── Borders ───────────────────── */', keys:['--border','--border-medium','--border-strong','--border-table'] },
+// ── Dashboard ──────────────────────────────────────────────────────────────
+function renderDashboard() {
+  const bodyF = get('--font-body');
+  const headF = get('--font-heading');
+  const hw    = get('--font-weight-bold');
+
+  document.getElementById('prev-dashboard').innerHTML = `
+  <div class="mock" style="font-family:${bodyF}">
+    <div class="mock-header" style="background:${get('--bg-surface')};border-color:${get('--border')};color:${get('--text-primary')}">
+      <span style="font-family:${headF};font-weight:${hw};font-size:13px">Personal Spending Pattern Visualisation Tool</span>
+      <span class="mock-pill" style="background:${get('--primary')};color:#fff">Owner</span>
+    </div>
+    <div class="mock-body">
+      <div class="mock-sidebar" style="background:${get('--bg-subtle')};border-color:${get('--border')}">
+        <div class="mock-nav-item" style="background:${get('--bg-selected')};color:${get('--primary')}">Dashboard</div>
+        <div class="mock-nav-item" style="color:${get('--text-secondary')}">Transactions</div>
+        <div class="mock-nav-item" style="color:${get('--text-secondary')}">Charts</div>
+        <div class="mock-nav-item" style="color:${get('--text-secondary')}">Settings</div>
+      </div>
+      <div class="mock-main" style="background:${get('--bg-page')}">
+        <div class="mock-cards">
+          <div class="mock-card" style="background:${get('--bg-surface')};border-color:${get('--border')}">
+            <div class="mct" style="color:${get('--text-muted')}">Total Spend</div>
+            <div class="mcv" style="color:${get('--primary')};font-family:${headF};font-weight:${hw}">$4,821</div>
+          </div>
+          <div class="mock-card" style="background:${get('--bg-surface')};border-color:${get('--border')}">
+            <div class="mct" style="color:${get('--text-muted')}">Categories</div>
+            <div class="mcv" style="color:${get('--primary')};font-family:${headF};font-weight:${hw}">14</div>
+          </div>
+          <div class="mock-card" style="background:${get('--bg-error')};border-color:${get('--danger')}">
+            <div class="mct" style="color:${get('--danger')}">Overbudget</div>
+            <div class="mcv" style="color:${get('--danger')};font-family:${headF};font-weight:${hw}">3</div>
+          </div>
+        </div>
+        <div class="mock-card" style="background:${get('--bg-surface')};border-color:${get('--border')};margin-bottom:10px">
+          <div class="mock-trow" style="border-color:${get('--border-table')};color:${get('--text-secondary')};font-weight:600">
+            <span>Date</span><span>Description</span><span class="ma">Amount</span>
+          </div>
+          <div class="mock-trow" style="border-color:${get('--border-table')};color:${get('--text-primary')}">
+            <span>15 Sep</span><span>Woolworths</span><span class="ma">-$84.20</span>
+          </div>
+          <div class="mock-trow" style="border-color:${get('--border-table')};color:${get('--text-primary')}">
+            <span>14 Sep</span><span>Netflix</span><span class="ma" style="color:${get('--danger')}">-$19.99</span>
+          </div>
+          <div class="mock-trow" style="border-color:${get('--border-table')};color:${get('--text-primary')}">
+            <span>13 Sep</span><span>Commbank ATM</span><span class="ma">-$200.00</span>
+          </div>
+        </div>
+        <div class="mock-btns">
+          <span class="mock-btn" style="background:${get('--primary')};color:#fff">Categorise</span>
+          <span class="mock-btn" style="background:transparent;border:1px solid ${get('--border-medium')};color:${get('--text-secondary')}">Filter</span>
+          <span class="mock-btn" style="background:${get('--danger')};color:#fff">Delete</span>
+        </div>
+        <input class="mock-input" style="background:${get('--bg-input')};border-color:${get('--border-medium')};color:${get('--text-muted')};font-family:${bodyF}" placeholder="Search transactions…" readonly />
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Charts (stacked bar) ───────────────────────────────────────────────────
+function renderCharts() {
+  const bodyF = get('--font-body');
+  const headF = get('--font-heading');
+  const hw    = get('--font-weight-bold');
+
+  // Fake monthly data: 6 months × 6 categories
+  const MONTHS = ['Apr','May','Jun','Jul','Aug','Sep'];
+  const DATA = [
+    [320,180,95,210,140,85],
+    [280,220,110,190,160,70],
+    [360,160,130,240,120,90],
+    [300,200,90,170,180,110],
+    [340,190,120,230,150,80],
+    [380,170,140,250,130,95],
   ];
-  groups.forEach(g => {
-    lines.push(g.hdr);
-    g.keys.forEach(k => lines.push(`  ${pad(k+':',22)} ${t[k]};`));
-    lines.push('');
-  });
-  return lines.join('\n').trim();
+  const maxTotal = Math.max(...DATA.map(m => m.reduce((a,b)=>a+b,0)));
+
+  const bars = MONTHS.map((mo, mi) => {
+    const segs = DATA[mi].map((val, ci) => {
+      const pct = (val / maxTotal * 100).toFixed(1);
+      return `<div class="stacked-bar-seg" style="height:${pct}%;background:${CHART_COLORS[ci]};flex-shrink:0"></div>`;
+    }).join('');
+    return `<div class="stacked-col-wrap">
+      <div class="stacked-col">${segs}</div>
+      <div class="col-label" style="color:${get('--text-muted')};font-family:${bodyF}">${mo}</div>
+    </div>`;
+  }).join('');
+
+  const legend = CATS.map((cat, i) =>
+    `<div class="legend-item" style="font-family:${bodyF};color:${get('--text-secondary')}">
+       <div class="legend-dot" style="background:${CHART_COLORS[i]}"></div>${cat}
+     </div>`
+  ).join('');
+
+  document.getElementById('prev-charts').innerHTML = `
+  <div class="mock" style="font-family:${bodyF}">
+    <div class="mock-header" style="background:${get('--bg-surface')};border-color:${get('--border')};color:${get('--text-primary')}">
+      <span style="font-family:${headF};font-weight:${hw};font-size:13px">Spending by Category</span>
+      <div style="display:flex;gap:8px">
+        <span class="mock-btn" style="background:${get('--bg-selected')};color:${get('--primary')};font-size:10px;padding:3px 10px;border-radius:20px;font-weight:600">Monthly</span>
+        <span class="mock-btn" style="background:transparent;color:${get('--text-muted')};font-size:10px;padding:3px 10px;border-radius:20px">Yearly</span>
+      </div>
+    </div>
+    <div style="background:${get('--bg-page')};padding:16px">
+      <div class="mock-card" style="background:${get('--bg-surface')};border-color:${get('--border')}">
+        <div class="chart-title" style="font-family:${headF};color:${get('--text-primary')}">Monthly Spending — Sep 2026</div>
+        <div class="stacked-chart">${bars}</div>
+        <div class="chart-legend">${legend}</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <div class="mock-card" style="flex:1;background:${get('--bg-surface')};border-color:${get('--border')}">
+          <div class="mct" style="color:${get('--text-muted')}">Groceries</div>
+          <div style="font-size:16px;font-weight:700;color:${CHART_COLORS[0]};font-family:${headF}">$380</div>
+        </div>
+        <div class="mock-card" style="flex:1;background:${get('--bg-surface')};border-color:${get('--border')}">
+          <div class="mct" style="color:${get('--text-muted')}">Transport</div>
+          <div style="font-size:16px;font-weight:700;color:${CHART_COLORS[1]};font-family:${headF}">$170</div>
+        </div>
+        <div class="mock-card" style="flex:1;background:${get('--bg-highlight')};border-color:${get('--border')}">
+          <div class="mct" style="color:${get('--text-muted')}">Dining</div>
+          <div style="font-size:16px;font-weight:700;color:${CHART_COLORS[2]};font-family:${headF}">$140</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
 }
 
-// ── Google Fonts injection into preview ───────────────────────────────────
-let injectedImport = '';
-function injectPreviewFont(url) {
-  if (!url || url === injectedImport) return;
-  const existing = document.getElementById('previewFontLink');
-  if (existing) existing.remove();
-  const link = document.createElement('link');
-  link.id = 'previewFontLink';
-  link.rel = 'stylesheet';
-  link.href = url.includes('display=swap') ? url : url + '&display=swap';
-  document.head.appendChild(link);
-  injectedImport = url;
+// ── Login ──────────────────────────────────────────────────────────────────
+function renderLogin() {
+  const bodyF = get('--font-body');
+  const headF = get('--font-heading');
+  const hw    = get('--font-weight-bold');
+
+  document.getElementById('prev-login').innerHTML = `
+  <div class="mock mock-login" style="background:${get('--bg-page')};font-family:${bodyF}">
+    <div class="login-card" style="background:${get('--bg-surface')};border-color:${get('--border')}">
+      <div class="login-logo" style="color:${get('--primary')};font-family:${headF}">CASHFLOW</div>
+      <div class="login-title" style="color:${get('--text-primary')};font-family:${headF};font-weight:${hw}">Personal Spending Pattern<br>Visualisation Tool</div>
+      <div class="login-sub" style="color:${get('--text-muted')}">Sign in to your account</div>
+      <input class="login-input" style="border-color:${get('--border-medium')};color:${get('--text-primary')};background:${get('--bg-input')};font-family:${bodyF}" placeholder="Username" readonly />
+      <input class="login-input" style="border-color:${get('--border-medium')};color:${get('--text-primary')};background:${get('--bg-input')};font-family:${bodyF}" placeholder="Password" type="password" value="••••••••" readonly />
+      <button class="login-btn" style="background:${get('--primary')};color:#fff;font-family:${headF};font-weight:${hw}">Sign In</button>
+      <div style="margin-top:12px;font-size:10px;color:${get('--text-faint')}">Protected by end-to-end encryption</div>
+    </div>
+  </div>`;
 }
 
-function update() {
-  if (fonts.googleImport) injectPreviewFont(fonts.googleImport);
-  const t = tokens();
-  updatePreview(t);
-  document.getElementById('outputBlock').textContent = buildOutput(t);
-}
-
-// ── Copy ───────────────────────────────────────────────────────────────────
-function copyOutput() {
-  navigator.clipboard.writeText(document.getElementById('outputBlock').textContent).then(() => {
-    const btn = document.getElementById('copyBtn');
-    btn.textContent = '✓ Copied!'; btn.classList.add('active');
-    setTimeout(()=>{ btn.textContent='Copy to clipboard'; btn.classList.remove('active'); }, 2000);
-  });
-}
-
-// ── Write to theme.css ─────────────────────────────────────────────────────
-async function writeToFile() {
-  const status = document.getElementById('writeStatus');
-  if (!('showOpenFilePicker' in window)) {
-    status.className = 'write-status err';
-    status.textContent = '✗ File System Access API not supported in this browser. Use Chrome or Edge.';
-    return;
-  }
-  status.className = 'write-status'; status.textContent = 'Opening file picker…';
-  try {
-    const [handle] = await window.showOpenFilePicker({
-      types: [{ description: 'CSS files', accept: { 'text/css': ['.css'] } }],
-      multiple: false,
-    });
-    status.textContent = `Reading ${handle.name}…`;
-    const file = await handle.getFile();
-    const original = await file.text();
-
-    const newBlock = buildOutput(tokens());
-    const updated = replaceTokenBlock(original, newBlock);
-
-    const writable = await handle.createWritable();
-    await writable.write(updated);
-    await writable.close();
-
-    status.className = 'write-status ok';
-    status.textContent = `✓ Written to ${handle.name} — reload your dev server to see changes.`;
-  } catch(e) {
-    if (e.name === 'AbortError') { status.textContent = ''; return; }
-    status.className = 'write-status err';
-    status.textContent = '✗ ' + e.message;
-  }
-}
-
-function replaceTokenBlock(css, newBlock) {
-  // Strategy: find the :root { ... } block and replace only the
-  // Typography + Brand + Backgrounds + Text + Borders sections within it,
-  // preserving everything else (Overlays, footnote tokens, dark mode block).
-  const rootStart = css.indexOf(':root {');
-  if (rootStart === -1) return css; // safety: can't find :root, return unchanged
-
-  // Find matching closing brace of :root
-  let depth = 0, rootEnd = -1;
-  for (let i = rootStart; i < css.length; i++) {
-    if (css[i] === '{') depth++;
-    else if (css[i] === '}') { depth--; if (depth === 0) { rootEnd = i; break; } }
-  }
-  if (rootEnd === -1) return css;
-
-  const rootInner = css.slice(rootStart + 7, rootEnd); // content inside :root {}
-
-  // Sections we manage — everything from '/* ── Typography' through end of '/* ── Borders'
-  // We replace from the first managed comment to just before '/* ── Overlays' or end of block
-  const managedStart = rootInner.search(/\/\*\s*[─-]+\s*Typography/);
-  let managedEnd = rootInner.search(/\/\*\s*[─-]+\s*Overlays/);
-  if (managedEnd === -1) managedEnd = rootInner.search(/\/\*\s*[─-]+\s*Warning/);
-  if (managedEnd === -1) managedEnd = rootInner.length; // replace the whole block
-
-  const before = managedStart !== -1 ? rootInner.slice(0, managedStart) : '';
-  const after  = managedEnd  !== -1 ? rootInner.slice(managedEnd) : '';
-
-  const newInner = before + '\n  ' + newBlock.replace(/\n/g, '\n  ') + '\n\n  ' + after.trimStart();
-  return css.slice(0, rootStart + 7) + newInner + css.slice(rootEnd);
-}
-
-// ── Init ───────────────────────────────────────────────────────────────────
-update();
+// ═══════════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════════
+buildTabs();
+buildRows();
+injectPreviewTokens();
+updatePreviews();
 </script>
 </body>
 </html>
