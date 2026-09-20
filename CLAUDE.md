@@ -108,6 +108,73 @@ python .ai/rebuild_db.py     # full rebuild — use when file index/deps/constra
 
 ---
 
+## End-of-Session Ritual (Do This Every Time Before Shipping)
+
+Run these steps **in order** — do not skip any, do not reorder:
+
+1. **revert-state.md** — update the in-progress row's status to `complete`
+2. **current-task.md** — move active task to "Recently Completed", clear active section, note open work
+3. **handoff.md** — prepend a new "What Was Just Done" block with file-level detail and commit hashes; keep older blocks below
+4. **backlog.md** — mark any completed tasks `[x]` + strikethrough in the Quick Reference table; add a progress log entry with date, status, overall %, and a one-line note; add a new full task section if a new task was created mid-session
+5. **Sync to SQLite** — `python .ai/sync_context.py` (fast sync after context/*.md changes)
+6. **savings-log.md** — append one line: date | task | SQLite queries | context docs loaded | scan avoided | notes
+7. **Commit everything together** — code commits first (already done during the task), then one `chore:` commit covering all updated context/backlog files, then push. "Ship everything" means the chore commit goes to main too — not just the code changes.
+
+### What "ship everything" means
+
+When the owner says "ship", commit and push:
+- All uncommitted code changes (if any remain)
+- All updated context files (`context/*.md`)
+- Updated `tasks/backlog.md`
+- Updated `context/savings-log.md`
+
+Do NOT leave context updates as local-only. They are part of the deliverable.
+
+---
+
+## Backlog Conventions (`tasks/backlog.md`)
+
+- **Task numbering** — sequential integers, never reused. Next task = max existing number + 1.
+- **Quick Reference table** — when a task is done, add strikethrough to the title cell: `~~Title~~`
+- **Full task section** — when done, add `~~` around the heading and `✅` at the end: `### ~~22 · Responsive modal audit~~ ✅`; add `**Status:** \`[x]\` Done — YYYY-MM-DD` line at the top of the section body
+- **Progress log** — one row per work session (even if no tasks completed); keep format: `| Date | Status emoji | ~N% | one-line note |`
+- **New task mid-session** — add both the Quick Reference row AND the full section before the "Dependency Order" block; if P4 or lower, put it in the P4 section
+- **Dependency Order diagram** — update when a new task has prereqs or unblocks others
+- **Overall %** — rough fraction of total task-points done (count `[x]` tasks / total tasks, weight by effort if obvious); this is a pulse not a calculation
+
+---
+
+## Context Reading Efficiency
+
+When starting a session or resuming work, read in this order — stop as soon as you have enough to proceed:
+
+1. `context/handoff.md` — most recent first; tells you exactly what was just done
+2. `context/current-task.md` — active task and open work
+3. SQLite query for the specific area you're touching — files, deps, constraints
+4. Only read architecture/overview/decisions if the task genuinely requires it
+
+**Do not load `context/architecture.md`, `context/overview.md`, or `context/dependencies.md` as a routine warm-up.** They are large. Load them only when you need to understand something they specifically cover.
+
+### Efficient audit pattern
+
+When asked to "peruse the entire app" or "check everything" for a class of issue (e.g. responsive modals, accessibility, colour hardcoding):
+1. Glob all relevant file types
+2. Read every file — do not sample
+3. Make a list of what is fine vs. what needs fixing before touching anything
+4. Report the scope searched ("checked all 17 CSS files + 44 JSX components") so the owner knows the coverage
+5. Only edit what genuinely has the problem — do not touch things that look fine
+6. Ship after owner confirms
+
+---
+
+## Two-Confirm Rule for Substantial Changes
+
+For any change that is large, risky, or hard to reverse — agreeing with the analysis is **not** authorisation to code. Get an explicit second go-ahead ("yes do it", "go ahead", "ship it") before writing code. A single "sounds right" is not enough.
+
+What counts as substantial: new context files, new routes, schema changes, refactoring more than 3 files, anything touching auth, anything the owner hasn't seen in a screenshot yet.
+
+---
+
 ## Overview.html Update Rule
 
 `context/overview.html` is developer/client-facing and follows a milestone structure: a sidebar table of contents, a "Since the last major change" section at the top for incremental work, and older content grouped under "Major change" sections below it, newest first. Small refinements get added to the top section instead of editing older milestone text.
