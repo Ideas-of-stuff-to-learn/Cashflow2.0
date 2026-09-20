@@ -7,7 +7,8 @@ import ManualReviewSequentialModal from './ManualReviewSequentialModal';
 
 export default function ManualReviewGate() {
     const { manualReviewFlow, setManualReviewFlow, enterSequentialReview, closeManualReviewFlow } = useProcessing();
-    const { setTransactions, categoryNames } = useTransactions();
+    const { setTransactions, categoryNames, categoryColors } = useTransactions();
+    const totalCountRef = useRef(0);
     const { setMrPicks } = useUserPreferences();
     const { bumpChartDataVersion } = useChartFilter();
 
@@ -32,7 +33,10 @@ export default function ManualReviewGate() {
         return () => window.removeEventListener('pagehide', handlePageHide);
     }, [manualReviewFlow?.stage]);
 
-    if (!manualReviewFlow) return null;
+    if (!manualReviewFlow) {
+        totalCountRef.current = 0;
+        return null;
+    }
 
     async function handlePutInOther() {
         try {
@@ -143,12 +147,18 @@ export default function ManualReviewGate() {
     if (manualReviewFlow.stage === 'sequential') {
         const current = manualReviewFlow.needsReviewItems[0];
         const isDone = !current;
+        // Capture total on first render of this stage
+        if (totalCountRef.current === 0 && manualReviewFlow.needsReviewItems.length > 0) {
+            totalCountRef.current = manualReviewFlow.needsReviewItems.length;
+        }
 
         return (
             <ManualReviewSequentialModal
                 current={current ?? null}
                 remainingCount={manualReviewFlow.needsReviewItems.length}
+                totalCount={totalCountRef.current}
                 selectableCategories={categoryNames}
+                categoryColors={categoryColors}
                 onPick={handleSequentialPick}
                 flushing={flushing}
                 isDone={isDone}

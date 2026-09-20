@@ -1,98 +1,118 @@
-import '../../styles/contentsStyles.css';
+import { FALLBACK_CATEGORY_COLOR } from '../../theme';
+import '../../styles/manualReviewModal.css';
 
-// Purely presentational. ManualReviewGate owns all logic and state.
-// Deliberately no onClick on the backdrop - must NOT be dismissible by clicking outside.
 export default function ManualReviewSequentialModal({
-    current, remainingCount, selectableCategories, onPick,
+    current, remainingCount, totalCount, selectableCategories, categoryColors, onPick,
     flushing, isDone, onExit, exitConfirmPending, exitFailed, onExitConfirm, onExitCancel,
 }) {
+    // ── Saving / done overlay ────────────────────────────────────────────
     if (flushing || isDone) {
         return (
-            <div className="modal-backdrop">
-                <div className="modal-card modal-card-saving">
-                    {flushing
-                        ? <><div className="modal-saving-spinner" /><p className="modal-saving-label">Saving…</p></>
-                        : <><span className="modal-done-check">✓</span><p className="modal-saving-label">All done!</p></>
-                    }
+            <div className="mr-backdrop">
+                <div className="mr-card mr-card-status">
+                    {flushing ? (
+                        <>
+                            <div className="mr-spinner" />
+                            <p className="mr-status-title">Saving…</p>
+                            <p className="mr-status-sub">Categorising your transactions</p>
+                        </>
+                    ) : (
+                        <>
+                            <div className="mr-done-circle">✓</div>
+                            <p className="mr-status-title">All done!</p>
+                            <p className="mr-status-sub">All transactions categorised successfully</p>
+                        </>
+                    )}
                 </div>
             </div>
         );
     }
 
+    // ── Exit confirm ─────────────────────────────────────────────────────
     if (exitConfirmPending) {
-        if (exitFailed) {
-            return (
-                <div className="modal-backdrop">
-                    <div className="modal-card modal-card-narrow">
-                        <h1 className="modal-title">Something went wrong</h1>
-                        <p className="modal-exit-confirm-body">
-                            Could not save your picks or move remaining transactions. Please check your connection and try again.
-                        </p>
-                        <div className="modal-exit-confirm-buttons">
-                            <button className="modal-exit-confirm-btn modal-exit-confirm-btn-danger" onClick={onExitConfirm}>
-                                Retry exit
-                            </button>
-                            <button className="modal-exit-confirm-btn modal-exit-confirm-btn-secondary" onClick={onExitCancel}>
-                                Go back to categorising
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-
+        const titleText = exitFailed ? 'Something went wrong' : 'Exit manual review?';
+        const bodyText  = exitFailed
+            ? 'Could not save your picks. Please check your connection and try again.'
+            : `Your picks so far will be saved. The remaining ${remainingCount} transaction${remainingCount !== 1 ? 's' : ''} will be placed in Other.`;
         return (
-            <div className="modal-backdrop">
-                <div className="modal-card modal-card-narrow">
-                    <h1 className="modal-title">Exit manual categorisation?</h1>
-                    <p className="modal-exit-confirm-body">
-                        Exiting gives you access to the rest of the app. Since incomplete data should not be shown,
-                        your current picks will be saved and the remaining {remainingCount} transaction{remainingCount !== 1 ? 's' : ''} will
-                        be placed in <strong>Other</strong>.
+            <div className="mr-backdrop">
+                <div className="mr-card mr-card-narrow">
+                    <p className="mr-section-label" style={{ color: exitFailed ? 'var(--danger)' : undefined }}>
+                        {exitFailed ? 'ERROR' : 'EXIT REVIEW'}
                     </p>
-                    <div className="modal-exit-confirm-buttons">
-                        <button className="modal-exit-confirm-btn modal-exit-confirm-btn-danger" onClick={onExitConfirm}>
-                            Confirm exit
+                    <h2 className="mr-exit-title">{titleText}</h2>
+                    <p className="mr-exit-body">{bodyText}</p>
+                    <div className="mr-exit-btns">
+                        <button className="mr-btn mr-btn-secondary" onClick={onExitCancel}>
+                            Go back
                         </button>
-                        <button className="modal-exit-confirm-btn modal-exit-confirm-btn-secondary" onClick={onExitCancel}>
-                            Go back to categorising
+                        <button className="mr-btn mr-btn-danger" onClick={onExitConfirm}>
+                            {exitFailed ? 'Retry exit' : 'Confirm exit'}
                         </button>
                     </div>
                 </div>
             </div>
         );
     }
+
+    // ── Main category picker ─────────────────────────────────────────────
+    const progressPct = totalCount > 0
+        ? Math.round(((totalCount - remainingCount) / totalCount) * 100)
+        : 0;
+    const doneCount = totalCount - remainingCount;
 
     return (
-        <div className="modal-backdrop">
-            <div className="modal-card">
-                <div className="modal-title-row">
-                    <h1 className="modal-title">Categorise this transaction</h1>
-                    <span className="modal-remaining-count">
-                        {remainingCount} left
-                    </span>
+        <div className="mr-backdrop">
+            <div className="mr-card">
+                {/* Transaction card */}
+                <div className="mr-tx-card">
+                    <p className="mr-tx-label">Transaction</p>
+                    <p className="mr-tx-desc">{current?.description}</p>
+                    <div className="mr-tx-meta">
+                        <span>{current?.date}</span>
+                        <span className="mr-tx-amount">
+                            -{Math.abs(current?.amount || 0).toFixed(2)}
+                        </span>
+                    </div>
                 </div>
-                <div className='modal-info'>
-                    <p className="modal-desc">{current.description}</p>
-                    <p className="modal-amount">
-                        £{Math.abs(current.amount || 0).toFixed(2)} · {current.date}
-                    </p>
+
+                {/* Section header */}
+                <div className="mr-section-row">
+                    <span className="mr-section-label">Select category</span>
+                    <span className="mr-remaining-badge">{remainingCount} left</span>
                 </div>
-                <h2>Choose from these categories</h2>
-                <div className="modal-list">
+
+                {/* 2-column category grid */}
+                <div className="mr-cat-grid">
                     {selectableCategories.map(cat => (
                         <button
                             key={cat}
-                            className="modal-option"
+                            className="mr-cat-btn"
                             onClick={() => onPick(cat)}
                         >
-                            <span className="modal-option-text">{cat}</span>
+                            <span
+                                className="mr-cat-dot"
+                                style={{ background: categoryColors?.[cat] || FALLBACK_CATEGORY_COLOR }}
+                            />
+                            {cat}
                         </button>
                     ))}
                 </div>
-                <div className="modal-exit-row">
-                    <button className="modal-exit-btn" onClick={onExit}>Exit</button>
+
+                {/* Footer */}
+                <div className="mr-footer">
+                    <button className="mr-btn mr-btn-secondary" onClick={onExit}>
+                        Exit Review
+                    </button>
                 </div>
+
+                {/* Progress bar */}
+                <div className="mr-progress-wrap">
+                    <div className="mr-progress-fill" style={{ width: `${progressPct}%` }} />
+                </div>
+                {totalCount > 0 && (
+                    <p className="mr-progress-label">{doneCount} of {totalCount} reviewed</p>
+                )}
             </div>
         </div>
     );

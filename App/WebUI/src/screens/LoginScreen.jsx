@@ -209,7 +209,7 @@ export default function LoginScreen() {
 
     return (
         <div className="login-container">
-            <h1 className="login-title">Transaction Categorizer</h1>
+            <h1 className="login-title">{APP_TITLE}</h1>
             <p className="login-subtitle">Sign in to continue</p>
 
             <form onSubmit={handleLogin}>

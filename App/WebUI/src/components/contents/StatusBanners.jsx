@@ -1,6 +1,4 @@
 import '../../styles/contentsStyles.css';
-import { ROW_HEIGHT } from '../../utils/contentsscreen/contentsUtils';
-
 
 export default function StatusBanners({
     outOfSyncMessage,
@@ -18,23 +16,30 @@ export default function StatusBanners({
             )}
 
             {initialLoading && (
-                <div className="banner">
+                <div className="status-card-wrap">
                     {initialLoadError ? (
-                        <>
-                            <p className="banner-text">{initialLoadError}</p>
-                            <button className="button" style={{ marginTop: 8 }} onClick={onRetry}>
+                        <div className="status-card status-card-error">
+                            <p className="status-card-label">Connection error</p>
+                            <p className="status-card-body">{initialLoadError}</p>
+                            <button className="status-card-retry" onClick={onRetry}>
                                 Retry
                             </button>
-                        </>
+                        </div>
                     ) : (
-                        <p className="banner-text">⏳ Loading your data...</p>
+                        <div className="status-card">
+                            <div className="status-card-spinner" />
+                            <p className="status-card-body">Loading your data…</p>
+                        </div>
                     )}
                 </div>
             )}
 
             {categorising && (
-                <div className="banner">
-                    <p className="banner-text">⏳ Categorising in background...</p>
+                <div className="status-card-wrap">
+                    <div className="status-card">
+                        <div className="status-card-spinner" />
+                        <p className="status-card-body">Categorising in background…</p>
+                    </div>
                 </div>
             )}
         </>
