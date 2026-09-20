@@ -44,6 +44,7 @@
 | [18](#18--migrate-github-pages-deployment-to-private-repo--alternative-host) | Migrate GitHub Pages to private repo + new host | 🟢 P4 | 1–2 days | Medium |
 | [19](#19--filter-pane-no-scroll--fully-visible) | Filter pane: no scroll, always fully visible | 🟡 P3 | 0.5 day | Low |
 | [20](#20--rename-app-title-to-personal-spending-pattern-visualisation-tool) | Rename app title to "Personal Spending…" | 🟡 P3 | 0.5 day | Low |
+| [21](#21--auth-service-oauth--security-controls) | Auth service: OAuth providers + security controls | 🟠 P2 | 1–2 weeks | High |
 
 ---
 
@@ -442,12 +443,54 @@ The login screen and browser tab currently show "Transaction Categorizer" / "Spe
 
 ---
 
+## 21 — Auth service: OAuth providers + security controls
+
+**Status:** `[ ]` &nbsp;·&nbsp; **Priority:** 🟠 P2 &nbsp;·&nbsp; **Effort:** 1–2 weeks &nbsp;·&nbsp; **Complexity:** High  
+**Depends on:** Task 1 (auth isolation) — build this inside the standalone auth service once it exists
+
+Once the shared Auth & Billing Service is isolated (task 1), extend it with proper OAuth sign-in options, automated account management flows, and database-driven security controls the owner can toggle without a code deploy.
+
+### Sign-in providers
+- **Email/password** — already exists; keep and polish
+- **Google OAuth** — "Sign in with Google" via OAuth 2.0 / OIDC; link Google identity to existing account by email if one exists
+- **Microsoft OAuth** — "Sign in with Microsoft" (Azure AD / personal accounts); same account-linking logic
+- On first OAuth sign-in: create account automatically if email not already registered
+
+### Automated account flows
+- **Password reset** — "Forgot password" flow: send a time-limited reset link to the verified email; link expires after use or N minutes; bcrypt-hash the new password on submit
+- **Email verification** — send a verification link on signup; gate certain features (or full access) on verified status
+- **Welcome email** — triggered on first confirmed sign-in
+
+### DB-controlled security flags
+These live in the `users` table (or a `user_security` companion table) and can be flipped directly in the DB or via the owner admin page (task 17) without a code change:
+
+| Flag / Column | Type | Purpose |
+|---|---|---|
+| `login_locked` | `boolean` | Manually lock an account — login rejected regardless of password |
+| `failed_attempts` | `integer` | Counter incremented on each bad password; reset to 0 on success |
+| `locked_until` | `timestamptz` | Auto-lock expiry — account unlocks automatically after this time passes |
+| `max_attempts` | `integer` | Per-user override for the lockout threshold (null = use global default) |
+| `require_password_reset` | `boolean` | Force the user to reset password on next login (e.g. after a suspected breach) |
+| `oauth_only` | `boolean` | Disallow password login for this account — OAuth sign-in only |
+
+**Lockout logic (server-side):**
+1. On failed password: increment `failed_attempts`; if it hits the threshold, set `locked_until = now() + lockout_duration`
+2. On login attempt: if `login_locked = true` OR `locked_until > now()`, reject with a clear message (don't leak whether the account exists)
+3. On successful login: reset `failed_attempts = 0`, clear `locked_until`
+4. Global defaults (threshold, lockout duration) in a `config` table or environment — individual overrides via `max_attempts`
+
+### What it touches
+Shared auth service: `routes/auth.py` · `schema.sql` (new columns) · email sending (SMTP or transactional email provider e.g. Resend / SendGrid) · OAuth app registrations in Google Cloud Console + Microsoft Azure · environment variables (`GOOGLE_CLIENT_ID/SECRET`, `MICROSOFT_CLIENT_ID/SECRET`, `SMTP_*`) · owner admin page (task 17) for flag management UI
+
+---
+
 ## Dependency Order
 
 ```
 1 (Auth isolation) ──► 5 (JWT gating) ──► 6 (Subdomain linkage)
                    ──► 3 (Stripe)     ──► 4 (Webhooks) ──► 7 (Trials)
                                                          ──► 8 (Portal)
+                   ──► 21 (OAuth + security controls)
 2 (Landing page) depends on 1 + 6
 
 10 (RN update) ──► 15 (Hard testing)
