@@ -148,7 +148,7 @@
 .cs-table { flex: 1; overflow-y: auto; }
 
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 1000; }
-.modal-card { background: var(--bg-page); border-radius: 12px; padding: 16px; max-height: 70%; overflow: hidden; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+.modal-card { background: var(--bg-page); border-radius: 12px; padding: 16px; max-height: 70vh; overflow-y: auto; display: flex; flex-direction: column; justify-content: center; align-items: center; }
 .modal-card-narrow { max-width: 380px; width: calc(100% - 32px); }
 .modal-card-saving { max-width: 220px; width: 100%; padding: 28px 24px; gap: 12px; }
 .modal-saving-spinner { width: 28px; height: 28px; border: 3px solid #e0e7ef; border-top-color: var(--primary); border-radius: 50%; animation: modal-spin 0.75s linear infinite; }
@@ -164,7 +164,7 @@
 .modal-remaining-count { font-size: 12px; font-weight: 700; color: var(--danger); background: var(--danger-bg); padding: 3px 8px; border-radius: 10px; }
 .modal-desc { font-size: 14px; color: var(--text-primary); margin-bottom: 2px; text-align: center; }
 .modal-amount { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; }
-.modal-list { margin-top: 4px; overflow-y: auto; }
+.modal-list { margin-top: 4px; overflow-y: auto; flex: 1; min-height: 0; }
 .modal-option {     display: flex;
 justify-content: center; /* Horizontal center */
   align-items: center; padding: 12px 0; border-bottom: 0.5px solid var(--border); background: none; border-left: none; border-right: none; border-top: none; width: 100%; text-align: left; cursor: pointer; }
