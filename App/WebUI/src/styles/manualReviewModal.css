@@ -154,6 +154,14 @@
     border-radius: 20px;
 }
 
+/* Absolute top-right corner of .mr-card */
+.mr-remaining-corner {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 1;
+}
+
 /* ── 2-column category grid ───────────────────────────────────────────────── */
 .mr-cat-grid {
     display: grid;

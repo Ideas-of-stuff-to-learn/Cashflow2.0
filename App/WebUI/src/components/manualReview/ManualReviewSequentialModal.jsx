@@ -2,8 +2,9 @@ import { FALLBACK_CATEGORY_COLOR } from '../../theme';
 import '../../styles/manualReviewModal.css';
 
 export default function ManualReviewSequentialModal({
-    current, remainingCount, totalCount, selectableCategories, categoryColors, onPick,
+    current, remainingCount, totalCount, selectableCategories, categoryColors, onPick, onSkip,
     flushing, isDone, onExit, exitConfirmPending, exitFailed, onExitConfirm, onExitCancel,
+    roundComplete, skippedCount, onReviewAgain, onSkippedToOther,
 }) {
     // ── Saving / done overlay ────────────────────────────────────────────
     if (flushing || isDone) {
@@ -23,6 +24,31 @@ export default function ManualReviewSequentialModal({
                             <p className="mr-status-sub">All transactions categorised successfully</p>
                         </>
                     )}
+                </div>
+            </div>
+        );
+    }
+
+    // ── Round complete — skipped transactions remain ──────────────────────
+    if (roundComplete) {
+        return (
+            <div className="mr-backdrop">
+                <div className="mr-card mr-card-narrow">
+                    <p className="mr-section-label">Round complete</p>
+                    <h2 className="mr-exit-title">
+                        {skippedCount} transaction{skippedCount !== 1 ? 's' : ''} skipped
+                    </h2>
+                    <p className="mr-exit-body">
+                        What would you like to do with the {skippedCount} skipped transaction{skippedCount !== 1 ? 's' : ''}?
+                    </p>
+                    <div className="mr-exit-btns">
+                        <button className="mr-btn mr-btn-secondary" onClick={onReviewAgain}>
+                            Review again
+                        </button>
+                        <button className="mr-btn mr-btn-primary" onClick={onSkippedToOther}>
+                            Put in Other
+                        </button>
+                    </div>
                 </div>
             </div>
         );
@@ -63,7 +89,12 @@ export default function ManualReviewSequentialModal({
 
     return (
         <div className="mr-backdrop">
-            <div className="mr-card">
+            <div className="mr-card" style={{ position: 'relative' }}>
+                {/* Remaining badge — absolute top-right */}
+                <span className="mr-remaining-badge mr-remaining-corner">
+                    {remainingCount} left
+                </span>
+
                 {/* Transaction card */}
                 <div className="mr-tx-card">
                     <p className="mr-tx-label">Transaction</p>
@@ -79,7 +110,6 @@ export default function ManualReviewSequentialModal({
                 {/* Section header */}
                 <div className="mr-section-row">
                     <span className="mr-section-label">Select category</span>
-                    <span className="mr-remaining-badge">{remainingCount} left</span>
                 </div>
 
                 {/* 2-column category grid */}
@@ -101,6 +131,9 @@ export default function ManualReviewSequentialModal({
 
                 {/* Footer */}
                 <div className="mr-footer">
+                    <button className="mr-btn mr-btn-secondary" onClick={onSkip}>
+                        Skip
+                    </button>
                     <button className="mr-btn mr-btn-secondary" onClick={onExit}>
                         Exit Review
                     </button>

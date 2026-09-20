@@ -8,70 +8,62 @@ import ManualReviewSequentialModal from './ManualReviewSequentialModal';
 export default function ManualReviewGate() {
     const { manualReviewFlow, setManualReviewFlow, enterSequentialReview, closeManualReviewFlow } = useProcessing();
     const { setTransactions, categoryNames, categoryColors } = useTransactions();
-    const totalCountRef = useRef(0);
     const { setMrPicks } = useUserPreferences();
     const { bumpChartDataVersion } = useChartFilter();
 
     const pendingResolutionsRef = useRef([]);
-    const [exitConfirmPending, setExitConfirmPending] = useState(false);
-    const [flushing, setFlushing] = useState(false);
-    const [exitFailed, setExitFailed] = useState(false);
+    const skippedItemsRef       = useRef([]);
+    const totalCountRef         = useRef(0);
 
-    // Page-unload safety net: if the user closes the tab mid-sequential,
-    // sendBeacon resolves whatever is still NEEDS_MANUAL_REVIEW in the DB
-    // to Other. Any picks accumulated locally but not yet flushed are lost
-    // here, but they come back as NEEDS_MANUAL_REVIEW on next login and
-    // the existing overlay catches them.
+    const [exitConfirmPending, setExitConfirmPending] = useState(false);
+    const [flushing,           setFlushing]           = useState(false);
+    const [exitFailed,         setExitFailed]         = useState(false);
+    // null = not at end-of-round; number = count of skipped items at round end
+    const [roundComplete,      setRoundComplete]      = useState(null);
+
+    // Page-unload safety net: beacon resolves remaining NEEDS_MANUAL_REVIEW to Other.
+    // Skipped items are still NEEDS_MANUAL_REVIEW in the DB, so they'll reappear on next login.
     useEffect(() => {
         if (manualReviewFlow?.stage !== 'sequential') return;
-
-        function handlePageHide() {
-            beaconResolveRemainingToOther();
-        }
-
+        function handlePageHide() { beaconResolveRemainingToOther(); }
         window.addEventListener('pagehide', handlePageHide);
         return () => window.removeEventListener('pagehide', handlePageHide);
     }, [manualReviewFlow?.stage]);
 
     if (!manualReviewFlow) {
-        totalCountRef.current = 0;
+        totalCountRef.current   = 0;
+        skippedItemsRef.current = [];
         return null;
     }
 
-    async function handlePutInOther() {
-        try {
-            await resolveRemainingToOther();
-            setTransactions(prev => prev.map(t =>
-                t.category === NEEDS_MANUAL_REVIEW ? { ...t, category: 'Other' } : t
-            ));
-            bumpChartDataVersion();
-        } catch (e) {
-            console.warn('Failed to bulk-resolve to Other:', e.message);
-        } finally {
-            closeManualReviewFlow();
+    // ── Helpers ──────────────────────────────────────────────────────────
+
+    function savePendingToStorage(picks) { setMrPicks(picks); }
+    function clearPendingStorage()       { setMrPicks(null); }
+
+    function advanceQueue(nextItems) {
+        if (nextItems.length > 0) {
+            setManualReviewFlow(prev => prev ? { ...prev, needsReviewItems: nextItems } : prev);
+            return;
         }
-    }
-
-    function savePendingToStorage(picks) {
-        setMrPicks(picks);
-    }
-
-    function clearPendingStorage() {
-        setMrPicks(null);
+        // Round finished — check for skipped items
+        if (skippedItemsRef.current.length > 0) {
+            setRoundComplete(skippedItemsRef.current.length);
+        } else {
+            flushPendingResolutions();
+        }
     }
 
     function handleSequentialPick(category) {
         const current = manualReviewFlow.needsReviewItems[0];
         if (!current) return;
 
-        const resolution = {
+        pendingResolutionsRef.current.push({
             description: current.description,
             date: current.date,
             amount: current.amount,
             category,
-        };
-
-        pendingResolutionsRef.current.push(resolution);
+        });
         savePendingToStorage(pendingResolutionsRef.current);
 
         setTransactions(prev => prev.map(t =>
@@ -80,13 +72,15 @@ export default function ManualReviewGate() {
                 : t
         ));
 
-        const nextItems = manualReviewFlow.needsReviewItems.slice(1);
+        advanceQueue(manualReviewFlow.needsReviewItems.slice(1));
+    }
 
-        if (nextItems.length === 0) {
-            flushPendingResolutions();
-        } else {
-            setManualReviewFlow(prev => prev ? { ...prev, needsReviewItems: nextItems } : prev);
-        }
+    function handleSequentialSkip() {
+        const current = manualReviewFlow.needsReviewItems[0];
+        if (!current) return;
+        // Skipped items stay NEEDS_MANUAL_REVIEW in both local state and DB
+        skippedItemsRef.current.push(current);
+        advanceQueue(manualReviewFlow.needsReviewItems.slice(1));
     }
 
     function flushPendingResolutions() {
@@ -94,8 +88,6 @@ export default function ManualReviewGate() {
         pendingResolutionsRef.current = [];
         clearPendingStorage();
         bumpChartDataVersion();
-        // Show "All done!" immediately; server syncs in background.
-        // If it fails after one retry, picks come back as NEEDS_MANUAL_REVIEW on reload.
         setManualReviewFlow(prev => prev ? { ...prev, needsReviewItems: [] } : prev);
         setTimeout(closeManualReviewFlow, 900);
         resolveCategories(picks).catch(() =>
@@ -103,22 +95,45 @@ export default function ManualReviewGate() {
         );
     }
 
+    // ── Skip round-complete handlers ─────────────────────────────────────
+
+    function handleReviewSkippedAgain() {
+        const skipped = [...skippedItemsRef.current];
+        skippedItemsRef.current = [];
+        totalCountRef.current   = skipped.length;
+        setRoundComplete(null);
+        setManualReviewFlow(prev => prev ? { ...prev, needsReviewItems: skipped } : prev);
+    }
+
+    function handleSkippedToOther() {
+        // Optimistically mark skipped items as Other locally
+        const skipped = skippedItemsRef.current;
+        skippedItemsRef.current = [];
+        setTransactions(prev => prev.map(t => {
+            const match = skipped.find(s =>
+                s.description === t.description && s.date === t.date && s.amount === t.amount
+            );
+            return match ? { ...t, category: 'Other' } : t;
+        }));
+        setRoundComplete(null);
+        flushPendingResolutions();
+    }
+
+    // ── Exit confirm ─────────────────────────────────────────────────────
+
     function handleExitConfirm() {
         const picks = [...pendingResolutionsRef.current];
         pendingResolutionsRef.current = [];
+        skippedItemsRef.current = [];
         clearPendingStorage();
-        // Optimistic local update — charts and table reflect the change immediately
         setTransactions(prev => prev.map(t =>
             t.category === NEEDS_MANUAL_REVIEW ? { ...t, category: 'Other' } : t
         ));
         bumpChartDataVersion();
         setExitFailed(false);
 
-        const serverCall = resolveAndExit(picks)
-            .catch(() => resolveAndExit(picks)); // one retry
+        const serverCall = resolveAndExit(picks).catch(() => resolveAndExit(picks));
 
-        // Race: if the server responds within 400ms, close with no visible delay.
-        // If slower, show the spinner as a fallback until it settles.
         Promise.race([
             serverCall.then(() => 'done'),
             new Promise(r => setTimeout(() => r('slow'), 400)),
@@ -134,6 +149,21 @@ export default function ManualReviewGate() {
         });
     }
 
+    // ── Stats gate ───────────────────────────────────────────────────────
+
+    async function handlePutInOther() {
+        try {
+            setTransactions(prev => prev.map(t =>
+                t.category === NEEDS_MANUAL_REVIEW ? { ...t, category: 'Other' } : t
+            ));
+            bumpChartDataVersion();
+        } catch (e) {
+            console.warn('Failed to bulk-resolve to Other:', e.message);
+        } finally {
+            closeManualReviewFlow();
+        }
+    }
+
     if (manualReviewFlow.stage === 'stats') {
         return (
             <ManualReviewStatsModal
@@ -146,8 +176,9 @@ export default function ManualReviewGate() {
 
     if (manualReviewFlow.stage === 'sequential') {
         const current = manualReviewFlow.needsReviewItems[0];
-        const isDone = !current;
-        // Capture total on first render of this stage
+        const isDone  = !current && roundComplete === null;
+
+        // Capture total count at the start of each round
         if (totalCountRef.current === 0 && manualReviewFlow.needsReviewItems.length > 0) {
             totalCountRef.current = manualReviewFlow.needsReviewItems.length;
         }
@@ -160,6 +191,7 @@ export default function ManualReviewGate() {
                 selectableCategories={categoryNames}
                 categoryColors={categoryColors}
                 onPick={handleSequentialPick}
+                onSkip={handleSequentialSkip}
                 flushing={flushing}
                 isDone={isDone}
                 onExit={() => { setExitConfirmPending(true); setExitFailed(false); }}
@@ -167,6 +199,10 @@ export default function ManualReviewGate() {
                 exitFailed={exitFailed}
                 onExitConfirm={handleExitConfirm}
                 onExitCancel={() => { setExitConfirmPending(false); setExitFailed(false); }}
+                roundComplete={roundComplete !== null}
+                skippedCount={roundComplete ?? 0}
+                onReviewAgain={handleReviewSkippedAgain}
+                onSkippedToOther={handleSkippedToOther}
             />
         );
     }
