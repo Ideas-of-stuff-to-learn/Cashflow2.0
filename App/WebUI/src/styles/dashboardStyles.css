@@ -37,6 +37,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    padding-top: 12px;
 }
 
 .dashboard-chart-area .window-nav-row {

@@ -22,7 +22,7 @@ DISABLE SWITCHES  (set True to bypass — testing / debugging only)
 """
 
 # ── MASTER KILL SWITCH ───────────────────────────────────────────────────────
-DISABLE_ALL_RATE_LIMITS = False
+DISABLE_ALL_RATE_LIMITS = True
 # Set True to bypass EVERY rate limit in the entire backend at once.
 # Useful when hammering the API locally or running bulk imports.
 

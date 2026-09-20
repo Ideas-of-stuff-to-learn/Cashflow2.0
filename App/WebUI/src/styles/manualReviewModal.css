@@ -18,6 +18,14 @@
     box-shadow: 0 8px 32px rgba(0,0,0,0.3);
 }
 
+@media (max-width: 500px) {
+    .manual-review-modal {
+        padding: 20px;
+        width: calc(100% - 32px);
+        border-radius: 10px;
+    }
+}
+
 .manual-review-text {
     font-size: var(--font-size-sm);
     color: var(--text-primary);
@@ -80,9 +88,10 @@
     border-radius: 14px;
     padding: 0;
     width: 440px;
-    max-width: 94vw;
+    max-width: calc(100vw - 32px);
+    max-height: 90vh;
     box-shadow: 0 12px 40px rgba(0,0,0,0.28);
-    overflow: hidden;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
 }
@@ -90,6 +99,7 @@
 /* Narrower card for exit confirm / status overlays */
 .mr-card-narrow {
     width: 360px;
+    max-width: calc(100vw - 32px);
     padding: 28px 24px 24px;
 }
 
@@ -115,6 +125,7 @@
     color: var(--text-primary);
     margin: 0 0 8px;
     line-height: 1.35;
+    word-break: break-word;
 }
 
 .mr-tx-meta {
@@ -165,7 +176,7 @@
 /* ── 2-column category grid ───────────────────────────────────────────────── */
 .mr-cat-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
     gap: 8px;
     padding: 0 16px 12px;
 }
@@ -292,6 +303,11 @@
     align-items: center;
     text-align: center;
     padding: 36px 28px 32px;
+}
+
+@media (max-width: 500px) {
+    .mr-card-status { padding: 28px 20px 24px; }
+    .mr-card-narrow { padding: 20px 18px 18px; }
 }
 
 .mr-spinner {
