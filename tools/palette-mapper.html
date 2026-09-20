@@ -752,7 +752,6 @@ function renderCharts() {
   const headF = get('--font-heading');
   const hw    = get('--font-weight-bold');
 
-  // Fake monthly data: 6 months × 6 categories
   const MONTHS = ['Apr','May','Jun','Jul','Aug','Sep'];
   const DATA = [
     [320,180,95,210,140,85],
@@ -763,15 +762,22 @@ function renderCharts() {
     [380,170,140,250,130,95],
   ];
   const maxTotal = Math.max(...DATA.map(m => m.reduce((a,b)=>a+b,0)));
+  const CHART_H = 160; // px
 
+  // Build each column as absolutely-positioned segments stacked from bottom
   const bars = MONTHS.map((mo, mi) => {
+    const total = DATA[mi].reduce((a,b)=>a+b,0);
+    const colH = (total / maxTotal) * CHART_H;
+    let bottomPx = 0;
     const segs = DATA[mi].map((val, ci) => {
-      const pct = (val / maxTotal * 100).toFixed(1);
-      return `<div class="stacked-bar-seg" style="height:${pct}%;background:${CHART_COLORS[ci]};flex-shrink:0"></div>`;
+      const segH = Math.round((val / maxTotal) * CHART_H);
+      const seg = `<div style="position:absolute;left:0;right:0;bottom:${bottomPx}px;height:${segH}px;background:${CHART_COLORS[ci]};${ci===DATA[mi].length-1?'border-radius:3px 3px 0 0':''}"></div>`;
+      bottomPx += segH;
+      return seg;
     }).join('');
-    return `<div class="stacked-col-wrap">
-      <div class="stacked-col">${segs}</div>
-      <div class="col-label" style="color:${get('--text-muted')};font-family:${bodyF}">${mo}</div>
+    return `<div style="display:flex;flex-direction:column;align-items:center;flex:1">
+      <div style="position:relative;width:100%;height:${CHART_H}px">${segs}</div>
+      <div style="font-size:9px;margin-top:4px;color:${get('--text-muted')};font-family:${bodyF}">${mo}</div>
     </div>`;
   }).join('');
 
@@ -793,7 +799,7 @@ function renderCharts() {
     <div style="background:${get('--bg-page')};padding:16px">
       <div class="mock-card" style="background:${get('--bg-surface')};border-color:${get('--border')}">
         <div class="chart-title" style="font-family:${headF};color:${get('--text-primary')}">Monthly Spending — Sep 2026</div>
-        <div class="stacked-chart">${bars}</div>
+        <div style="display:flex;gap:8px;align-items:flex-end;padding-bottom:4px">${bars}</div>
         <div class="chart-legend">${legend}</div>
       </div>
       <div style="display:flex;gap:8px;margin-top:10px">
