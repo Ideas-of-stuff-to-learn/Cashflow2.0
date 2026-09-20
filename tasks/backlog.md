@@ -536,3 +536,4 @@ Full audit of every modal, popup, and overlay in the WebUI (all 17 CSS files + 4
 |------|--------|-----------|------|
 | 20 Sep 2026 | 🟢 Progressing well | ~18% | UI polish sprint — tasks 19 & 20 done, header/filter/mobile fixes shipped. Tasks 14 and 1 (auth, no billing) targeted for today. |
 | 20 Sep 2026 | 🟢 Progressing well | ~19% | Responsive modal/popup audit — task 22 added and completed: mr-card scrollable, dashboard chart spacing, modal-card/modal-list desktop scroll fix. All shipped to main. |
+| 21 Sep 2026 | 🟢 Planning | ~19% | Full auth + platform architecture discussion. No code today — agreed design for email auth, SMTP email sending, email verification, password reset, Google + Microsoft OAuth, Stripe billing, profile UI, isolation audit, and monorepo platform structure. Design doc written: `context/auth-design.md`. Implementation begins next session. |

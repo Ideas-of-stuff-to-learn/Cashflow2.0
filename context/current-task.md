@@ -1,8 +1,10 @@
 # Cashflow2.0 — Current Task
 
-## Status (2026-09-20)
+## Status (2026-09-21)
 
 No active task. Clean main branch.
+
+**Next session:** implement auth — start with email migration (schema + auth routes + login UI). Full plan in `context/auth-design.md`.
 
 ## Recently Completed
 

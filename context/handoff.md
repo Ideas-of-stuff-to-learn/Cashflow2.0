@@ -1,5 +1,19 @@
 # Cashflow2.0 — Handoff
 
+## Status (2026-09-21)
+
+No active task. Clean main branch. Auth & platform architecture fully designed — ready to implement next session.
+
+## What Was Just Done
+
+**Auth & platform architecture design session (2026-09-21):**
+- Full discussion covering all auth layers — no code changed, design only
+- Agreed design written to `context/auth-design.md` (new file)
+- Key decisions: email replaces username as login credential; display_name optional; Gmail SMTP for email sending; Google + Microsoft OAuth (personal + work accounts, both free); Stripe per-tool billing; monorepo platform structure; profile popup + /profile page
+- Implementation order agreed (see auth-design.md §9)
+- Open questions not yet answered: platform name, Gmail address, Stripe tier specifics, trial terms, existing user migration policy, domain name
+- RN OAuth parked — note needed when doing task 10: RN needs `expo-auth-session` + different redirect URI scheme (`cashflow://auth/callback`)
+
 ## Status (2026-09-20)
 
 No active task. Clean main branch.
