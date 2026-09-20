@@ -59,7 +59,7 @@ body{
 .page-header{padding:20px 20px 0;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
 .page-header h1{font-family:'Inter',system-ui,sans-serif;font-weight:700;font-size:18px}
 .page-header .sub{font-size:12px;color:var(--text2)}
-.main-cols{display:grid;grid-template-columns:340px 1fr;gap:0;min-height:calc(100vh - 60px)}
+.main-cols{display:grid;grid-template-columns:340px 1fr;gap:0;height:calc(100vh - 60px)}
 @media(max-width:900px){.main-cols{grid-template-columns:1fr;}}
 
 /* ── Left panel ────────────────────────────────────────────────────────── */
@@ -145,7 +145,7 @@ textarea.paste-area:focus{border-color:var(--accent)}
 .parse-status.err{color:var(--danger)}
 
 /* ── Right panel ───────────────────────────────────────────────────────── */
-.right-panel{display:flex;flex-direction:column}
+.right-panel{display:flex;flex-direction:column;height:100%;overflow:hidden}
 .prev-tabs{
   display:flex;border-bottom:1px solid var(--border);
   background:var(--surface);flex-shrink:0;
@@ -157,7 +157,11 @@ textarea.paste-area:focus{border-color:var(--accent)}
 }
 .prev-tab:hover{color:var(--text)}
 .prev-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-.prev-content{flex:1;padding:16px;overflow-y:auto;background:var(--bg)}
+.prev-content{flex:1;padding:16px;overflow-y:auto;background:var(--bg);display:flex;flex-direction:column}
+.prev-pane{flex:1;display:flex;flex-direction:column}
+.prev-pane .mock{flex:1;display:flex;flex-direction:column}
+.prev-pane .mock-body{flex:1}
+.prev-pane .mock-main{flex:1}
 
 /* ── Preview shells ────────────────────────────────────────────────────── */
 .mock{border-radius:10px;overflow:hidden;border:1px solid var(--border);font-size:13px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
@@ -733,6 +737,21 @@ function renderDashboard() {
           </div>
           <div class="mock-trow" style="border-color:${get('--border-table')};color:${get('--text-primary')}">
             <span>13 Sep</span><span>Commbank ATM</span><span class="ma">-$200.00</span>
+          </div>
+          <div class="mock-trow" style="border-color:${get('--border-table')};color:${get('--text-primary')}">
+            <span>12 Sep</span><span>Uber Eats</span><span class="ma">-$34.50</span>
+          </div>
+          <div class="mock-trow" style="border-color:${get('--border-table')};color:${get('--text-primary')}">
+            <span>11 Sep</span><span>JB Hi-Fi</span><span class="ma">-$149.00</span>
+          </div>
+          <div class="mock-trow" style="border-color:${get('--border-table')};color:${get('--text-primary')}">
+            <span>10 Sep</span><span>AGL Energy</span><span class="ma">-$112.40</span>
+          </div>
+          <div class="mock-trow" style="border-color:${get('--border-table')};color:${get('--text-primary')}">
+            <span>9 Sep</span><span>Coles</span><span class="ma" style="color:${get('--success')}">-$67.80</span>
+          </div>
+          <div class="mock-trow" style="border-color:transparent;color:${get('--text-faint')};font-size:10px">
+            <span colspan="3">+ 3,847 more transactions</span>
           </div>
         </div>
         <div class="mock-btns">
