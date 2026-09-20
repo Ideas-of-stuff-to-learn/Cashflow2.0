@@ -6,6 +6,14 @@ No active task. Clean main branch.
 
 ## Recently Completed
 
+**Responsive modal / popup audit + dashboard chart spacing (2026-09-20):**
+- Full audit of all 17 CSS files + 44 JSX components for clipping / overflow on small viewports
+- `manualReviewModal.css` — `.mr-card`: `overflow: hidden` → `overflow-y: auto` + `max-height: 90vh` so category picker scrolls instead of clipping
+- `dashboardStyles.css` — `.dashboard-chart-area`: `padding-top: 12px` added so chart title has breathing room at top
+- `contentsStyles.css` — `.modal-card`: `overflow: hidden` → `overflow-y: auto`, `max-height: 70%` → `70vh`; `.modal-list`: `flex: 1; min-height: 0` promoted to base rule (was narrow-only) so category list scrolls on desktop
+- Surfaces confirmed fine: segment popup, upload popup, stats modal, all narrow cards
+- 2 commits shipped: `46beece`, `a37dda1`
+
 **Rate limiting overhaul — granular controls + theme/UI polish (2026-09-20):**
 - `App/API/rate_limits.py` — per-endpoint disable flags (`DISABLE_RL_READ_TRANSACTIONS`, `DISABLE_RL_READ_CATEGORIES`, etc.) + master kill switch `DISABLE_ALL_RATE_LIMITS`; all constants are callables so flags take effect at request time without restart
 - GET /transactions and GET /categories re-wired into rate_limits.py (were commented out); now individually disableable via flags

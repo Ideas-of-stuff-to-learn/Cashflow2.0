@@ -484,6 +484,22 @@ Shared auth service: `routes/auth.py` · `schema.sql` (new columns) · email sen
 
 ---
 
+## ~~22 — Responsive modal / popup audit~~ ✅
+
+**Status:** `[x]` Done — 2026-09-20 &nbsp;·&nbsp; **Priority:** 🟡 P3 &nbsp;·&nbsp; **Effort:** 0.5 day &nbsp;·&nbsp; **Complexity:** Low
+
+Full audit of every modal, popup, and overlay in the WebUI (all 17 CSS files + 44 JSX components) for clipping / overflow on smaller viewports (phone mimic + desktop short screens).
+
+**What was fixed:**
+- `.mr-card` (`manualReviewModal.css`): added `max-height: 90vh; overflow-y: auto` — was `overflow: hidden` with no height cap, clipping the category grid off-screen
+- `.dashboard-chart-area` (`dashboardStyles.css`): added `padding-top: 12px` so chart title has breathing room from the top of the chart box
+- `.modal-card` (`contentsStyles.css`): `overflow: hidden` → `overflow-y: auto`, `max-height: 70%` → `max-height: 70vh` — prevents card-level clipping
+- `.modal-list` (`contentsStyles.css`): added `flex: 1; min-height: 0` to base rule (was only in `@media (max-width: 1023px)`) so the category list can actually scroll within the card's max-height on desktop
+
+**Surfaces confirmed fine (no changes):** segment-popup-floating (already has `max-width: min(260px, 100vw-32px)`), upload-files-popup-box (has `max-height: 180px; overflow-y: auto`), manual-review-modal/stats modal (already `width: 90%`), all narrow cards (`max-width: calc(100vw - 32px)`).
+
+---
+
 ## Dependency Order
 
 ```
@@ -519,3 +535,4 @@ Shared auth service: `routes/auth.py` · `schema.sql` (new columns) · email sen
 | Date | Status | Overall % | Note |
 |------|--------|-----------|------|
 | 20 Sep 2026 | 🟢 Progressing well | ~18% | UI polish sprint — tasks 19 & 20 done, header/filter/mobile fixes shipped. Tasks 14 and 1 (auth, no billing) targeted for today. |
+| 20 Sep 2026 | 🟢 Progressing well | ~19% | Responsive modal/popup audit — task 22 added and completed: mr-card scrollable, dashboard chart spacing, modal-card/modal-list desktop scroll fix. All shipped to main. |

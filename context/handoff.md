@@ -6,6 +6,15 @@ No active task. Clean main branch.
 
 ## What Was Just Done
 
+**Responsive modal / popup audit + dashboard chart spacing (2026-09-20):**
+- Audited all 17 CSS files + 44 JSX components — every modal/popup/overlay in WebUI
+- `manualReviewModal.css` `.mr-card`: `overflow: hidden` → `overflow-y: auto` + `max-height: 90vh` — was clipping category grid off-screen on small viewports
+- `dashboardStyles.css` `.dashboard-chart-area`: `padding-top: 12px` — chart title was squashed against top of chart box
+- `contentsStyles.css` `.modal-card`: `overflow: hidden` → `overflow-y: auto`, `max-height: 70%` → `70vh`
+- `contentsStyles.css` `.modal-list`: added `flex: 1; min-height: 0` to base rule (was only in `@media (max-width: 1023px)`) so category list can scroll within card on desktop
+- Surfaces confirmed fine (no change needed): segment-popup-floating, upload-files-popup-box, manual-review-modal (stats), all mr-card-narrow variants
+- Commits: `46beece` (chart + mr-card), `a37dda1` (modal-card/modal-list), pushed to main
+
 **Rate limiting overhaul — granular disable flags (2026-09-20):**
 - `App/API/rate_limits.py` rebuilt with per-endpoint callable constants
 - `DISABLE_ALL_RATE_LIMITS = False` (line 33) — one toggle to kill everything
