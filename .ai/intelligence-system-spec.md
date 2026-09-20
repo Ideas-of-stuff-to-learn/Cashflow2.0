@@ -1691,3 +1691,77 @@ Any temporary or extra files generated during a ghost test or local verification
 ### Never front-load the whole plan
 
 Do not output a long upfront plan and then go silent while executing. Give updates as you go, not all at once at the start or end.
+
+---
+
+## 55. End-of-Session Ritual
+
+Run these steps **in this exact order** at the end of every session before the final ship. Do not skip or reorder.
+
+```text
+1. revert-state.md      → update the in-progress row's status to "complete"
+2. current-task.md      → move active task to "Recently Completed", clear active section, note open work
+3. handoff.md           → prepend a new "What Was Just Done" block with file-level detail and commit hashes;
+                          keep older blocks below (do not delete them)
+4. backlog.md           → mark completed tasks [x] + strikethrough in Quick Reference table;
+                          add a progress log row; add full task section if a new task was created mid-session
+5. sync to SQLite       → python .ai/sync_context.py
+6. savings-log.md       → append one line (date | task | queries | docs loaded | scan avoided | notes)
+7. chore commit + push  → one commit covering all context/backlog files; push to main
+```
+
+**"Ship everything" means:** context files and backlog updates ride in the final commit — not just code. They are part of the deliverable. Never leave context updates as local-only.
+
+---
+
+## 56. Backlog Conventions (`tasks/backlog.md`)
+
+- **Task numbering** — sequential integers, never reused. Next task = max existing number + 1.
+- **Quick Reference table row when done** — add strikethrough to the title cell: `~~Title~~`
+- **Full task section heading when done** — `### ~~N · Title~~ ✅` with `**Status:** \`[x]\` Done — YYYY-MM-DD` as the first line in the section body
+- **Progress log** — one row per work session (even if no tasks completed); format: `| Date | emoji | ~N% | one-line note |`
+- **New task mid-session** — add both the Quick Reference row AND the full section before the "Dependency Order" block; place it in the correct priority group
+- **Dependency Order diagram** — update when a new task has prereqs or unblocks others
+- **Overall %** — rough fraction of total task-points done (count `[x]` tasks / total tasks, weight by effort if obvious); this is a pulse, not a calculation
+
+---
+
+## 57. Context Reading Efficiency
+
+When starting a session or resuming work, read in this order — stop as soon as you have enough to proceed:
+
+```text
+1. context/handoff.md       — most recent first; what was literally just done
+2. context/current-task.md  — active task and open work
+3. SQLite query for the specific area being touched (files, constraints, deps)
+4. Only then: architecture/overview/decisions if the task genuinely needs them
+```
+
+**Do not load `context/architecture.md`, `context/overview.md`, or `context/dependencies.md` as a routine warm-up.** They are large documents. Load them only when you need to understand something they specifically cover.
+
+### Efficient whole-app audit pattern
+
+When asked to "peruse the entire app" or "check everything" for a class of issue (e.g. responsive modals, hardcoded colours, missing error states):
+
+```text
+1. Glob all relevant file types to get the full list
+2. Read every file — do not sample
+3. Build a "fine / needs fixing" list before touching anything
+4. Report the scope searched ("checked all 17 CSS files + 44 JSX components")
+   so the owner knows the coverage
+5. Only edit what genuinely has the problem — do not touch things that look fine
+6. Ship after owner confirms
+```
+
+---
+
+## 58. Two-Confirm Rule for Substantial Changes
+
+For any change that is large, risky, or hard to reverse — **agreeing with the analysis is not authorisation to code.** Get an explicit second go-ahead ("yes do it", "go ahead", "ship it") before writing code. A single "sounds right" or "that makes sense" is not enough.
+
+What counts as substantial:
+- New context files, new API routes, schema changes
+- Refactoring more than 3 files at once
+- Anything touching auth, billing, or the categorisation pipeline
+- Anything the owner hasn't seen in a screenshot or demo yet
+- Any destructive git operation (reset --hard, force push, revert of a shipped commit)
