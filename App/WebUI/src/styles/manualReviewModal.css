@@ -1,3 +1,68 @@
+/* ── Stats modal (ManualReviewStatsModal) — original class names ─────────── */
+.manual-review-backdrop {
+    position: fixed;
+    inset: 0;
+    background: var(--overlay-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.manual-review-modal {
+    background: var(--bg-page);
+    border-radius: 12px;
+    padding: 32px;
+    max-width: 480px;
+    width: 90%;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.manual-review-text {
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+
+.manual-review-question {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-primary);
+    margin: 20px 0;
+    line-height: 1.5;
+}
+
+.manual-review-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.manual-review-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    font-family: var(--font-body);
+}
+
+.manual-review-btn-primary {
+    background: var(--primary);
+    color: var(--bg-page);
+}
+
+.manual-review-btn-primary:hover { background: var(--primary-hover); }
+
+.manual-review-btn-secondary {
+    background: var(--border);
+    color: var(--text-primary);
+}
+
+.manual-review-btn-secondary:hover { background: var(--border-medium); }
+
 /* ── Manual Review Sequential Modal ──────────────────────────────────────── */
 
 .mr-backdrop {
