@@ -1,166 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Palette Mapper</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@700&family=Inter+Tight:wght@400;500&display=swap" rel="stylesheet" />
 <style>
-  :root {
-    --bg: #f7f7f5;
-    --surface: #ffffff;
-    --surface2: #f2f2f0;
-    --border: #e0e0dc;
-    --text: #1a1a1a;
-    --text2: #666;
-    --accent: #2E5C8A;
-    --accent-light: #ebf2f9;
-    --mono: 'JetBrains Mono', 'Fira Mono', monospace;
+:root {
+  --bg:           #f5f5f3;
+  --surface:      #ffffff;
+  --surface2:     #f0f0ee;
+  --border:       #e0e0dc;
+  --text:         #1a1a1a;
+  --text2:        #777;
+  --accent:       #2E5C8A;
+  --accent-light: #ebf2f9;
+  --success:      #3D8B5F;
+  --mono: 'JetBrains Mono', 'Fira Mono', monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161616; --surface: #202020; --surface2: #2a2a2a;
+    --border: #333; --text: #e8e8e8; --text2: #888;
+    --accent: #4a85be; --accent-light: #1a2d3e;
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #161616;
-      --surface: #202020;
-      --surface2: #2a2a2a;
-      --border: #333;
-      --text: #e8e8e8;
-      --text2: #999;
-      --accent: #4a85be;
-      --accent-light: #1a2d3e;
-    }
-  }
-  :root[data-theme="dark"] {
-    --bg: #161616;
-    --surface: #202020;
-    --surface2: #2a2a2a;
-    --border: #333;
-    --text: #e8e8e8;
-    --text2: #999;
-    --accent: #4a85be;
-    --accent-light: #1a2d3e;
-  }
+}
+:root[data-theme="dark"] {
+  --bg: #161616; --surface: #202020; --surface2: #2a2a2a;
+  --border: #333; --text: #e8e8e8; --text2: #888;
+  --accent: #4a85be; --accent-light: #1a2d3e;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 100%; }
+body {
+  font-family: 'Inter Tight', system-ui, sans-serif;
+  font-size: 0.9375rem;
+  background: var(--bg);
+  color: var(--text);
+  padding: 24px 16px 56px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+h1 { font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 1.25rem; margin-bottom: 3px; }
+h2 { font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 0.7rem; text-transform: uppercase; letter-spacing: .07em; color: var(--text2); margin-bottom: 14px; }
+.subtitle { font-size: 0.85rem; color: var(--text2); margin-bottom: 28px; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+.panel-row { display: flex; gap: 16px; flex-wrap: wrap; }
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Inter', system-ui, sans-serif;
-    font-size: 14px;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100%;
-    padding: 24px 16px 48px;
-  }
+/* ── Paste area ── */
+.paste-area {
+  width: 100%; min-height: 130px; resize: vertical;
+  font-family: var(--mono); font-size: 12px; line-height: 1.6;
+  background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 7px;
+  padding: 12px; outline: none;
+}
+.paste-area:focus { border-color: var(--accent); }
+.parse-status { font-size: 12px; margin-top: 8px; min-height: 18px; color: var(--text2); }
+.parse-status.ok  { color: var(--success); }
+.parse-status.err { color: #D94F4F; }
 
-  h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
-  .subtitle { color: var(--text2); font-size: 13px; margin-bottom: 24px; }
+/* ── Colour roles ── */
+.role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (min-width: 560px) { .role-grid { grid-template-columns: repeat(3,1fr); } }
+@media (min-width: 800px) { .role-grid { grid-template-columns: repeat(5,1fr); } }
+.role-item label { display: block; font-size: 10px; font-weight: 500; color: var(--text2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .05em; }
+.swatch-row { display: flex; align-items: center; gap: 6px; }
+.swatch-row input[type="color"] { width: 34px; height: 30px; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; padding: 2px; background: none; }
+.swatch-row input[type="text"] {
+  flex: 1; font-family: var(--mono); font-size: 11px;
+  border: 1px solid var(--border); border-radius: 5px;
+  padding: 5px 7px; background: var(--surface2); color: var(--text); outline: none;
+}
+.swatch-row input[type="text"]:focus { border-color: var(--accent); }
 
-  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
-  .panel h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text2); margin-bottom: 14px; }
+/* ── Font summary ── */
+.font-summary { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 4px; }
+.font-pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.font-pill .fp-label { color: var(--text2); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
 
-  /* Colour input row */
-  .role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  @media (min-width: 600px) { .role-grid { grid-template-columns: repeat(3, 1fr); } }
-  @media (min-width: 900px) { .role-grid { grid-template-columns: repeat(5, 1fr); } }
+/* ── Preview ── */
+.preview-shell { border-radius: 8px; overflow: hidden; border: 1px solid var(--border); font-size: 13px; }
+.preview-header { display: flex; align-items: center; justify-content: space-between; padding: 9px 14px; font-weight: 600; font-size: 13px; }
+.preview-header .pill { font-size: 10px; font-weight: 700; border-radius: 20px; padding: 3px 10px; }
+.preview-body { display: flex; min-height: 190px; }
+.preview-sidebar { width: 130px; flex-shrink: 0; padding: 10px; border-right: 1px solid; }
+.preview-sidebar .item { padding: 5px 7px; border-radius: 5px; margin-bottom: 2px; font-size: 11px; }
+.preview-main { flex: 1; padding: 10px 14px; }
+.preview-cards { display: flex; gap: 8px; margin-bottom: 8px; }
+.preview-card { flex: 1; border-radius: 6px; padding: 10px 12px; border: 1px solid; }
+.preview-card .ct { font-size: 10px; color: #888; margin-bottom: 2px; }
+.preview-card .cv { font-size: 20px; font-weight: 700; }
+.preview-table-row { display: flex; border-bottom: 1px solid; padding: 5px 0; font-size: 11px; }
+.preview-table-row span { flex: 1; }
+.preview-table-row .amt { text-align: right; font-weight: 500; }
+.preview-btns { display: flex; gap: 8px; margin-top: 10px; }
+.preview-btn { padding: 6px 14px; border-radius: 5px; font-size: 11px; font-weight: 600; }
+.preview-input { border: 1px solid; border-radius: 5px; padding: 5px 9px; font-size: 11px; width: 100%; margin-top: 8px; outline: none; }
+.chart-bars { display: flex; align-items: flex-end; gap: 5px; height: 70px; margin-top: 10px; }
+.chart-bar { flex: 1; border-radius: 3px 3px 0 0; }
 
-  .role-item label { display: block; font-size: 11px; font-weight: 500; color: var(--text2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .05em; }
-  .role-item .swatch-row { display: flex; align-items: center; gap: 6px; }
-  .role-item input[type="color"] { width: 36px; height: 32px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; padding: 2px; background: none; }
-  .role-item input[type="text"] {
-    flex: 1; font-family: var(--mono); font-size: 12px;
-    border: 1px solid var(--border); border-radius: 6px;
-    padding: 5px 8px; background: var(--surface2); color: var(--text);
-    outline: none;
-  }
-  .role-item input[type="text"]:focus { border-color: var(--accent); }
-
-  /* Preview */
-  .preview-shell {
-    border-radius: 8px; overflow: hidden; border: 1px solid var(--border);
-    font-size: 13px;
-  }
-  .preview-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 16px; font-weight: 600;
-  }
-  .preview-header .pill { font-size: 11px; font-weight: 600; border-radius: 20px; padding: 3px 10px; }
-  .preview-body { display: flex; min-height: 200px; }
-  .preview-sidebar { width: 140px; flex-shrink: 0; padding: 12px; border-right: 1px solid; }
-  .preview-sidebar .item { padding: 6px 8px; border-radius: 5px; margin-bottom: 3px; font-size: 12px; cursor: default; }
-  .preview-main { flex: 1; padding: 12px 16px; }
-  .preview-card { border-radius: 7px; padding: 12px 14px; margin-bottom: 10px; border: 1px solid; }
-  .preview-card .card-title { font-weight: 600; margin-bottom: 4px; }
-  .preview-card .card-val { font-size: 22px; font-weight: 700; }
-  .preview-btn { display: inline-block; padding: 7px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; margin-right: 8px; }
-  .preview-input { border: 1px solid; border-radius: 6px; padding: 6px 10px; font-size: 12px; width: 100%; margin-top: 8px; outline: none; }
-  .preview-table-row { display: flex; border-bottom: 1px solid; padding: 6px 0; font-size: 12px; }
-  .preview-table-row span { flex: 1; }
-  .preview-table-row .amount { text-align: right; font-weight: 500; }
-
-  /* Output */
-  .output-area {
-    font-family: var(--mono); font-size: 12px; line-height: 1.7;
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 8px; padding: 16px; white-space: pre; overflow-x: auto;
-    color: var(--text);
-  }
-  .copy-btn {
-    margin-top: 10px; padding: 8px 18px; background: var(--accent); color: #fff;
-    border: none; border-radius: 6px; font-size: 13px; font-weight: 600;
-    cursor: pointer; transition: opacity .15s;
-  }
-  .copy-btn:hover { opacity: .85; }
-  .copy-btn.copied { background: #3D8B5F; }
-
-  .tip { font-size: 12px; color: var(--text2); margin-top: 8px; line-height: 1.5; }
-
-  /* Chart preview */
-  .chart-bars { display: flex; align-items: flex-end; gap: 6px; height: 80px; margin-top: 12px; }
-  .chart-bar { flex: 1; border-radius: 3px 3px 0 0; }
+/* ── Output ── */
+.output-area {
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.7;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 16px; white-space: pre; overflow-x: auto; color: var(--text);
+}
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.btn {
+  padding: 8px 18px; border: none; border-radius: 6px;
+  font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .15s;
+}
+.btn:hover { opacity: .85; }
+.btn-primary  { background: var(--accent); color: #fff; }
+.btn-success  { background: var(--success); color: #fff; }
+.btn.active   { background: var(--success); color: #fff; }
+.btn-outline  { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.write-status { font-size: 12px; color: var(--text2); margin-top: 8px; min-height: 18px; }
+.write-status.ok  { color: var(--success); }
+.write-status.err { color: #D94F4F; }
+.tip { font-size: 11.5px; color: var(--text2); margin-top: 8px; line-height: 1.55; }
+code { font-family: var(--mono); font-size: .9em; background: var(--surface2); padding: 1px 4px; border-radius: 3px; }
 </style>
+</head>
+<body>
 
 <h1>Palette Mapper</h1>
-<p class="subtitle">Paste hex codes from any palette site → instantly preview → copy the <code>theme.css</code> block.</p>
+<p class="subtitle">Paste a CSS block from realtimecolors (or any palette tool) → live preview → write directly to <code>theme.css</code>.</p>
 
+<!-- ── Step 1: Paste CSS ── -->
 <div class="panel">
-  <h2>Your Palette Roles</h2>
-  <div class="role-grid" id="roleGrid"></div>
-  <p class="tip" style="margin-top:12px">Tip: copy a hex from your palette site and paste it into any field. The picker and preview update instantly.</p>
+  <h2>Step 1 — Paste CSS from realtimecolors</h2>
+  <textarea class="paste-area" id="pasteArea" placeholder="Paste the exported CSS block here — @import, body {}, h1-h5 {}, font-size rules…&#10;&#10;Colour tokens will be picked up automatically if you also include :root { --primary: … } style blocks.&#10;&#10;Leave blank to use the colour pickers below only."></textarea>
+  <div class="parse-status" id="parseStatus">Waiting for input…</div>
+  <div class="font-summary" id="fontSummary" style="margin-top:10px"></div>
 </div>
 
+<!-- ── Step 2: Colour roles ── -->
+<div class="panel">
+  <h2>Step 2 — Colour Roles</h2>
+  <div class="role-grid" id="roleGrid"></div>
+  <p class="tip" style="margin-top:10px">If your palette CSS includes colour variables these fill automatically. Otherwise paste hex codes directly.</p>
+</div>
+
+<!-- ── Preview ── -->
 <div class="panel">
   <h2>Live Preview</h2>
   <div class="preview-shell" id="previewShell">
     <div class="preview-header" id="ph">
-      <span>Personal Spending Pattern Visualisation Tool</span>
+      <span id="phTitle">Personal Spending Pattern Visualisation Tool</span>
       <span class="pill" id="pilOwner">Owner</span>
     </div>
     <div class="preview-body">
       <div class="preview-sidebar" id="ps">
         <div class="item" id="siActive">Dashboard</div>
-        <div class="item" id="siNorm1">Transactions</div>
-        <div class="item" id="siNorm2">Charts</div>
-        <div class="item" id="siNorm3">Settings</div>
+        <div class="item" id="siN1">Transactions</div>
+        <div class="item" id="siN2">Charts</div>
+        <div class="item" id="siN3">Settings</div>
       </div>
       <div class="preview-main" id="pm">
-        <div style="display:flex;gap:10px;margin-bottom:10px">
-          <div class="preview-card" id="card1" style="flex:1">
-            <div class="card-title">Total Spend</div>
-            <div class="card-val" id="cardVal1">$4,821</div>
-          </div>
-          <div class="preview-card" id="card2" style="flex:1">
-            <div class="card-title">Categories</div>
-            <div class="card-val" id="cardVal2">14</div>
-          </div>
+        <div class="preview-cards">
+          <div class="preview-card" id="card1"><div class="ct">Total Spend</div><div class="cv" id="cv1">$4,821</div></div>
+          <div class="preview-card" id="card2"><div class="ct">Categories</div><div class="cv" id="cv2">14</div></div>
         </div>
-        <div class="preview-card" id="card3">
-          <div class="card-title" style="margin-bottom:8px">Transactions</div>
-          <div class="preview-table-row" id="tr1" style="font-weight:600">
-            <span>Date</span><span>Description</span><span class="amount">Amount</span>
-          </div>
-          <div class="preview-table-row" id="tr2">
-            <span>15 Sep</span><span>Woolworths</span><span class="amount">-$84.20</span>
-          </div>
-          <div class="preview-table-row" id="tr3">
-            <span>14 Sep</span><span>Netflix</span><span class="amount">-$19.99</span>
-          </div>
+        <div class="preview-card" id="card3" style="margin-bottom:0">
+          <div style="font-weight:600;font-size:12px;margin-bottom:6px">Transactions</div>
+          <div class="preview-table-row" id="tr1"><span>Date</span><span>Description</span><span class="amt">Amount</span></div>
+          <div class="preview-table-row" id="tr2"><span>15 Sep</span><span>Woolworths</span><span class="amt">-$84.20</span></div>
+          <div class="preview-table-row" id="tr3"><span>14 Sep</span><span>Netflix</span><span class="amt">-$19.99</span></div>
         </div>
-        <div style="margin-top:12px">
-          <span class="preview-btn" id="btnPrimary">Categorise</span>
-          <span class="preview-btn" id="btnDanger">Delete</span>
+        <div class="preview-btns">
+          <span class="preview-btn" id="btnP">Categorise</span>
+          <span class="preview-btn" id="btnD">Delete</span>
         </div>
         <input class="preview-input" id="prevInput" placeholder="Search transactions…" readonly />
         <div class="chart-bars" id="chartBars"></div>
@@ -169,227 +182,458 @@
   </div>
 </div>
 
+<!-- ── Output ── -->
 <div class="panel">
-  <h2>Generated theme.css block — copy into your file</h2>
+  <h2>Generated theme.css block</h2>
   <div class="output-area" id="outputBlock"></div>
-  <button class="copy-btn" id="copyBtn" onclick="copyOutput()">Copy to clipboard</button>
-  <p class="tip">Paste this into the <code>:root { … }</code> section of <code>App/WebUI/src/styles/theme.css</code>, replacing the colour tokens. Font tokens and dark-mode block stay as-is unless you also change those.</p>
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="copyOutput()" id="copyBtn">Copy to clipboard</button>
+    <button class="btn btn-success" onclick="writeToFile()" id="writeBtn">Write to theme.css…</button>
+  </div>
+  <div class="write-status" id="writeStatus"></div>
+  <p class="tip">
+    <b>Write to theme.css</b> — click, navigate to <code>App/WebUI/src/styles/theme.css</code>, confirm.
+    The tool reads your current file, replaces only the colour and typography tokens, and saves it back.
+    Everything else (dark mode block, footnote tokens, overlays) is preserved.
+  </p>
 </div>
 
 <script>
+// ── State ──────────────────────────────────────────────────────────────────
+const CHART_COLS = ['#2E5C8A','#E07A3E','#3D8B5F','#9B3D8A','#C4A227','#D94F4F','#4FA8D9'];
+
 const ROLES = [
-  { key: 'primary',    label: 'Primary / Accent',  desc: 'Buttons, links, active states',   default: '#2E5C8A' },
-  { key: 'danger',     label: 'Danger',             desc: 'Delete, errors',                  default: '#D94F4F' },
-  { key: 'success',    label: 'Success',            desc: 'Upload done, positive states',    default: '#3D8B5F' },
-  { key: 'bgPage',     label: 'Page Background',    desc: 'Full page / outermost bg',        default: '#ffffff' },
-  { key: 'bgSurface',  label: 'Surface / Panel',    desc: 'Cards, filter pane, modals',      default: '#F8F9FA' },
-  { key: 'bgInput',    label: 'Input / Muted bg',   desc: 'Text inputs, subtle fills',       default: '#f7f7f7' },
-  { key: 'textPrimary',label: 'Text — Primary',     desc: 'Headings, body copy',             default: '#1a1a1a' },
-  { key: 'textMuted',  label: 'Text — Muted',       desc: 'Labels, hints, secondary info',   default: '#888888' },
-  { key: 'border',     label: 'Border — Light',     desc: 'Dividers, subtle outlines',       default: '#eeeeee' },
-  { key: 'borderMed',  label: 'Border — Medium',    desc: 'Table rows, inputs',              default: '#dddddd' },
+  { key:'primary',     label:'Primary',      default:'#2E5C8A' },
+  { key:'danger',      label:'Danger',       default:'#D94F4F' },
+  { key:'success',     label:'Success',      default:'#3D8B5F' },
+  { key:'bgPage',      label:'Page Bg',      default:'#ffffff' },
+  { key:'bgSurface',   label:'Surface',      default:'#F8F9FA' },
+  { key:'bgInput',     label:'Input Bg',     default:'#f7f7f7' },
+  { key:'textPrimary', label:'Text Primary', default:'#1a1a1a' },
+  { key:'textMuted',   label:'Text Muted',   default:'#888888' },
+  { key:'border',      label:'Border Light', default:'#eeeeee' },
+  { key:'borderMed',   label:'Border Med',   default:'#dddddd' },
 ];
 
-const state = {};
-ROLES.forEach(r => state[r.key] = r.default);
+const colours = {};
+ROLES.forEach(r => colours[r.key] = r.default);
 
-// --- Build inputs ---
+const fonts = {
+  bodyFamily:    "'Inter Tight', system-ui, sans-serif",
+  headingFamily: "'Inter', system-ui, sans-serif",
+  bodyWeight:    '400',
+  headingWeight: '700',
+  baseSize:      '1rem',
+  h1: '1.802rem', h2: '1.602rem', h3: '1.424rem', h4: '1.266rem', h5: '1.125rem',
+  sm: '0.889rem', xs: '0.75rem',
+  googleImport:  'https://fonts.googleapis.com/css2?family=Inter:wght@700&family=Inter+Tight:wght@400;500&display=swap',
+};
+
+// ── Build colour inputs ────────────────────────────────────────────────────
 const grid = document.getElementById('roleGrid');
 ROLES.forEach(r => {
   const div = document.createElement('div');
   div.className = 'role-item';
-  div.innerHTML = `
-    <label title="${r.desc}">${r.label}</label>
+  div.innerHTML = `<label>${r.label}</label>
     <div class="swatch-row">
       <input type="color" id="col_${r.key}" value="${r.default}" />
-      <input type="text" id="txt_${r.key}" value="${r.default}" maxlength="7" spellcheck="false" />
+      <input type="text"  id="txt_${r.key}" value="${r.default}" maxlength="7" spellcheck="false" />
     </div>`;
   grid.appendChild(div);
 
-  const colEl = div.querySelector(`#col_${r.key}`);
-  const txtEl = div.querySelector(`#txt_${r.key}`);
+  const col = div.querySelector(`#col_${r.key}`);
+  const txt = div.querySelector(`#txt_${r.key}`);
 
-  colEl.addEventListener('input', () => {
-    const v = colEl.value;
-    txtEl.value = v;
-    state[r.key] = v;
-    update();
+  col.addEventListener('input', () => { txt.value = col.value; colours[r.key] = col.value; update(); });
+  txt.addEventListener('input', () => {
+    const v = txt.value.trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(v)) { col.value = v; colours[r.key] = v; update(); }
   });
-  txtEl.addEventListener('input', () => {
-    const v = txtEl.value.trim();
-    if (/^#[0-9a-fA-F]{6}$/.test(v)) {
-      colEl.value = v;
-      state[r.key] = v;
-      update();
-    }
-  });
-  txtEl.addEventListener('blur', () => {
-    if (!/^#[0-9a-fA-F]{6}$/.test(txtEl.value.trim())) txtEl.value = state[r.key];
+  txt.addEventListener('blur', () => {
+    if (!/^#[0-9a-fA-F]{6}$/.test(txt.value.trim())) txt.value = colours[r.key];
   });
 });
 
-// --- Derive extra tokens ---
-function derive(hex, alpha) {
-  // hex → rgba string
-  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-  return `rgba(${r},${g},${b},${alpha})`;
+// ── CSS parser ─────────────────────────────────────────────────────────────
+function parseCSS(raw) {
+  const info = { fonts: {}, colours: {}, errors: [] };
+
+  // @import Google Fonts URL
+  const imp = raw.match(/@import\s+url\(['"]?([^'")\s]+)['"]?\)/);
+  if (imp) info.fonts.googleImport = imp[1];
+
+  // Strip comments
+  const css = raw.replace(/\/\*[\s\S]*?\*\//g, '');
+
+  // Helper: grab declarations from a block
+  function decls(block) {
+    const out = {};
+    const re = /([\w-]+)\s*:\s*([^;]+);/g;
+    let m;
+    while ((m = re.exec(block)) !== null) out[m[1].trim()] = m[2].trim();
+    return out;
+  }
+
+  // Parse all rule blocks
+  const ruleRe = /([^{}]+)\{([^{}]*)\}/g;
+  let rm;
+  while ((rm = ruleRe.exec(css)) !== null) {
+    const sel = rm[1].trim().toLowerCase();
+    const d   = decls(rm[2]);
+
+    // CSS custom properties (colours)
+    for (const [k,v] of Object.entries(d)) {
+      if (k.startsWith('--')) info.colours[k] = v;
+    }
+
+    // body → font-body
+    if (sel === 'body' || sel === 'body, html' || sel === 'html, body') {
+      if (d['font-family']) info.fonts.bodyFamily = d['font-family'].replace(/;$/, '').trim();
+      if (d['font-weight']) info.fonts.bodyWeight  = d['font-weight'].trim();
+    }
+
+    // html → base font-size
+    if (sel === 'html') {
+      if (d['font-size']) info.fonts.baseSize = d['font-size'].trim();
+    }
+
+    // heading selectors
+    if (/h[1-5]/.test(sel) && (d['font-family'] || d['font-weight'])) {
+      if (d['font-family']) info.fonts.headingFamily = d['font-family'].replace(/;$/, '').trim();
+      if (d['font-weight']) info.fonts.headingWeight  = d['font-weight'].trim();
+    }
+
+    // individual h sizes
+    ['h1','h2','h3','h4','h5'].forEach(h => {
+      if (sel === h || sel.split(',').map(s=>s.trim()).includes(h)) {
+        if (d['font-size']) info.fonts[h] = d['font-size'].trim();
+      }
+    });
+
+    // small
+    if (sel === 'small') {
+      if (d['font-size']) info.fonts.sm = d['font-size'].trim();
+    }
+  }
+
+  // Map known CSS custom property names to colour roles
+  const colMap = {
+    '--color-primary':    'primary',   '--primary':    'primary',
+    '--color-accent':     'primary',   '--accent':     'primary',
+    '--color-danger':     'danger',    '--danger':     'danger',
+    '--color-error':      'danger',
+    '--color-success':    'success',   '--success':    'success',
+    '--color-background': 'bgPage',    '--background': 'bgPage',  '--bg': 'bgPage',
+    '--color-surface':    'bgSurface', '--surface':    'bgSurface',
+    '--color-text':       'textPrimary','--text':      'textPrimary','--foreground':'textPrimary',
+    '--color-muted':      'textMuted', '--muted':      'textMuted',
+    '--color-border':     'border',    '--border':     'border',
+  };
+  for (const [cssVar, role] of Object.entries(colMap)) {
+    if (info.colours[cssVar] && /^#[0-9a-fA-F]{3,8}$/.test(info.colours[cssVar].trim())) {
+      info.colours[role] = info.colours[cssVar].trim();
+    }
+  }
+
+  return info;
 }
-function lighten(hex, amount) {
-  // amount 0-1 toward white
-  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-  const rr = Math.round(r + (255-r)*amount), gg = Math.round(g + (255-g)*amount), bb = Math.round(b + (255-b)*amount);
-  return '#' + [rr,gg,bb].map(x=>x.toString(16).padStart(2,'0')).join('');
+
+function applyParsed(info) {
+  // Fonts
+  if (info.fonts.bodyFamily)    fonts.bodyFamily    = info.fonts.bodyFamily;
+  if (info.fonts.headingFamily) fonts.headingFamily = info.fonts.headingFamily;
+  if (info.fonts.bodyWeight)    fonts.bodyWeight    = info.fonts.bodyWeight;
+  if (info.fonts.headingWeight) fonts.headingWeight = info.fonts.headingWeight;
+  if (info.fonts.baseSize)      fonts.baseSize      = info.fonts.baseSize;
+  if (info.fonts.googleImport)  fonts.googleImport  = info.fonts.googleImport;
+  ['h1','h2','h3','h4','h5','sm','xs'].forEach(k => { if (info.fonts[k]) fonts[k] = info.fonts[k]; });
+
+  // Colours
+  ROLES.forEach(r => {
+    if (info.colours[r.key]) {
+      colours[r.key] = info.colours[r.key];
+      document.getElementById(`col_${r.key}`).value = colours[r.key];
+      document.getElementById(`txt_${r.key}`).value = colours[r.key];
+    }
+  });
 }
-function darken(hex, amount) {
-  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-  const rr = Math.round(r*(1-amount)), gg = Math.round(g*(1-amount)), bb = Math.round(b*(1-amount));
-  return '#' + [rr,gg,bb].map(x=>x.toString(16).padStart(2,'0')).join('');
+
+// ── Paste handler ──────────────────────────────────────────────────────────
+document.getElementById('pasteArea').addEventListener('input', function() {
+  const raw = this.value.trim();
+  const status = document.getElementById('parseStatus');
+  const summary = document.getElementById('fontSummary');
+  summary.innerHTML = '';
+
+  if (!raw) { status.className = 'parse-status'; status.textContent = 'Waiting for input…'; update(); return; }
+
+  try {
+    const info = parseCSS(raw);
+    applyParsed(info);
+
+    const detected = [];
+    if (info.fonts.bodyFamily)    detected.push(['Body', stripFallbacks(info.fonts.bodyFamily)]);
+    if (info.fonts.headingFamily) detected.push(['Headings', stripFallbacks(info.fonts.headingFamily)]);
+    if (info.fonts.baseSize)      detected.push(['Base size', info.fonts.baseSize]);
+    if (info.fonts.h1)            detected.push(['h1', info.fonts.h1]);
+    const colCount = ROLES.filter(r => info.colours[r.key]).length;
+
+    detected.forEach(([label, val]) => {
+      const p = document.createElement('div');
+      p.className = 'font-pill';
+      p.innerHTML = `<span class="fp-label">${label}</span><span>${val}</span>`;
+      summary.appendChild(p);
+    });
+    if (colCount) {
+      const p = document.createElement('div');
+      p.className = 'font-pill';
+      p.innerHTML = `<span class="fp-label">Colours</span><span>${colCount} role${colCount>1?'s':''} detected</span>`;
+      summary.appendChild(p);
+    }
+
+    const total = detected.length + (colCount ? 1 : 0);
+    status.className = 'parse-status ok';
+    status.textContent = total > 0 ? `✓ Parsed — ${total} value${total>1?'s':''} applied` : '⚠ No recognisable values found — check the format';
+    if (total === 0) status.className = 'parse-status err';
+  } catch(e) {
+    status.className = 'parse-status err';
+    status.textContent = '✗ Parse error: ' + e.message;
+  }
+  update();
+});
+
+function stripFallbacks(f) {
+  return f.split(',')[0].trim().replace(/['"]/g, '');
+}
+
+// ── Colour helpers ─────────────────────────────────────────────────────────
+function rgba(hex, a) {
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function lighten(hex, t) {
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return '#'+[Math.round(r+(255-r)*t),Math.round(g+(255-g)*t),Math.round(b+(255-b)*t)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+function darken(hex, t) {
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return '#'+[Math.round(r*(1-t)),Math.round(g*(1-t)),Math.round(b*(1-t))].map(x=>x.toString(16).padStart(2,'0')).join('');
 }
 
 function tokens() {
-  const p = state.primary, d = state.danger, s = state.success;
+  const p=colours.primary, d=colours.danger, s=colours.success;
   return {
-    '--primary':          p,
-    '--primary-hover':    darken(p, 0.14),
-    '--primary-light':    lighten(p, 0.88),
-    '--primary-lighter':  lighten(p, 0.84),
-    '--primary-muted':    lighten(p, 0.70),
-    '--danger':           d,
-    '--danger-hover':     darken(d, 0.14),
-    '--danger-bg':        derive(d, 0.10),
-    '--success':          s,
-    '--success-bright':   lighten(s, 0.15),
-    '--bg-page':          state.bgPage,
-    '--bg-surface':       state.bgSurface,
-    '--bg-subtle':        lighten(state.bgSurface, 0.4),
-    '--bg-input':         state.bgInput,
-    '--bg-header-row':    lighten(p, 0.93),
-    '--bg-muted':         lighten(state.bgInput, 0.5),
-    '--bg-highlight':     lighten(state.danger, 0.90),
-    '--bg-warning':       '#FFF3CD',
-    '--bg-error':         lighten(d, 0.90),
-    '--bg-selected':      lighten(p, 0.82),
-    '--text-primary':     state.textPrimary,
-    '--text-secondary':   lighten(state.textPrimary, 0.33),
-    '--text-muted':       state.textMuted,
-    '--text-faint':       lighten(state.textMuted, 0.50),
-    '--border':           state.border,
-    '--border-medium':    state.borderMed,
-    '--border-strong':    darken(state.borderMed, 0.10),
-    '--border-table':     lighten(p, 0.87),
+    '--primary':p,'--primary-hover':darken(p,.14),'--primary-light':lighten(p,.88),
+    '--primary-lighter':lighten(p,.84),'--primary-muted':lighten(p,.70),
+    '--danger':d,'--danger-hover':darken(d,.14),'--danger-bg':rgba(d,.10),
+    '--success':s,'--success-bright':lighten(s,.15),
+    '--bg-page':colours.bgPage,'--bg-surface':colours.bgSurface,
+    '--bg-subtle':lighten(colours.bgSurface,.4),'--bg-input':colours.bgInput,
+    '--bg-header-row':lighten(p,.93),'--bg-muted':lighten(colours.bgInput,.5),
+    '--bg-highlight':lighten(d,.90),'--bg-warning':'#FFF3CD',
+    '--bg-error':lighten(d,.90),'--bg-selected':lighten(p,.82),
+    '--text-primary':colours.textPrimary,'--text-secondary':lighten(colours.textPrimary,.33),
+    '--text-muted':colours.textMuted,'--text-faint':lighten(colours.textMuted,.50),
+    '--border':colours.border,'--border-medium':colours.borderMed,
+    '--border-strong':darken(colours.borderMed,.10),'--border-table':lighten(p,.87),
   };
 }
 
-// --- Preview ---
-const CHART_COLS = ['#2E5C8A','#E07A3E','#3D8B5F','#9B3D8A','#C4A227','#D94F4F','#4FA8D9'];
-
+// ── Preview ────────────────────────────────────────────────────────────────
 function updatePreview(t) {
+  // Apply fonts to preview shell
+  const shell = document.getElementById('previewShell');
+  const bodyF = fonts.bodyFamily || "'Inter Tight',system-ui,sans-serif";
+  const headF = fonts.headingFamily || "'Inter',system-ui,sans-serif";
+  shell.style.fontFamily = bodyF;
+  document.getElementById('phTitle').style.fontFamily = headF;
+  document.getElementById('phTitle').style.fontWeight = fonts.headingWeight || '700';
+
   const ph = document.getElementById('ph');
   ph.style.background = t['--bg-surface'];
   ph.style.borderBottom = `1px solid ${t['--border']}`;
   ph.style.color = t['--text-primary'];
 
-  const pilOwner = document.getElementById('pilOwner');
-  pilOwner.style.background = state.primary;
-  pilOwner.style.color = '#fff';
+  const pil = document.getElementById('pilOwner');
+  pil.style.background = colours.primary; pil.style.color = '#fff';
 
   const ps = document.getElementById('ps');
   ps.style.background = t['--bg-subtle'];
   ps.style.borderColor = t['--border'];
 
-  document.getElementById('siActive').style.background = t['--bg-selected'];
-  document.getElementById('siActive').style.color = state.primary;
-  ['siNorm1','siNorm2','siNorm3'].forEach(id => {
-    document.getElementById(id).style.background = 'transparent';
-    document.getElementById(id).style.color = t['--text-secondary'];
+  document.getElementById('siActive').style.cssText = `background:${t['--bg-selected']};color:${colours.primary};font-family:${bodyF}`;
+  ['siN1','siN2','siN3'].forEach(id => {
+    document.getElementById(id).style.cssText = `background:transparent;color:${t['--text-secondary']};font-family:${bodyF}`;
   });
 
   const pm = document.getElementById('pm');
   pm.style.background = t['--bg-page'];
 
-  [document.getElementById('card1'), document.getElementById('card2')].forEach(c => {
+  [document.getElementById('card1'),document.getElementById('card2'),document.getElementById('card3')].forEach(c => {
     c.style.background = t['--bg-surface'];
     c.style.borderColor = t['--border'];
     c.style.color = t['--text-primary'];
   });
-  document.getElementById('cardVal1').style.color = state.primary;
-  document.getElementById('cardVal2').style.color = state.primary;
+  document.getElementById('cv1').style.cssText = `color:${colours.primary};font-family:${headF};font-weight:${fonts.headingWeight||'700'}`;
+  document.getElementById('cv2').style.cssText = `color:${colours.primary};font-family:${headF};font-weight:${fonts.headingWeight||'700'}`;
 
-  const card3 = document.getElementById('card3');
-  card3.style.background = t['--bg-surface'];
-  card3.style.borderColor = t['--border'];
-  card3.style.color = t['--text-primary'];
+  ['tr1','tr2','tr3'].forEach(id => {
+    document.getElementById(id).style.borderColor = t['--border-table'];
+    document.getElementById(id).style.color = id==='tr1' ? t['--text-secondary'] : t['--text-primary'];
+  });
 
-  document.getElementById('tr1').style.borderColor = t['--border-table'];
-  document.getElementById('tr1').style.color = t['--text-secondary'];
-  document.getElementById('tr2').style.borderColor = t['--border-table'];
-  document.getElementById('tr2').style.color = t['--text-primary'];
-  document.getElementById('tr3').style.borderColor = t['--border-table'];
-  document.getElementById('tr3').style.color = t['--text-primary'];
+  document.getElementById('btnP').style.cssText = `background:${colours.primary};color:#fff;font-family:${bodyF}`;
+  document.getElementById('btnD').style.cssText = `background:${colours.danger};color:#fff;font-family:${bodyF}`;
 
-  const btnP = document.getElementById('btnPrimary');
-  btnP.style.background = state.primary;
-  btnP.style.color = '#fff';
+  const pi = document.getElementById('prevInput');
+  pi.style.background = t['--bg-input'];
+  pi.style.borderColor = t['--border-medium'];
+  pi.style.color = t['--text-muted'];
+  pi.style.fontFamily = bodyF;
 
-  const btnD = document.getElementById('btnDanger');
-  btnD.style.background = state.danger;
-  btnD.style.color = '#fff';
-
-  const prevInput = document.getElementById('prevInput');
-  prevInput.style.background = t['--bg-input'];
-  prevInput.style.borderColor = t['--border-medium'];
-  prevInput.style.color = t['--text-muted'];
-
-  // chart bars
-  const barsEl = document.getElementById('chartBars');
-  barsEl.innerHTML = '';
-  const heights = [65, 45, 80, 55, 70, 40, 60];
-  CHART_COLS.forEach((col, i) => {
-    const b = document.createElement('div');
-    b.className = 'chart-bar';
-    b.style.height = heights[i] + '%';
-    b.style.background = col;
-    barsEl.appendChild(b);
+  const bars = document.getElementById('chartBars');
+  bars.innerHTML = '';
+  [65,45,80,55,70,40,60].forEach((h,i) => {
+    const b=document.createElement('div');
+    b.className='chart-bar';
+    b.style.cssText=`height:${h}%;background:${CHART_COLS[i]}`;
+    bars.appendChild(b);
   });
 
   document.getElementById('previewShell').style.background = t['--bg-page'];
 }
 
-// --- Output ---
-function pad(s, n) { return s.padEnd(n, ' '); }
+// ── Output builder ─────────────────────────────────────────────────────────
+function pad(s,n){ return s.padEnd(n,' '); }
 
 function buildOutput(t) {
-  const lines = ['/* ── Brand ─────────────────────── */'];
+  const lines = [];
+  lines.push('/* ── Typography ─────────────────── */');
+  lines.push(`  ${pad('--font-body:',22)} ${fonts.bodyFamily};`);
+  lines.push(`  ${pad('--font-heading:',22)} ${fonts.headingFamily};`);
+  lines.push(`  ${pad('--font-mono:',22)} 'JetBrains Mono', 'Fira Mono', monospace;`);
+  lines.push('');
+  lines.push(`  ${pad('--font-size-base:',22)} ${fonts.baseSize};`);
+  ['h1','h2','h3','h4','h5'].forEach(h => lines.push(`  ${pad(`--font-size-${h}:`,22)} ${fonts[h]};`));
+  lines.push(`  ${pad('--font-size-sm:',22)} ${fonts.sm};`);
+  lines.push(`  ${pad('--font-size-xs:',22)} ${fonts.xs};`);
+  lines.push('');
+  lines.push(`  ${pad('--font-weight-normal:',22)} ${fonts.bodyWeight};`);
+  lines.push(`  ${pad('--font-weight-medium:',22)} 500;`);
+  lines.push(`  ${pad('--font-weight-bold:',22)} ${fonts.headingWeight};`);
+  lines.push(`  ${pad('--line-height:',22)} 1.5;`);
+  lines.push('');
   const groups = [
-    { header: '/* ── Brand ─────────────────────── */', keys: ['--primary','--primary-hover','--primary-light','--primary-lighter','--primary-muted','--danger','--danger-hover','--danger-bg','--success','--success-bright'] },
-    { header: '/* ── Backgrounds ───────────────── */', keys: ['--bg-page','--bg-surface','--bg-subtle','--bg-input','--bg-header-row','--bg-muted','--bg-highlight','--bg-warning','--bg-error','--bg-selected'] },
-    { header: '/* ── Text ──────────────────────── */', keys: ['--text-primary','--text-secondary','--text-muted','--text-faint'] },
-    { header: '/* ── Borders ───────────────────── */', keys: ['--border','--border-medium','--border-strong','--border-table'] },
+    { hdr:'/* ── Brand ─────────────────────── */', keys:['--primary','--primary-hover','--primary-light','--primary-lighter','--primary-muted','--danger','--danger-hover','--danger-bg','--success','--success-bright'] },
+    { hdr:'/* ── Backgrounds ───────────────── */', keys:['--bg-page','--bg-surface','--bg-subtle','--bg-input','--bg-header-row','--bg-muted','--bg-highlight','--bg-warning','--bg-error','--bg-selected'] },
+    { hdr:'/* ── Text ──────────────────────── */', keys:['--text-primary','--text-secondary','--text-muted','--text-faint'] },
+    { hdr:'/* ── Borders ───────────────────── */', keys:['--border','--border-medium','--border-strong','--border-table'] },
   ];
-  const out = [];
   groups.forEach(g => {
-    out.push(g.header);
-    g.keys.forEach(k => { out.push(`  ${pad(k+':',22)} ${t[k]};`); });
-    out.push('');
+    lines.push(g.hdr);
+    g.keys.forEach(k => lines.push(`  ${pad(k+':',22)} ${t[k]};`));
+    lines.push('');
   });
-  return out.join('\n').trim();
+  return lines.join('\n').trim();
+}
+
+// ── Google Fonts injection into preview ───────────────────────────────────
+let injectedImport = '';
+function injectPreviewFont(url) {
+  if (!url || url === injectedImport) return;
+  const existing = document.getElementById('previewFontLink');
+  if (existing) existing.remove();
+  const link = document.createElement('link');
+  link.id = 'previewFontLink';
+  link.rel = 'stylesheet';
+  link.href = url.includes('display=swap') ? url : url + '&display=swap';
+  document.head.appendChild(link);
+  injectedImport = url;
 }
 
 function update() {
+  if (fonts.googleImport) injectPreviewFont(fonts.googleImport);
   const t = tokens();
   updatePreview(t);
   document.getElementById('outputBlock').textContent = buildOutput(t);
 }
 
+// ── Copy ───────────────────────────────────────────────────────────────────
 function copyOutput() {
-  const text = document.getElementById('outputBlock').textContent;
-  navigator.clipboard.writeText(text).then(() => {
+  navigator.clipboard.writeText(document.getElementById('outputBlock').textContent).then(() => {
     const btn = document.getElementById('copyBtn');
-    btn.textContent = '✓ Copied!';
-    btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = 'Copy to clipboard'; btn.classList.remove('copied'); }, 2000);
+    btn.textContent = '✓ Copied!'; btn.classList.add('active');
+    setTimeout(()=>{ btn.textContent='Copy to clipboard'; btn.classList.remove('active'); }, 2000);
   });
 }
 
+// ── Write to theme.css ─────────────────────────────────────────────────────
+async function writeToFile() {
+  const status = document.getElementById('writeStatus');
+  if (!('showOpenFilePicker' in window)) {
+    status.className = 'write-status err';
+    status.textContent = '✗ File System Access API not supported in this browser. Use Chrome or Edge.';
+    return;
+  }
+  status.className = 'write-status'; status.textContent = 'Opening file picker…';
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      types: [{ description: 'CSS files', accept: { 'text/css': ['.css'] } }],
+      multiple: false,
+    });
+    status.textContent = `Reading ${handle.name}…`;
+    const file = await handle.getFile();
+    const original = await file.text();
+
+    const newBlock = buildOutput(tokens());
+    const updated = replaceTokenBlock(original, newBlock);
+
+    const writable = await handle.createWritable();
+    await writable.write(updated);
+    await writable.close();
+
+    status.className = 'write-status ok';
+    status.textContent = `✓ Written to ${handle.name} — reload your dev server to see changes.`;
+  } catch(e) {
+    if (e.name === 'AbortError') { status.textContent = ''; return; }
+    status.className = 'write-status err';
+    status.textContent = '✗ ' + e.message;
+  }
+}
+
+function replaceTokenBlock(css, newBlock) {
+  // Strategy: find the :root { ... } block and replace only the
+  // Typography + Brand + Backgrounds + Text + Borders sections within it,
+  // preserving everything else (Overlays, footnote tokens, dark mode block).
+  const rootStart = css.indexOf(':root {');
+  if (rootStart === -1) return css; // safety: can't find :root, return unchanged
+
+  // Find matching closing brace of :root
+  let depth = 0, rootEnd = -1;
+  for (let i = rootStart; i < css.length; i++) {
+    if (css[i] === '{') depth++;
+    else if (css[i] === '}') { depth--; if (depth === 0) { rootEnd = i; break; } }
+  }
+  if (rootEnd === -1) return css;
+
+  const rootInner = css.slice(rootStart + 7, rootEnd); // content inside :root {}
+
+  // Sections we manage — everything from '/* ── Typography' through end of '/* ── Borders'
+  // We replace from the first managed comment to just before '/* ── Overlays' or end of block
+  const managedStart = rootInner.search(/\/\*\s*[─-]+\s*Typography/);
+  let managedEnd = rootInner.search(/\/\*\s*[─-]+\s*Overlays/);
+  if (managedEnd === -1) managedEnd = rootInner.search(/\/\*\s*[─-]+\s*Warning/);
+  if (managedEnd === -1) managedEnd = rootInner.length; // replace the whole block
+
+  const before = managedStart !== -1 ? rootInner.slice(0, managedStart) : '';
+  const after  = managedEnd  !== -1 ? rootInner.slice(managedEnd) : '';
+
+  const newInner = before + '\n  ' + newBlock.replace(/\n/g, '\n  ') + '\n\n  ' + after.trimStart();
+  return css.slice(0, rootStart + 7) + newInner + css.slice(rootEnd);
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
 update();
 </script>
+</body>
+</html>

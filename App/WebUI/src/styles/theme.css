@@ -1,10 +1,30 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   THEME — single source of truth for all UI colours.
-   To swap the whole palette: edit the hex values in :root below.
+   THEME — single source of truth for all UI colours and typography.
+   To swap the palette: edit hex values in :root below.
+   To change font or size: edit the --font-* tokens.
    Dark mode only flips backgrounds, text and borders — brand colours stay.
    ───────────────────────────────────────────────────────────────────────── */
 
 :root {
+  /* Typography */
+  --font-body:    'Inter Tight', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Mono', monospace;
+
+  --font-size-base: 1rem;      /* 16px */
+  --font-size-h1:   1.802rem;  /* 28.8px */
+  --font-size-h2:   1.602rem;  /* 25.6px */
+  --font-size-h3:   1.424rem;  /* 22.7px */
+  --font-size-h4:   1.266rem;  /* 20.3px */
+  --font-size-h5:   1.125rem;  /* 18px */
+  --font-size-sm:   0.889rem;  /* 14.2px */
+  --font-size-xs:   0.75rem;   /* 12px */
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold:   700;
+  --line-height:    1.5;
+
   /* Brand */
   --primary:         #2E5C8A;
   --primary-hover:   #245075;
@@ -60,6 +80,25 @@
   --footnote-btn-bg:    rgba(55, 74, 47, 0.08);
   --footnote-btn-hover: rgba(55, 74, 47, 0.2);
 }
+
+/* ── Global typography application ─────────────────────────────────────── */
+body {
+  font-family: var(--font-body);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height);
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-heading);
+  font-weight: var(--font-weight-bold);
+}
+h1 { font-size: var(--font-size-h1); }
+h2 { font-size: var(--font-size-h2); }
+h3 { font-size: var(--font-size-h3); }
+h4 { font-size: var(--font-size-h4); }
+h5 { font-size: var(--font-size-h5); }
+small { font-size: var(--font-size-sm); }
 
 /* ── Dark mode ─────────────────────────────────────────────────────────── */
 :root[data-theme="dark"] {
