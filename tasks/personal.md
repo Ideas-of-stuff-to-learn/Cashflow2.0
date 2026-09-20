@@ -9,13 +9,13 @@
 
 | # | Area | Task | Status |
 |---|------|------|--------|
-| [1](#1--cover-letter--applications) | Career | Finish cover letter restructure | `[-]` |
+| [1](#1--cover-letter--applications) | Career | Finish cover letter restructure | `[ ]` |
 | [2](#1--cover-letter--applications) | Career | Start applying for graduate roles | `[ ]` |
 | [3](#3--github-arrangement) | Career | Spruce up GitHub profile & repos | `[ ]` |
-| [—](#-finish-cashflow-project) | Project | Finish Cashflow project by end of September | `[-]` |
-| [4](#4--third-year-research--project) | University | Research preferred supervisors | `[x]` |
+| [—](#-finish-cashflow-project) | Project | Finish Cashflow project by end of September | `[ ]` |
+| [4](#4--third-year-research--project) | University | Research preferred supervisors published research | `[ ]` |
 | [5](#4--third-year-research--project) | University | Decide on project idea | `[ ]` |
-| [6](#5--reading-plan) | Study | Read the 4 borrowed library books | `[-]` |
+| [6](#5--reading-plan) | Study | Read the 4 borrowed library books | `[ ]` |
 | [7](#5--reading-plan) | Study | Return for Wearable AI + thick ML books | `[ ]` |
 
 ---
@@ -51,7 +51,7 @@ Sep 2026        Oct 2026        Nov 2026        Dec 2026        Jan 2027
 
 ## 🚀 Finish Cashflow Project
 
-**Status:** `[-]` In progress &nbsp;·&nbsp; **Target:** End of September 2026
+**Status:** `[ ]` Not started &nbsp;·&nbsp; **Target:** End of September 2026
 
 Ship the remaining P1–P3 tasks in [`tasks/backlog.md`](backlog.md) before the month is out. The full priority order is tracked there — this is just the reminder to keep the momentum going.
 
@@ -59,7 +59,7 @@ Ship the remaining P1–P3 tasks in [`tasks/backlog.md`](backlog.md) before the 
 
 ## 1 · Cover Letter & Applications
 
-**Status:** `[-]` Cover letter in progress &nbsp;·&nbsp; `[ ]` Applications not started
+**Status:** `[ ]` Cover letter not started &nbsp;·&nbsp; `[ ]` Applications not started
 
 ### Cover Letter
 - [ ] Finish restructuring the current draft — tighten the opening paragraph, sharpen the "why this role" section, ensure it reads as one coherent narrative
@@ -92,10 +92,10 @@ Ship the remaining P1–P3 tasks in [`tasks/backlog.md`](backlog.md) before the 
 
 ## 4 · Third-Year Research & Project
 
-**Status:** `[x]` Supervisor research done &nbsp;·&nbsp; `[ ]` Project idea TBD by January
+**Status:** `[ ]` Supervisor research not started &nbsp;·&nbsp; `[ ]` Project idea TBD by January
 
 ### Supervisor Research
-- [x] Read preferred supervisors' research profiles and recent publications
+- [ ] Read preferred supervisors' published research and recent publications
 - [ ] Narrow to a shortlist of 2–3 supervisors whose work aligns with your interests
 - [ ] Note any overlap between their current projects and the books you're reading (especially RL and NLP)
 
@@ -161,7 +161,7 @@ Reading sequentially matters here — each book builds on the one before.
 
 | # | Title | Author(s) | Status | Notes |
 |---|-------|-----------|--------|-------|
-| 1 | [Neural Computation](https://findit.bham.ac.uk/primo-explore/search?query=any,contains,neural+computation&vid=44UOB_VU1) | — | `[-]` | Start here — lays the biological & mathematical foundation |
+| 1 | [Neural Computation](https://findit.bham.ac.uk/primo-explore/search?query=any,contains,neural+computation&vid=44UOB_VU1) | — | `[ ]` | Start here — lays the biological & mathematical foundation |
 | 2 | [Reinforcement Learning: An Introduction](https://findit.bham.ac.uk/primo-explore/search?query=any,contains,reinforcement+learning+introduction&vid=44UOB_VU1) | Sutton & Barto | `[ ]` | Classic — directly relevant to potential project directions |
 | 3 | [Introduction to Natural Language Processing](https://findit.bham.ac.uk/primo-explore/search?query=any,contains,introduction+natural+language+processing&vid=44UOB_VU1) | — | `[ ]` | Broadens scope beyond pure ML into language understanding |
 | 4 | [Machine Learning: An Algorithmic Perspective](https://findit.bham.ac.uk/primo-explore/search?query=any,contains,machine+learning+marsland&vid=44UOB_VU1) | Stephen Marsland | `[ ]` | Good consolidating read — ties concepts together practically |
