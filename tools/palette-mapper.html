@@ -248,10 +248,10 @@ textarea.paste-area:focus{border-color:var(--accent)}
 
     <!-- Paste override -->
     <div class="paste-panel">
-      <button class="paste-toggle" onclick="togglePaste(this)">▸ Paste CSS from realtimecolors / other tool</button>
-      <div class="paste-body" id="pasteBody">
+      <button class="paste-toggle" onclick="togglePaste(this)">▾ Paste CSS from realtimecolors / other tool</button>
+      <div class="paste-body open" id="pasteBody">
         <textarea class="paste-area" id="pasteArea" placeholder="Paste exported CSS — @import, body {}, h1-h5 {}, :root { --var: value } …&#10;Values override the token editor above."></textarea>
-        <div class="parse-status" id="parseStatus">Waiting…</div>
+        <div class="parse-status" id="parseStatus">Paste CSS here — preview updates instantly</div>
       </div>
     </div>
 
@@ -341,7 +341,21 @@ const SECTIONS = [
   ]},
 ];
 
-const CHART_COLORS = ['#2E5C8A','#E07A3E','#3D8B5F','#9B3D8A','#C4A227','#D94F4F','#4FA8D9','#7A5C3D'];
+// Category colours derived from palette tokens so they update live with the palette
+function chartColors() {
+  return [
+    get('--primary'),
+    get('--gold')          || '#C4A227',
+    get('--success')       || '#3D8B5F',
+    get('--danger')        || '#D94F4F',
+    get('--success-bright')|| '#27AE60',
+    get('--brown')         || '#7A5C3D',
+    get('--primary-hover') || '#245075',
+    get('--primary-muted') || '#c5d9ee',
+  ];
+}
+// Static fallback used only before any tokens are loaded
+const CHART_COLORS = ['#2E5C8A','#C4A227','#3D8B5F','#D94F4F','#27AE60','#7A5C3D','#245075','#c5d9ee'];
 const CATS = ['Groceries','Transport','Dining','Utilities','Entertainment','Shopping'];
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -582,9 +596,17 @@ function togglePaste(btn) {
   btn.textContent = (open ? '▾' : '▸') + ' Paste CSS from realtimecolors / other tool';
 }
 
+function flashPreview() {
+  const content = document.querySelector('.prev-content');
+  if (!content) return;
+  content.style.transition = 'opacity 0.08s';
+  content.style.opacity = '0.4';
+  setTimeout(() => { content.style.opacity = '1'; }, 80);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('pasteArea').addEventListener('input', function() {
-    const raw = this.value.trim();
+  function handlePasteInput() {
+    const raw = document.getElementById('pasteArea').value.trim();
     const status = document.getElementById('parseStatus');
     if (!raw) { status.className='parse-status'; status.textContent='Waiting…'; return; }
 
@@ -653,7 +675,13 @@ document.addEventListener('DOMContentLoaded', () => {
     buildRows();
     updatePreviews();
     injectPreviewTokens();
-  });
+    if (found > 0) flashPreview();
+  }
+
+  const area = document.getElementById('pasteArea');
+  area.addEventListener('input', handlePasteInput);
+  // 'paste' fires before 'input' on some browsers; use a small delay so the value is committed
+  area.addEventListener('paste', () => setTimeout(handlePasteInput, 0));
 });
 
 let injectedFont = '';
@@ -796,11 +824,12 @@ function renderCharts() {
   const CHART_H = 140;
   const BAR_W = 38; // px — thin bars like the real app
 
+  const CC = chartColors();
   const bars = MONTHS.map((mo, mi) => {
     let bottomPx = 0;
     const segs = DATA[mi].map((val, ci) => {
       const segH = Math.max(2, Math.round((val / maxTotal) * CHART_H));
-      const seg = `<div style="position:absolute;left:0;right:0;bottom:${bottomPx}px;height:${segH}px;background:${CHART_COLORS[ci]};${ci===DATA[mi].length-1?'border-radius:2px 2px 0 0':''}"></div>`;
+      const seg = `<div style="position:absolute;left:0;right:0;bottom:${bottomPx}px;height:${segH}px;background:${CC[ci]};${ci===DATA[mi].length-1?'border-radius:2px 2px 0 0':''}"></div>`;
       bottomPx += segH;
       return seg;
     }).join('');
@@ -812,7 +841,7 @@ function renderCharts() {
 
   const legend = CATS.map((cat, i) =>
     `<div class="legend-item" style="font-family:${bodyF};color:${get('--text-secondary')}">
-       <div class="legend-dot" style="background:${CHART_COLORS[i]}"></div>${cat}
+       <div class="legend-dot" style="background:${CC[i]}"></div>${cat}
      </div>`
   ).join('');
 
@@ -873,8 +902,9 @@ function renderLogin() {
 function renderUpload() {
   const bodyF = get('--font-body'), headF = get('--font-heading'), hw = get('--font-weight-bold');
   const cats = ['Groceries','Transport','Dining','Utilities','Entertainment'];
-  const chips = cats.map((c,i) => `<span style="display:inline-flex;align-items:center;gap:4px;background:${get('--bg-surface')};border:1px solid ${CHART_COLORS[i]};border-radius:20px;padding:3px 9px;font-size:10px;color:${get('--text-primary')};margin:2px">
-    <span style="width:7px;height:7px;border-radius:50%;background:${CHART_COLORS[i]};display:inline-block"></span>${c}</span>`).join('');
+  const CC2 = chartColors();
+  const chips = cats.map((c,i) => `<span style="display:inline-flex;align-items:center;gap:4px;background:${get('--bg-surface')};border:1px solid ${CC2[i]};border-radius:20px;padding:3px 9px;font-size:10px;color:${get('--text-primary')};margin:2px">
+    <span style="width:7px;height:7px;border-radius:50%;background:${CC2[i]};display:inline-block"></span>${c}</span>`).join('');
   document.getElementById('prev-upload').innerHTML = `
   <div class="mock" style="font-family:${bodyF}">
     <div class="mock-header" style="background:${get('--bg-surface')};border-color:${get('--border')};color:${get('--text-primary')}">
@@ -909,9 +939,10 @@ function renderUpload() {
 function renderReview() {
   const bodyF = get('--font-body'), headF = get('--font-heading'), hw = get('--font-weight-bold');
   const reviewCats = ['Groceries','Transport','Dining','Utilities','Entertainment','Shopping','Healthcare','Subscriptions'];
+  const CC3 = chartColors();
   const catBtns = reviewCats.map((c,i) =>
     `<button style="background:${get('--bg-surface')};border:1px solid ${get('--border-medium')};border-radius:6px;padding:7px 10px;font-size:11px;cursor:pointer;text-align:left;color:${get('--text-primary')};font-family:${bodyF};display:flex;align-items:center;gap:6px">
-      <span style="width:8px;height:8px;border-radius:50%;background:${CHART_COLORS[i]||'#aaa'};display:inline-block;flex-shrink:0"></span>${c}</button>`
+      <span style="width:8px;height:8px;border-radius:50%;background:${CC3[i]||'#aaa'};display:inline-block;flex-shrink:0"></span>${c}</button>`
   ).join('');
   document.getElementById('prev-review').innerHTML = `
   <div class="mock" style="font-family:${bodyF}">
