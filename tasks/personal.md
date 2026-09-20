@@ -12,6 +12,7 @@
 | [1](#1--cover-letter--applications) | Career | Finish cover letter restructure | `[-]` |
 | [2](#1--cover-letter--applications) | Career | Start applying for graduate roles | `[ ]` |
 | [3](#3--github-arrangement) | Career | Spruce up GitHub profile & repos | `[ ]` |
+| [—](#-finish-cashflow-project) | Project | Finish Cashflow project by end of September | `[-]` |
 | [4](#4--third-year-research--project) | University | Research preferred supervisors | `[x]` |
 | [5](#4--third-year-research--project) | University | Decide on project idea | `[ ]` |
 | [6](#5--reading-plan) | Study | Read the 4 borrowed library books | `[-]` |
@@ -45,6 +46,14 @@ Sep 2026        Oct 2026        Nov 2026        Dec 2026        Jan 2027
     │               │               │       for Wearable AI +       │
     │               │               │       thick ML books          │
 ```
+
+---
+
+## 🚀 Finish Cashflow Project
+
+**Status:** `[-]` In progress &nbsp;·&nbsp; **Target:** End of September 2026
+
+Ship the remaining P1–P3 tasks in [`tasks/backlog.md`](backlog.md) before the month is out. The full priority order is tracked there — this is just the reminder to keep the momentum going.
 
 ---
 
