@@ -151,17 +151,14 @@ export default function ManualReviewGate() {
 
     // ── Stats gate ───────────────────────────────────────────────────────
 
-    async function handlePutInOther() {
-        try {
-            setTransactions(prev => prev.map(t =>
-                t.category === NEEDS_MANUAL_REVIEW ? { ...t, category: 'Other' } : t
-            ));
-            bumpChartDataVersion();
-        } catch (e) {
-            console.warn('Failed to bulk-resolve to Other:', e.message);
-        } finally {
-            closeManualReviewFlow();
-        }
+    function handlePutInOther() {
+        setTransactions(prev => prev.map(t =>
+            t.category === NEEDS_MANUAL_REVIEW ? { ...t, category: 'Other' } : t
+        ));
+        bumpChartDataVersion();
+        // Switch to sequential stage with empty queue → shows "All done!" then auto-closes
+        setManualReviewFlow(prev => prev ? { ...prev, stage: 'sequential', needsReviewItems: [] } : prev);
+        setTimeout(closeManualReviewFlow, 900);
     }
 
     if (manualReviewFlow.stage === 'stats') {
