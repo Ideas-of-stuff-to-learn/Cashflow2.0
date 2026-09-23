@@ -11,7 +11,7 @@
 1. All handoff docs up to and including handoff9 describe the React Native (`App/UI/`) codebase. That codebase still exists on disk but is no longer the live product.
 2. Everything from handoff10 onwards describes `App/WebUI/`.
 3. The backend API, database schema, and all categorisation logic are unchanged. The web frontend calls the exact same endpoints as the RN app did.
-4. Deployed to GitHub Pages at `https://ideas-of-stuff-to-learn.github.io/Cashflow2.0/`. The `vite.config.js` `base` is set to `/Cashflow2.0/` for production builds and `/` for local dev.
+4. Deployed to GitHub Pages at `https://ideas-of-stuff-to-learn.github.io/utility-tools/`. The `vite.config.js` `base` is set to `/utility-tools/` for production builds and `/` for local dev.
 
 ---
 

@@ -1,6 +1,6 @@
 @GitHub
  
-Ideas-of-stuff-to-learn/Cashflow2.0 can u see this repo. peruse the handoffFiles folder within the App folder
+Ideas-of-stuff-to-learn/utility-tools can u see this repo. peruse the handoffFiles folder within the App folder
 Received app response
 
 Yes — I can access the repository. GitHub
@@ -16,7 +16,7 @@ So: I can access the repo, but I haven't been able to read the handoff files yet
 
 @GitHub
  
-https://github.com/Ideas-of-stuff-to-learn/Cashflow2.0/tree/main/App use this
+https://github.com/Ideas-of-stuff-to-learn/utility-tools/tree/main/App use this
 Received app response
 
 I tried using the App path you gave, but the GitHub connector still can't enumerate directory contents from a /tree/... URL—it only accepts individual file URLs for fetching.

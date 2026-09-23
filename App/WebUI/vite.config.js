@@ -3,6 +3,6 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ command }) => ({
   plugins: [react()],
-  base: command === 'build' ? '/Cashflow2.0/' : '/',
+  base: command === 'build' ? '/utility-tools/' : '/',
   envDir: '../',
 }))

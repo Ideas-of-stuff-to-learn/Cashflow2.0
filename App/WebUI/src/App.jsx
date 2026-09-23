@@ -34,7 +34,7 @@ export default function App() {
   return (
     <AppStateProvider>
       <ManualReviewGate />
-      <BrowserRouter basename={import.meta.env.PROD ? '/Cashflow2.0' : '/'}>
+      <BrowserRouter basename={import.meta.env.PROD ? '/utility-tools' : '/'}>
         <Suspense fallback={<ScreenSpinner />}>
           <Routes>
             <Route path="/login" element={<LoginScreen />} />

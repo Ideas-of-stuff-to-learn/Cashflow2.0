@@ -480,7 +480,7 @@ problems = [
     ("COLOR_PALETTE triplication",             "adminClI/colours, web chartUtils.jsx, RN chartUtils.js can drift.", "cross-cutting", "low"),
     ("No ORM/migrations",                      "Schema changes are hand-applied SQL, no rollback.", "backend", "medium"),
     ("FilterPane RN no live animation",        "PanResponder reorders on finger release, not animated live under finger.", "rn", "low"),
-    ("Root README is placeholder",             "README.md contains only '# Cashflow2.0'.", "docs", "low"),
+    ("Root README is placeholder",             "README.md contains only '# utility-tools'.", "docs", "low"),
     ("RN ContentsScreen uses FlatList",        "RN ContentsScreen uses FlatList + CategoryChipRow (not sidebar), not virtualized like web.", "rn", "low"),
     ("sendBeacon gap on tab close",            "In-flight unflushed picks lost if user closes tab mid-categorization. Only fully-staged items protected.", "web", "low"),
     ("adminClI package structure inconsistent","categories/ and permissions/ lack __init__.py; colours/ and users/ have one.", "admin-cli", "low"),
@@ -514,7 +514,7 @@ c.execute("""
 INSERT OR REPLACE INTO git_configuration (id, upstream, base_branch, auto_merge, branch_prefix, trigger_word, workflow, notes)
 VALUES (
     1,
-    'https://github.com/Ideas-of-stuff-to-learn/Cashflow2.0.git',
+    'https://github.com/Ideas-of-stuff-to-learn/utility-tools.git',
     'main',
     0,
     'ai/',

@@ -1,10 +1,10 @@
 <!-- last-verified: eb0073b 2026-09-23 -->
-# Cashflow2.0 — Git Context
+# utility-tools — Git Context
 
 ## Repository Configuration
 
 ```yaml
-upstream:      https://github.com/Ideas-of-stuff-to-learn/Cashflow2.0.git
+upstream:      https://github.com/Ideas-of-stuff-to-learn/utility-tools.git
 base_branch:   main
 branch_prefix: ai/
 auto_merge:    false
