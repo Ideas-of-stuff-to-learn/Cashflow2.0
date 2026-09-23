@@ -3,9 +3,19 @@
 
 ## Status (2026-09-23)
 
-No active task. Clean main branch. Repo renamed to `utility-tools` and fully propagated.
+No active task. Clean main branch.
 
-**Next session:** implement auth — start with Task 1: email migration (schema + auth routes + login UI). Full plan in `context/auth-design.md` §9.
+**Next session:** Task 2 — Gmail SMTP setup + email sending module. Full plan in `context/auth-design.md` §4.
+
+## Recently Completed
+
+**Task 1 — Email migration (2026-09-23):**
+- DB: added email, email_verified, display_name, oauth_provider, oauth_sub, stripe_customer_id, subscription_status columns; password_hash made nullable; display_name backfilled from username
+- Backend `auth.py`: get_user_by_email, email_exists, validate_email helpers; /auth/login routes by @ presence; /auth/signup accepts optional email; /auth/me returns email + display_name; create_user stores email + sets display_name
+- Frontend `api.jsx`: login() routes email/username by @; signup() accepts optional email
+- Frontend `LoginScreen.jsx`: "Username" → "Email or username" field
+- Frontend `SignupScreen.jsx`: optional Email field added between username and password
+- Existing username-only accounts fully unaffected — email column nullable, fallback preserved
 
 ## Recently Completed
 

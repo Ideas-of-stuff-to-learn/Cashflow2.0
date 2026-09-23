@@ -247,7 +247,7 @@ Before any paying users, every DB query touching `transactions`, `categorized_re
                                                             404.html, gitContext.md,
                                                             rebuild_db.py, chatLog.txt,
                                                             10_web-migration.txt); build verified
-1. Email migration (schema + auth routes + login UI)       ← prerequisite for everything
+1. Email migration (schema + auth routes + login UI)       ✅ DONE 2026-09-23
 2. Gmail SMTP setup + email sending module                 ← prerequisite for verify + reset
 3. Email verification flow                                 ← prerequisite for trusted emails
 4. Password reset flow                                     ← pairs with SMTP setup

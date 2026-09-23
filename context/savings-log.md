@@ -30,3 +30,4 @@ YYYY-MM-DD | task: <what was done> | SQLite queries: <N> | context docs loaded: 
 2026-09-17 | task: Manual review UX fixes (decimal pct, optimistic exit, spinner fallback, resolve-and-exit endpoint) | SQLite queries: 0 | context docs loaded: 2 | full repo scan avoided: yes | also marked task 9 complete in backlog
 2026-09-23 | task: add step 0b to auth-design (rename breakage fixes) | SQLite queries: 0 | context docs loaded: 1 (auth-design) | full repo scan avoided: yes | notes: subagent already had findings from prior discuss
 2026-09-23 | task: Task 0b - propagate GitHub rename Cashflow2.0->utility-tools | SQLite queries: 0 | context docs loaded: 1 (gitContext) | full repo scan avoided: yes | 7 files updated, build verified green
+2026-09-23 | task: Task 1 - email migration (auth.py + api.jsx + LoginScreen + SignupScreen) | SQLite queries: 0 | context docs loaded: 1 (auth-design) | full repo scan avoided: yes | build verified green
