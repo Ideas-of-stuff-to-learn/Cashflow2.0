@@ -1,13 +1,16 @@
-import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppStateProvider } from './appState';
+import { useAuth } from './appState';
 import RequireAuth from './components/RequiresAuth';
 import ResponsiveGate from './components/ResponsiveGate';
 import Layout from './components/Layout';
 import ManualReviewGate from './components/manualReview/ManualReviewGate';
+import StartupScreen from './components/StartupScreen';
 
 import HomeScreen from './screens/HomeScreen';
 import DashboardScreen from './screens/Dashboard';
+import ChartsScreen from './screens/ChartsScreen';
+import ContentsScreen from './screens/ContentsScreen';
 import PrivacyScreen from './screens/PrivacyScreen';
 import TermsScreen from './screens/TermsScreen';
 import AccessibilityScreen from './screens/AccessibilityScreen';
@@ -15,17 +18,32 @@ import CookiesScreen from './screens/CookiesScreen';
 import DataSecurityScreen from './screens/DataSecurityScreen';
 import ProfileScreen from './screens/ProfileScreen';
 
-const ChartsScreen = lazy(() => import('./screens/ChartsScreen'));
-const ContentsScreen = lazy(() => import('./screens/ContentsScreen'));
+function AppContent() {
+  const { isChecking } = useAuth();
 
-function ScreenSpinner() {
+  if (isChecking) return <StartupScreen />;
+
   return (
-    <div className="login-container">
-      <h1 className="login-title">Transaction Categorizer</h1>
-      <div className="login-loading-wrap">
-        <div className="login-spinner-ring" />
-      </div>
-    </div>
+    <BrowserRouter basename={import.meta.env.PROD ? '/utility-tools/cashflow' : '/'}>
+      <Routes>
+        <Route path="/privacy" element={<PrivacyScreen />} />
+        <Route path="/terms" element={<TermsScreen />} />
+        <Route path="/accessibility" element={<AccessibilityScreen />} />
+        <Route path="/cookies" element={<CookiesScreen />} />
+        <Route path="/data-security" element={<DataSecurityScreen />} />
+
+        <Route element={<ResponsiveGate />}>
+          <Route path="/" element={null} />
+          <Route element={<Layout />}>
+            <Route path="/dashboard" element={<RequireAuth><DashboardScreen /></RequireAuth>} />
+            <Route path="/home" element={<RequireAuth><HomeScreen /></RequireAuth>} />
+            <Route path="/charts" element={<RequireAuth><ChartsScreen /></RequireAuth>} />
+            <Route path="/contents" element={<RequireAuth><ContentsScreen /></RequireAuth>} />
+            <Route path="/profile" element={<RequireAuth><ProfileScreen /></RequireAuth>} />
+          </Route>
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
 
@@ -33,28 +51,7 @@ export default function App() {
   return (
     <AppStateProvider>
       <ManualReviewGate />
-      <BrowserRouter basename={import.meta.env.PROD ? '/utility-tools/cashflow' : '/'}>
-        <Suspense fallback={<ScreenSpinner />}>
-          <Routes>
-            <Route path="/privacy" element={<PrivacyScreen />} />
-            <Route path="/terms" element={<TermsScreen />} />
-            <Route path="/accessibility" element={<AccessibilityScreen />} />
-            <Route path="/cookies" element={<CookiesScreen />} />
-            <Route path="/data-security" element={<DataSecurityScreen />} />
-
-            <Route element={<ResponsiveGate />}>
-              <Route path="/" element={null} />
-              <Route element={<Layout />}>
-                <Route path="/dashboard" element={<RequireAuth><DashboardScreen /></RequireAuth>} />
-                <Route path="/home" element={<RequireAuth><HomeScreen /></RequireAuth>} />
-                <Route path="/charts" element={<RequireAuth><ChartsScreen /></RequireAuth>} />
-                <Route path="/contents" element={<RequireAuth><ContentsScreen /></RequireAuth>} />
-                <Route path="/profile" element={<RequireAuth><ProfileScreen /></RequireAuth>} />
-              </Route>
-            </Route>
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
+      <AppContent />
     </AppStateProvider>
   );
 }
