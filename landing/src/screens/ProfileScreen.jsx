@@ -210,7 +210,7 @@ export default function ProfileScreen() {
                               </button>
                         }
                     </form>
-                    {nearEmailCap && !atEmailCap && <p className="profile-warn" style={{ marginTop: 4 }}>1 send remaining today.</p>}
+                    {nearEmailCap && !atEmailCap && (!email || emailVerified) && <p className="profile-warn" style={{ marginTop: 4 }}>1 send remaining today.</p>}
                     {emailMsg && <p className={`profile-msg ${emailMsg.ok ? 'ok' : 'err'}`}>{emailMsg.text}</p>}
                 </section>
 

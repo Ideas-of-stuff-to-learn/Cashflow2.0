@@ -61,7 +61,7 @@ def send_email(to_address, subject, html_body, text_body=None):
     msg.attach(MIMEText(html_body, 'html'))
 
     context = ssl.create_default_context()
-    with smtplib.SMTP_SSL(_SMTP_HOST, _SMTP_PORT, context=context) as server:
+    with smtplib.SMTP_SSL(_SMTP_HOST, _SMTP_PORT, context=context, timeout=15) as server:
         server.login(_SMTP_USER, _SMTP_PASSWORD)
         server.sendmail(_SMTP_USER, to_address, msg.as_string())
 

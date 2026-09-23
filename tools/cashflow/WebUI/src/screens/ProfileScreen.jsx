@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../appState';
 import {
@@ -38,8 +38,6 @@ export default function ProfileScreen() {
     const [deleting, setDeleting] = useState(false);
     const [deleteMsg, setDeleteMsg] = useState(null);
     const [showDeleteForm, setShowDeleteForm] = useState(false);
-
-    const pageLoadRef = useRef(Date.now());
 
     useEffect(() => {
         if (userRole) {
@@ -213,7 +211,7 @@ export default function ProfileScreen() {
                               </button>
                         }
                     </form>
-                    {nearEmailCap && !atEmailCap && <p className="profile-warn" style={{ marginTop: 4 }}>1 send remaining today.</p>}
+                    {nearEmailCap && !atEmailCap && (!email || emailVerified) && <p className="profile-warn" style={{ marginTop: 4 }}>1 send remaining today.</p>}
                     {emailMsg && <p className={`profile-msg ${emailMsg.ok ? 'ok' : 'err'}`}>{emailMsg.text}</p>}
                 </section>
 

@@ -479,8 +479,8 @@ def update_profile():
                 verify_url,
                 'Verify new email',
             )
-            _increment_email_count(conn, current_user)
             send_email(new_email, 'Verify your new email address', html)
+            _increment_email_count(conn, current_user)
 
         return jsonify({'status': 'ok'}), 200
     except Exception as e:
