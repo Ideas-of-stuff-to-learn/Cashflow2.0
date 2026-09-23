@@ -1765,3 +1765,390 @@ What counts as substantial:
 - Anything touching auth, billing, or the categorisation pipeline
 - Anything the owner hasn't seen in a screenshot or demo yet
 - Any destructive git operation (reset --hard, force push, revert of a shipped commit)
+
+
+---
+
+# Part II — Implementation Layer (Claude Code mechanisms)
+
+Sections 1–58 describe **what** the system does. Sections 59–70 describe **how** to implement it with Claude Code's native mechanisms, so the system is enforced rather than merely requested, reusable across repositories, and readable by other AI tools.
+
+The core problem Part II solves: everything in Part I depends on the AI *choosing* to follow instructions, and the system has to be rebuilt by hand in every repository. Part II fixes both.
+
+---
+
+## 59. Mechanism Map
+
+Each part of the system belongs in exactly one mechanism. Do not put procedures in the always-loaded instruction file, and do not put always-on rules in skills.
+
+```text
+AGENTS.md (+ CLAUDE.md → @AGENTS.md)
+    = always-loaded rules. Loaded every session, every message.
+      Short. Rules that apply at all times.
+
+Skills  (.claude/skills/<name>/SKILL.md)
+    = procedures run at specific moments (build, realign, handoff...).
+      Only the one-line description is always loaded; the body loads on use.
+
+Hooks   (.claude/settings.json → hooks)
+    = enforcement. Shell commands the harness runs automatically at fixed
+      lifecycle events. Cannot be skipped or forgotten by the AI.
+
+Subagents (.claude/agents/<name>.md)
+    = isolated helpers with their own context window. Heavy reading
+      happens there; only a short report returns to the main chat.
+
+Plugin  (separate repo)
+    = distribution. Packages skills + hooks + subagents so they install
+      into any repo instead of being copied.
+
+Template repo
+    = starting point for NEW projects with the system pre-installed.
+```
+
+| Part I concept | Implemented as |
+|---|---|
+| Operating rules (§3–4, §52) | `AGENTS.md` |
+| Building / migrating the system (§22–26, §50) | `/build-intelligence` skill |
+| Realignment (§18–21, §49, §57) | `/realign` skill + `SessionStart` hook |
+| Safe-points (§39) | `/safe-point` skill + `PreToolUse` guard hook |
+| Ghost test (§40) | `/ghost-test` skill |
+| SQLite sync (§37) | `PostToolUse` hook + `SessionStart` hook |
+| End-of-session ritual (§55) | `/handoff` skill + `Stop` hook |
+| RAG / targeted retrieval (§30–32) | `librarian` subagent |
+| Doc/code drift (§2, §42) | `context-auditor` subagent + `/audit-context` skill + staleness markers (§65) |
+| Verification (§41) | `verifier` subagent |
+| Never reading huge/generated files (§52) | `permissions.deny` rules |
+
+---
+
+## 60. `AGENTS.md` as the Canonical Instruction File
+
+`AGENTS.md` is the cross-tool standard instruction file (read natively by OpenAI Codex, configurable in Gemini CLI, and used by other agents). Claude Code reads `CLAUDE.md`.
+
+Rule: **all operating instructions live in `AGENTS.md`. `CLAUDE.md` contains exactly one line:**
+
+```markdown
+@AGENTS.md
+```
+
+`@path` is Claude Code's import syntax — the referenced file is loaded as if its contents were written inline.
+
+This supersedes the file naming in §3–4: everything said there about `CLAUDE.md` now applies to `AGENTS.md`.
+
+Migration:
+1. Move the full content of `CLAUDE.md` into `AGENTS.md` (do not rewrite it — move it).
+2. Replace `CLAUDE.md` with `@AGENTS.md`.
+3. Apply the same pattern to nested instruction files (e.g. a subfolder `CLAUDE.md` that already contains only `@AGENTS.md` is already compliant).
+4. Claude-specific content that other tools cannot use (skill names, hook behaviour) may stay in `AGENTS.md` — other tools ignore what they do not understand — or go in `CLAUDE.md` below the import line if it would confuse other tools.
+
+Keep `AGENTS.md` short. It is loaded on every message; every line costs context permanently. Procedures go in skills (§61).
+
+---
+
+## 61. Skills
+
+A skill is a folder containing a `SKILL.md` plus any supporting files:
+
+```text
+.claude/skills/<name>/
+├── SKILL.md        ← frontmatter + instructions
+├── scripts/        ← optional bundled scripts
+└── templates/      ← optional bundled templates
+```
+
+```markdown
+---
+name: handoff
+description: End-of-session ritual — update revert-state, current-task, handoff, backlog, sync SQLite, savings log. Use when finishing a session or before shipping.
+disable-model-invocation: true
+---
+<instructions>
+```
+
+- Only `name` + `description` are always in context. The body loads when the skill is invoked (`/name`) or when the AI judges the description matches the task.
+- `disable-model-invocation: true` makes a skill manual-only (`/name`). Use it for skills with side effects the owner should trigger deliberately (`/build-intelligence`, `/handoff`).
+- Project skills live in `<repo>/.claude/skills/` (committed, shared). Personal skills live in `~/.claude/skills/` (all projects on one machine). Distributed skills live in the plugin (§66).
+- A skill should **reference** this spec by section number rather than duplicate it, so there is one source of truth.
+
+### Required skill set
+
+Split skills by job: **building** the system vs **operating** it.
+
+| Skill | Invocation | Job | Spec sections |
+|---|---|---|---|
+| `/build-intelligence` | manual | Inspect repo, migrate any existing context, create `context/*.md`, `AGENTS.md`, `.ai/` scripts, build SQLite. Uses explorer subagents (§63). Bundles the scripts + empty context templates. | §5–29, §22–25, §50 |
+| `/realign` | auto + manual | Query realignment record → handoff (newest block) → current-task → targeted SQLite query for the area. Output a 5–10 line working-memory summary. | §18–21, §49, §57 |
+| `/safe-point` | auto + manual | `git rev-parse HEAD` → append row to `revert-state.md`. | §39 |
+| `/ghost-test` | auto + manual | Structured dry-run: list every affected file, call site, sentinel copy, constraint, side effect; verdict proceed/revise. | §40 |
+| `/handoff` | manual | Full end-of-session ritual in the exact §55 order. | §55–56 |
+| `/audit-context` | manual | Run the `context-auditor` subagent, present drift findings, apply agreed doc fixes, re-stamp staleness markers. | §2, §42, §65 |
+
+Rules:
+- Always-on rules (never read X, ghost test before changes, two-confirm rule) stay in `AGENTS.md`. Skills hold *procedures*.
+- `/build-intelligence` ends by telling the AI to use the operating skills from then on.
+- Before distributing a skill, test it on 2–3 different repositories and fix anything that produces inconsistent output.
+
+---
+
+## 62. Hooks — Enforcement
+
+Hooks are shell commands configured in `.claude/settings.json`. The harness runs them at lifecycle events; the AI cannot skip them. This converts "the AI is asked to" into "the system guarantees".
+
+```json
+{
+  "permissions": {
+    "deny": ["Read(./path/to/huge-generated-file.js)"]
+  },
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/session_start.py\"" }] }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/check_handoff.py\"" }] }
+    ]
+  }
+}
+```
+
+Mechanics:
+- The hook receives a JSON payload on stdin (tool name, inputs, session info).
+- Exit code `0` = allow. Exit code `2` = **block**; the hook's stderr is fed back to the AI as the reason ("handoff.md not updated — run /handoff first").
+- `SessionStart` stdout is injected into the AI's context.
+- `PreToolUse` / `PostToolUse` take a `matcher` (tool name pattern, e.g. `"Edit|Write"`).
+
+### Required hooks
+
+| Event | Hook | Guarantees |
+|---|---|---|
+| `SessionStart` | Print the realignment pointer, the newest `handoff.md` block and the Active section of `current-task.md`. | The AI never starts blind (§49). |
+| `SessionStart` | If `knowledge.db` is missing or any `context/*.md` is newer than it, run `rebuild_db.py`. | The index is never stale or absent — important when `knowledge.db` is gitignored. |
+| `permissions.deny` | Deny `Read` on huge/generated files listed in `known-problems.md` / constraints. | One accidental read cannot flood the context. Prefer deny rules over a script — simpler and harder to break. |
+| `PreToolUse` (`Edit\|Write`) | Block edits to source files (not `context/`, not `tasks/`) until `revert-state.md` has an `in-progress` row for today. | No code change without a safe-point (§39). |
+| `PostToolUse` (`Edit\|Write`) | If the edited path is under `context/`, run `sync_context.py`. | Markdown and SQLite never drift (§37). |
+| `PostToolUse` (`Edit\|Write`) | Run the project formatter/linter on the edited file, if the project has one. | Style errors caught immediately. |
+| `Stop` | If source files changed this session (`git diff`/`git status`) but `context/handoff.md` did not, exit 2. | Every session leaves a handoff (§55). |
+| `PreCompact` | Append a short state snapshot (goal, files touched, open questions) to `current-task.md`. | Nothing is lost when a long conversation is summarised (§20). |
+
+Rules:
+- Hook scripts live in `.claude/hooks/`, are committed, and are short and fast (they run constantly).
+- Hooks must **fail open** on their own errors (missing DB, missing file, script exception → exit 0 with a warning), except for deliberate blocks. A broken hook must not lock the owner out.
+- The `Stop` hook must check the `stop_hook_active` field in its input and allow the stop when it is `true`, to avoid an infinite block loop.
+- Hooks run arbitrary commands on the owner's machine. The AI may write them, but the owner must review them before they are committed. `/hooks` in the CLI shows what is configured.
+- The AI can create and edit hooks when asked — configuring them is not a manual-only task.
+
+---
+
+## 63. Subagents
+
+A subagent is a helper the main session delegates a task to. It has its **own separate context window**:
+
+- **In:** it does not see the main conversation. It receives only the task text written by the main session, plus its own definition and the repo's `AGENTS.md`/`CLAUDE.md`. The task text must therefore be self-contained.
+- **During:** everything it reads fills *its* context, not the main one.
+- **Out:** only its final report enters the main conversation.
+
+Definition file `.claude/agents/<name>.md`:
+
+```markdown
+---
+name: context-auditor
+description: Checks whether context/*.md still matches the source code. Read-only.
+tools: Read, Grep, Glob, Bash
+---
+<instructions>
+```
+
+Facts that constrain their use:
+- Within one session, the main session can message the **same** subagent again and it keeps what it has already read. Across sessions it remembers nothing — its durable memory must be a file (see specialists below).
+- Subagents cannot talk to each other or spawn their own subagents. All coordination goes through the main session.
+- A separate context is not free — a subagent reading 40 files costs roughly what the main session reading them would. The benefit is a clean main context, not saved usage.
+- Reports are lossy. Anything that gates a decision on a **hard constraint** or **known problem** must be read in full by the main session, not trusted from a summary.
+
+### Required subagents
+
+| Subagent | Tools | Job |
+|---|---|---|
+| `librarian` | Read, Grep, Glob, Bash (sqlite) | Answers "what do I need to know about X?": queries `knowledge.db`, reads only matching context sections, confirms against source, returns a short answer with file paths + line refs. No full-file dumps. |
+| `context-auditor` | Read, Grep, Glob, Bash (read-only git) | Compares claims in `context/*.md` against source + `git log` since each doc's staleness marker (§65). Reports outdated, missing or wrong statements. Never edits. |
+| `verifier` | Read, Bash | Runs the procedures in `verification.md`, reports pass/fail with the exact output of failures. Never edits. |
+| `explorer` | Read, Grep, Glob | Used by `/build-intelligence`: one per major area surveys that area and returns a draft of its context content. |
+
+### Area specialists (optional, for multi-subsystem repos)
+
+For repos with clearly separate subsystems (e.g. web / mobile / API / database), define one specialist per area:
+
+```text
+.claude/agents/web-specialist.md   → owns App/WebUI/,  memory: context/areas/web.md
+.claude/agents/api-specialist.md   → owns App/API/,    memory: context/areas/api.md
+```
+
+Each definition says: *"Your area is X. Start by reading context/areas/X.md. Stay within your area. When you learn something durable about your area, report it so the main session can add it to your file."*
+
+- **Focus** comes from the definition. **Cross-session memory** comes from its area file — the same principle as the whole system: an agent's memory is whatever is written down for it.
+- Only create area files when an area is large enough to justify one (§5: no unnecessary documents). Area files are context documents and must be indexed in SQLite.
+- Specialists cannot see across areas. Changes that cross areas (e.g. a frontend change that depends on an API shape) are the main session's responsibility, and the ghost test must cover all areas touched.
+
+### Orchestrator pattern
+
+```text
+                 Owner
+                   ↓
+          Main session (orchestrator)
+   plans · decides · holds only plans, reports, decisions
+         ↙          ↓           ↘
+   specialist   specialist   specialist
+   (dig into one area, return a short report)
+```
+
+1. Main session asks each relevant specialist: "what in your area does this task touch?"
+2. Specialists return short reports (files, constraints, risks).
+3. **Main session decides** — the plan, change order, and cross-area interfaces.
+4. Changes are made (by specialists or by the main session using their reports).
+5. Main session records the decision in `decisions.md`.
+
+Use this for large, cross-area work. For small, single-area changes it is overhead — work directly.
+
+---
+
+## 64. Retrieval Tiers (RAG via the Librarian)
+
+This refines §31–32 now that retrieval can be delegated.
+
+| Need | Method |
+|---|---|
+| Quick, precise lookup (one table, few rows) | Query SQLite directly in the main session. |
+| Broad question ("what should I know before changing X?") | Ask the `librarian` subagent. |
+| Anything gating a decision on a hard constraint, known problem or failed solution | Read the exact text in the main session, in full, even if the librarian summarised it. |
+
+The librarian must be given the task goal, not just a keyword, so it can judge relevance.
+
+---
+
+## 65. Staleness Detection
+
+Stale context is worse than none — the AI trusts it confidently. The system must make staleness visible.
+
+**Staleness marker.** Every `context/*.md` begins with:
+
+```markdown
+<!-- last-verified: <short-commit-hash> YYYY-MM-DD -->
+```
+
+It means "a session confirmed this document matched the code at this commit". It is updated when a session verifies or corrects the doc — not on every edit.
+
+- `rebuild_db.py` stores it in `context_documents.last_verified_commit` / `last_verified_date`.
+- The `context-auditor` uses `git log <marker>..HEAD -- <paths the doc covers>` to find what changed since verification.
+- `/realign` warns when a doc it loads is far behind (e.g. many commits in its area since the marker).
+
+**Index discovery.** `sync_context.py` and `rebuild_db.py` must discover context documents by globbing `context/*.md` (and `context/areas/*.md`, `context/archive/**/*.md` if archived material should be searchable) — never from a hardcoded list. A hardcoded list silently leaves new documents (e.g. a newly created design doc) unindexed. Description/tags for a doc may still be supplied from a mapping; a doc missing from the mapping is indexed with an empty description and flagged.
+
+**Optional PR check.** A GitHub Actions job on pull requests may warn when source files changed with no change under `context/`. This is a warning, not a blocking check.
+
+**If `knowledge.db` is committed**, add a git pre-commit hook that runs `rebuild_db.py` so the committed index always matches. **If it is gitignored** (regenerable), rely on the `SessionStart` rebuild hook (§62) instead.
+
+---
+
+## 66. Plugin — Distribution Across Repositories
+
+Skills, hooks and subagents are files inside one repo, so they only work in that repo. Copying them into every repo means every improvement must be re-copied everywhere. A plugin solves this: it is **one repo** that packages them, installable into any project — like a browser extension.
+
+```text
+<plugin-repo>/
+├── .claude-plugin/
+│   ├── plugin.json         ← name, version, description
+│   └── marketplace.json    ← lists this plugin (a repo can be its own marketplace)
+├── skills/                 ← build-intelligence, realign, safe-point, ghost-test, handoff, audit-context
+├── agents/                 ← librarian, context-auditor, verifier, explorer
+├── hooks/
+│   ├── hooks.json          ← hook config; script paths use ${CLAUDE_PLUGIN_ROOT}
+│   └── *.py
+└── templates/              ← empty context/*.md skeletons, .ai/ scripts
+```
+
+Install (once per machine):
+
+```text
+/plugin marketplace add <owner>/<plugin-repo>
+/plugin install <plugin-name>@<marketplace-name>
+```
+
+A project can also list the marketplace and plugin in its committed `.claude/settings.json` (`extraKnownMarketplaces`, `enabledPlugins`) so anyone opening the repo is prompted to install it.
+
+**Generic vs project-specific:**
+
+| Lives in the plugin (generic) | Stays in each repo (project-specific) |
+|---|---|
+| All skills, generic subagents, hook scripts | `context/*.md`, `.ai/knowledge.db`, `.ai/*.py` data sections |
+| Script logic that reads paths from config | Project-specific deny rules (which files are huge) |
+| Context templates | Area specialists (their areas differ per repo) |
+| This spec | `AGENTS.md` project section |
+
+Hook scripts in the plugin must not hardcode project paths — they read project-specific values (huge files, source directories, formatter command) from a small committed config file in the repo, e.g. `.ai/system-config.json`.
+
+**When to build it:** only after the skills and hooks are stable in one repository. The plugin is a distribution step, not a feature — build locally first, package once proven. Bump `version` in `plugin.json` on each change so installs can update.
+
+---
+
+## 67. Template Repository — New Projects
+
+The `/build-intelligence` skill installs the system into **existing** repos. For **new** projects, keep a template repository with the system already present:
+
+```text
+project-starter/
+├── AGENTS.md              ← generic operating rules, project section blank
+├── CLAUDE.md              ← @AGENTS.md
+├── .ai/rebuild_db.py, sync_context.py, system-config.json
+├── context/*.md           ← empty skeletons with section headings
+├── tasks/backlog.md       ← empty backlog in §56 format
+├── .claude/settings.json  ← plugin enabled (§66) + project hooks/deny rules
+└── .gitignore             ← already correct (§68)
+```
+
+On GitHub: Settings → tick **Template repository**. New repos are then created with **Use this template**, and the first session runs `/build-intelligence` in fill-in mode instead of from scratch.
+
+---
+
+## 68. Repository Hygiene for the Implementation Layer
+
+- **`.claude/` must be committed.** If `.gitignore` excludes `.claude/`, skills, hooks, subagents and project settings are silently lost. Replace a blanket `.claude/` ignore with:
+  ```gitignore
+  .claude/settings.local.json
+  .claude/**/*.local.*
+  ```
+  `settings.local.json` is for personal, uncommitted settings; `settings.json` is shared and committed.
+- Hook scripts must be executable/runnable on every OS the owner uses (prefer `python` scripts over bash for Windows + Unix repos).
+- Never put secrets in `.claude/settings.json`, hook scripts or skills.
+
+---
+
+## 69. Cross-Tool Portability
+
+| Part | Claude Code | Codex (OpenAI) | Gemini CLI | Plain chat apps |
+|---|---|---|---|---|
+| `AGENTS.md` rules | via `@AGENTS.md` | native | configurable | paste manually |
+| `context/*.md` + SQLite + scripts | ✅ | ✅ | ✅ | attach/paste manually |
+| Skills (`SKILL.md`) | ✅ | supported | partial / own format | ✗ |
+| Hooks (enforcement) | ✅ | limited | varies | ✗ |
+| Subagents | ✅ | tool-specific | tool-specific | ✗ |
+
+The **memory** (plain files) is portable everywhere. The **enforcement** (hooks) is tool-specific and must be rebuilt per tool or does not exist. Tool capabilities change quickly — check current docs before relying on a row of this table.
+
+---
+
+## 70. Session Habits and Rollout Order
+
+**Habits:**
+- Use **plan mode** for substantial changes (§58): the AI researches and proposes but cannot edit until the owner approves.
+- Use `/clear` between unrelated tasks and `/compact` within long ones. The handoff/realign system makes a fresh start cheap — prefer it over one ever-growing session.
+- When the primary tool's usage limit is reached, another tool can continue the work from the same `AGENTS.md` + `context/` files (§69).
+
+**Rollout order** (each step working before the next begins):
+
+```text
+1. .gitignore fix (§68) + AGENTS.md switch (§60)
+2. Skills (§61) — build + operating set
+3. Hooks (§62) — SessionStart + deny rules + Stop first, then the rest
+4. Index discovery + staleness markers (§65)
+5. Subagents (§63) — librarian, context-auditor, verifier; specialists only if needed
+6. Plugin (§66) once 2–5 are stable, then template repo (§67)
+```
