@@ -31,4 +31,5 @@ Use `git revert` when changes have already been pushed to origin.
 | 2026-09-21 | Auth & platform design session — no code changes, docs only | 924ac92 | complete |
 
 | 2026-09-23 | task: Block 2b — hook scripts + ship skills + session-snapshot | 87f997d | complete |
-| 2026-09-23 | task: discuss/execute skills + status-update enforcement + task-complete stats hook | 87f997d | in-progress |
+| 2026-09-23 | task: discuss/execute skills + status-update enforcement + task-complete stats hook | 87f997d | complete |
+| 2026-09-23 | task: rewrite build-intelligence for 3 cases + wire plugin/template repos + write setup guide | 8dc4701 | in-progress |

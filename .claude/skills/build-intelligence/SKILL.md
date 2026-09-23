@@ -1,60 +1,104 @@
 ---
 name: build-intelligence
-description: Install the intelligence system into this repo — create context/*.md, AGENTS.md, .ai/ scripts, and SQLite. Run once on a fresh repo or in fill-in mode on a template clone.
+description: Install or repair the intelligence system in any project. Handles three cases — empty project, partial/existing implementation, or a different context system. Manual-only.
 disable-model-invocation: true
 ---
 
-You are running the `/build-intelligence` skill. Follow these steps exactly.
+## Step 0 — Detect which case you are in
 
-## Step 1 — Detect mode
+Before doing anything, check what exists:
 
-Check whether `context/overview.md` already has content (template fill-in mode) or is absent/empty (fresh install mode). Announce which mode you are in.
-
-## Step 2 — Survey the codebase with explorer subagents
-
-Spawn one `explorer` subagent per major area of the codebase (e.g. backend, frontend, mobile, shared utils, infra). Each subagent receives:
-- The area name and the relevant file paths/globs to scan
-- A task to return: a draft of what belongs in the relevant `context/*.md` sections for that area
-
-Collect all survey results before writing any files.
-
-## Step 3 — Write context documents
-
-Using the survey results, fill in each `context/*.md` skeleton:
-- `realignment.md` — recovery map, load order, active task pointer
-- `overview.md` — purpose, tech stack, subsystems
-- `architecture.md` — layers, data flows, component responsibilities
-- `constraints.md` — hard invariants discovered during survey
-- `dependencies.md` — key file-to-file dependencies and call chains
-- `decisions.md` — engineering decisions inferred from code patterns
-- `known-problems.md` — debt, TODO comments, known fragile areas
-- `verification.md` — build steps and dev server commands (read package.json / Makefile / README)
-- `gitContext.md` — fill from `git remote get-url origin`, default branch
-
-Do NOT fill `handoff.md`, `current-task.md`, `revert-state.md`, `savings-log.md`, `failed-solutions.md` — these are populated by session activity.
-
-## Step 4 — Build SQLite
-
-Run: `python .ai/rebuild_db.py`
-
-If the script doesn't exist, copy it from the template (see §67). Confirm it prints "knowledge.db rebuilt successfully."
-
-## Step 5 — Verify .gitignore hygiene (§68)
-
-Check `.gitignore`. It must NOT have a blanket `.claude/` entry. It must have:
 ```
-.claude/settings.local.json
-.claude/**/*.local.*
+A. EMPTY — no context/, no .ai/, no .claude/hooks/, no knowledge.db
+B. PARTIAL — some of the above exist but are incomplete or missing entries
+C. DIFFERENT SYSTEM — a context system exists but uses different conventions (e.g. just a CONTEXT.md file, a different DB, or a plain notes folder)
 ```
 
-Fix if needed.
+How to detect:
+- `context/` exists AND has at least 5 .md files AND `.ai/knowledge.db` exists → likely B or already complete
+- `context/` or equivalent exists but NO `.ai/knowledge.db` → C (different system)
+- Neither exists → A
 
-## Step 6 — Hand off
+Announce which case you detected and what you will do before touching anything.
 
-Tell the user:
-- The system is installed
-- From now on, use `/realign` at the start of each session
-- Use `/safe-point` before touching code
-- Use `/ghost-test` before making changes
-- Use `/handoff` before ending each session
-- Use `/audit-context` when context feels stale
+---
+
+## Case A — Empty project (fresh install)
+
+1. **Scaffold context docs** — create all of the following as empty skeletons with section headers only (do not fill content yet):
+   `context/overview.md`, `context/architecture.md`, `context/dependencies.md`,
+   `context/decisions.md`, `context/constraints.md`, `context/known-problems.md`,
+   `context/failed-solutions.md`, `context/current-task.md`, `context/verification.md`,
+   `context/handoff.md`, `context/realignment.md`, `context/gitContext.md`,
+   `context/revert-state.md`, `context/savings-log.md`, `context/session-snapshot.md`
+
+2. **Scaffold .ai/ scripts** — copy or create:
+   - `.ai/rebuild_db.py` — full DB builder (use the version from the intelligence plugin)
+   - `.ai/sync_context.py` — incremental sync script
+   - `.ai/system-config.json` — `{"project": "<name>", "installed": "<date>"}`
+
+3. **Wire hooks** — copy hook scripts from the plugin into `.claude/hooks/`:
+   `session_start.py`, `safe_point_guard.py`, `context_sync.py`,
+   `check_handoff.py`, `precompact_snapshot.py`, `task_complete_stats.py`
+
+4. **Wire settings.json** — create or update `.claude/settings.json` with the full hook block (SessionStart, Stop, PreToolUse/Edit|Write, PostToolUse/Edit|Write, PreCompact) and permissions (allow context/tasks/.claude edits silently; deny Read on overview.html).
+
+5. **Update .gitignore** — ensure `.claude/settings.local.json`, `.claude/**/*.local.*`, `.claude/.last_edit_hash`, `.claude/.last_verified`, `.claude/.current_task_id` are ignored.
+
+6. **Ensure CLAUDE.md / AGENTS.md** — if neither exists, create `AGENTS.md` with the standard skeleton (project description placeholder, Persistent Knowledge System section, Enforcement Rules, Git Workflow, Progress Updates, Hard Constraints). Create `CLAUDE.md` as a single line: `@AGENTS.md`.
+
+7. **Run `python .ai/rebuild_db.py`** — initialises knowledge.db.
+
+8. **Spawn explorer subagents** — now that scaffolding is done, spawn one `explorer` subagent per major area to survey the codebase and fill in the context docs:
+   - Overview + architecture
+   - Dependencies + decisions
+   - Constraints + known-problems
+   After each returns, write its findings into the relevant `context/*.md` files.
+
+9. **Run `python .ai/sync_context.py`** — syncs filled docs to DB.
+
+10. **Confirm** — tell the user the system is live. List what was created.
+
+---
+
+## Case B — Partial implementation (gaps only)
+
+1. **Audit what exists** — for each of the 15 context docs, each of the 2 .ai/ scripts, each of the 6 hook scripts, check whether it exists and whether it has real content (not just skeleton headers). Build a gap list.
+
+2. **Audit settings.json** — check that all 5 hook events are wired (SessionStart, Stop, PreToolUse, PostToolUse, PreCompact). Note any missing.
+
+3. **Audit .gitignore** — check the 5 ignore entries are present.
+
+4. **Report the gaps** — show the user a list of what's missing or incomplete before changing anything.
+
+5. **Fill gaps only** — create missing files, add missing hook wiring, fill missing .gitignore entries. Do NOT overwrite files that already have content.
+
+6. **Run `python .ai/rebuild_db.py`** if any context doc was added or significantly changed; otherwise run `python .ai/sync_context.py`.
+
+7. **Confirm** — tell the user what was added.
+
+---
+
+## Case C — Different context system (migration)
+
+1. **Read what exists** — read the existing context files (whatever they are: a single CONTEXT.md, a notes/ folder, a different DB schema). Understand their structure.
+
+2. **Map to the standard schema** — identify which content maps to which of the 15 standard context docs. Tell the user the mapping before doing anything.
+
+3. **Confirm with user** — show the proposed mapping and ask for a go-ahead. Do NOT migrate without explicit approval.
+
+4. **On approval: migrate** — for each mapping, extract the relevant content and write it into the appropriate `context/*.md` file. Preserve the original files (do not delete them — user can clean up later).
+
+5. **Then follow Case A steps 2–10** — scaffold anything still missing, wire hooks, run rebuild.
+
+6. **Flag what couldn't be mapped** — if any content in the original system has no obvious home in the standard schema, surface it to the user.
+
+---
+
+## All cases — final check
+
+After completing the relevant case above:
+- Run `python .ai/rebuild_db.py` if not already done.
+- Confirm `.claude/settings.json` has all 5 hook events.
+- Confirm `AGENTS.md` (or `CLAUDE.md`) contains the Enforcement Rules section.
+- Tell the user to restart their Claude Code session so the SessionStart hook fires fresh.
