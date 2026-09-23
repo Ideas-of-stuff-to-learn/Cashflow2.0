@@ -26,7 +26,7 @@ if not defined LOCAL_IP (
 
 echo [config] Detected IP: %LOCAL_IP%
 
-:: ── Write App\.env ────────────────────────────────────────────────────────────
+:: ── Write App\.env (Vite only — Flask reads App\API\.env separately) ──────────
 (
     echo VITE_LOCAL_DEV=true
     echo VITE_LOCAL_IP=%LOCAL_IP%
@@ -42,9 +42,9 @@ echo [config] Detected IP: %LOCAL_IP%
 echo [config] Written %ENV_FILE% and %RN_CONFIG_FILE%
 
 :: ── Launch all three in separate terminals ────────────────────────────────────
-start "Cashflow - Backend" cmd /k "cd /d "%BACKEND_DIR%" && python backend.py"
-start "Cashflow - Web Frontend" cmd /k "cd /d "%FRONTEND_DIR%" && npm run dev -- --host"
-start "Cashflow - Expo (RN)" cmd /k "cd /d "%RN_DIR%" && npx expo start"
+start "utility-tools - Backend" cmd /k "cd /d "%BACKEND_DIR%" && python backend.py"
+start "utility-tools - Web Frontend" cmd /k "cd /d "%FRONTEND_DIR%" && npm run dev -- --host"
+start "utility-tools - Expo (RN)" cmd /k "cd /d "%RN_DIR%" && npx expo start"
 
 echo.
 echo Started Backend, Web Frontend, and Expo in separate terminals.

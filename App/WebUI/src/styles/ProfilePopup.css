@@ -1,0 +1,90 @@
+.profile-popup {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px 10px;
+    min-width: 220px;
+    max-width: 280px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    z-index: 200;
+}
+
+.profile-popup-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.profile-popup-email {
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 2px;
+}
+
+.profile-popup-email.no-email {
+    font-style: italic;
+}
+
+.profile-email-badge {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.profile-email-badge.verified {
+    background: rgba(61, 139, 95, 0.15);
+    color: #3D8B5F;
+}
+
+.profile-email-badge.unverified {
+    background: rgba(220, 150, 0, 0.15);
+    color: #b87800;
+}
+
+.profile-popup-pending {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-bottom: 2px;
+}
+
+.profile-popup-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 10px 0 8px;
+}
+
+.profile-popup-btn {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    padding: 7px 4px;
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.15s;
+}
+
+.profile-popup-btn:hover {
+    background: var(--hover-bg, rgba(0,0,0,0.05));
+}
+
+.profile-popup-logout {
+    color: var(--danger, #c0392b);
+}

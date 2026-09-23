@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { login, getMe } from '../api';
+
 import { useAuth } from '../appState';
 import '../styles/LoginScreen.css'
 import { POST_LOGIN_ROUTE } from '../config/routes';
@@ -60,6 +61,7 @@ export default function LoginScreen() {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const pageLoadRef = useRef(Date.now());
     const [checkingStoredSession, setCheckingStoredSession] = useState(true);
     const [retryCount, setRetryCount] = useState(0);
     const [isSlowStart, setIsSlowStart] = useState(false);
@@ -159,7 +161,7 @@ export default function LoginScreen() {
         setLoading(true);
         setError(null);
         try {
-            await login(identifier.trim(), password);
+            await login(identifier.trim(), password, Date.now() - pageLoadRef.current);
             completeLogin(identifier.trim());
             navigate(POST_LOGIN_ROUTE, { replace: true });
         } catch (e) {
@@ -212,6 +214,16 @@ export default function LoginScreen() {
             <p className="login-subtitle">Sign in to continue</p>
 
             <form onSubmit={handleLogin}>
+                {/* Honeypot — hidden from real users, bots fill it */}
+                <input
+                    name="website"
+                    type="text"
+                    autoComplete="off"
+                    tabIndex={-1}
+                    style={{ display: 'none' }}
+                    aria-hidden="true"
+                />
+
                 <input
                     className="login-input"
                     placeholder="Email or username"
@@ -236,6 +248,10 @@ export default function LoginScreen() {
                     {loading ? '...' : 'Sign in'}
                 </button>
             </form>
+
+            <button className="login-switch login-forgot" onClick={() => navigate('/forgot-password')}>
+                Forgot password?
+            </button>
 
             <button className="login-switch" onClick={() => navigate('/signup')}>
                 Don't have an account? Sign up

@@ -26,7 +26,7 @@ if not defined LOCAL_IP (
 
 echo [config] Detected IP: %LOCAL_IP%
 
-:: ── Write App\.env (Flask reads this) ────────────────────────────────────────
+:: ── Write App\.env (Vite only — Flask reads App\API\.env separately) ──────────
 (
     echo VITE_LOCAL_DEV=true
     echo VITE_LOCAL_IP=%LOCAL_IP%
@@ -42,8 +42,8 @@ echo [config] Detected IP: %LOCAL_IP%
 echo [config] Written %RN_CONFIG_FILE%
 
 :: ── Launch Flask + Expo ───────────────────────────────────────────────────────
-start "Cashflow - Backend" cmd /k "cd /d "%BACKEND_DIR%" && python backend.py"
-start "Cashflow - Expo" cmd /k "cd /d "%RN_DIR%" && npx expo start"
+start "utility-tools - Backend" cmd /k "cd /d "%BACKEND_DIR%" && python backend.py"
+start "utility-tools - Expo" cmd /k "cd /d "%RN_DIR%" && npx expo start"
 
 echo.
 echo Started Backend and Expo.

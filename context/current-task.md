@@ -1,11 +1,11 @@
-<!-- last-verified: eb0073b 2026-09-23 -->
+<!-- last-verified: 71241d4 2026-09-23 -->
 # Cashflow2.0 — Current Task
 
 ## Status (2026-09-23)
 
-No active task. Clean main branch.
+No active task. Tasks 1–5 complete (auth email pipeline, verification, password reset, profile UI, soft-delete, GitHub Actions cleanup).
 
-**Next session:** Task 2 — Gmail SMTP setup + email sending module. Full plan in `context/auth-design.md` §4.
+**Next session:** Task 6 — Google/Microsoft OAuth (login screen social buttons → backend OAuth flow → user linking).
 
 ## Recently Completed
 

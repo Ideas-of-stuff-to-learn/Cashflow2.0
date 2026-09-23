@@ -32,10 +32,12 @@ DISABLE_ALL_RATE_LIMITS = True
 # Set any of these to True to disable just that endpoint or group.
 
 # Auth
-DISABLE_RL_AUTH_ME        = False  # GET  /auth/me
-DISABLE_RL_AUTH_LOGIN     = False  # POST /auth/login
-DISABLE_RL_AUTH_SIGNUP    = False  # POST /auth/signup
-DISABLE_RL_AUTH_REFRESH   = False  # POST /auth/refresh + /auth/logout
+DISABLE_RL_AUTH_ME             = False  # GET  /auth/me
+DISABLE_RL_AUTH_LOGIN          = False  # POST /auth/login
+DISABLE_RL_AUTH_SIGNUP         = False  # POST /auth/signup
+DISABLE_RL_AUTH_REFRESH        = False  # POST /auth/refresh + /auth/logout
+DISABLE_RL_AUTH_EMAIL_SEND     = False  # POST /auth/send-verification + /auth/reset-password
+DISABLE_RL_AUTH_FORGOT_PASSWORD = False # POST /auth/forgot-password
 
 # Data reads
 DISABLE_RL_READ_TRANSACTIONS = False  # GET /transactions  ← the one that was killing transactions
@@ -88,6 +90,18 @@ def _rl(limit_string: str, flag_name: str = ""):
 
 
 # ── AUTH ─────────────────────────────────────────────────────────────────────
+
+RL_AUTH_EMAIL_SEND = _rl("10 per hour", "DISABLE_RL_AUTH_EMAIL_SEND")
+# POST /auth/send-verification + /auth/reset-password — IP-level guard on top of
+# per-user daily cap enforced in auth.py. 10/hour per IP is generous for real use;
+# stops a bot from hammering the endpoint before the per-user logic even fires.
+# Used in: routes/auth.py
+
+RL_AUTH_FORGOT_PASSWORD = _rl("5 per minute; 20 per hour", "DISABLE_RL_AUTH_FORGOT_PASSWORD")
+# POST /auth/forgot-password — unauthenticated endpoint; per-IP only (can't key on user
+# because we don't reveal whether the account exists). 5/min stops burst flooding;
+# 20/hour limits sustained harassment of a target's inbox.
+# Used in: routes/auth.py
 
 RL_AUTH_ME = _rl("100 per day", "DISABLE_RL_AUTH_ME")
 # GET /auth/me — identity check on load. 100/day is generous; blocks hammering

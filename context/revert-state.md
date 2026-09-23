@@ -1,4 +1,5 @@
-<!-- last-verified: eb0073b 2026-09-23 -->
+<!-- last-verified: 71241d4 2026-09-23 -->
+2026-09-23 | task: Task 5 — profile UI, soft-delete, GitHub Actions cleanup | safe-point: 71241d4c3512f3caf4c2460e698023cd87743795 | status: complete
 # Revert State — Safe Points
 
 A safe-point commit hash is recorded here before every task that touches code.
@@ -37,4 +38,5 @@ Use `git revert` when changes have already been pushed to origin.
 2026-09-23 | task: add step 0b to auth-design (rename breakage fixes) | safe-point: 93cc4f7 | status: complete
 2026-09-23 | task: repo rename propagation (Cashflow2.0 -> utility-tools) | safe-point: f7e5385 | status: complete
 2026-09-23 | task: Task 1 - email migration (backend + frontend) | safe-point: 35c42c9 | status: complete
-2026-09-23 | task: Task 2 - Gmail SMTP email_service.py | safe-point: a487428 | status: in-progress
+2026-09-23 | task: Task 2 - Gmail SMTP email_service.py | safe-point: 71241d4 | status: complete
+2026-09-23 | task: Tasks 3+4 - email verification + password reset + bot protection | safe-point: 71241d4 | status: in-progress

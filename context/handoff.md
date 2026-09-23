@@ -1,3 +1,23 @@
+## Pre-Compact Snapshot — 2026-09-23 18:16
+
+**Git HEAD:** `71241d4`
+**Files touched:** context/revert-state.md, App/WebUI/src/api.jsx, context/savings-log.md, start-web.bat, App/API/rate_limits.py...
+**Active task:** (no active task)
+
+*(Auto-written by PreCompact hook — full snapshot in context/session-snapshot.md)*
+
+---
+
+## Pre-Compact Snapshot — 2026-09-23 17:19
+
+**Git HEAD:** `71241d4`
+**Files touched:** context/current-task.md, start-web.bat, context/savings-log.md, start-all.bat, context/revert-state.md...
+**Active task:** (no active task)
+
+*(Auto-written by PreCompact hook — full snapshot in context/session-snapshot.md)*
+
+---
+
 ## Pre-Compact Snapshot — 2026-09-23 15:09
 
 **Git HEAD:** `eb0073b`

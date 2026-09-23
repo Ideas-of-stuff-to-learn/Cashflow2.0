@@ -248,9 +248,9 @@ Before any paying users, every DB query touching `transactions`, `categorized_re
                                                             rebuild_db.py, chatLog.txt,
                                                             10_web-migration.txt); build verified
 1. Email migration (schema + auth routes + login UI)       ✅ DONE 2026-09-23
-2. Gmail SMTP setup + email sending module                 ← prerequisite for verify + reset
-3. Email verification flow                                 ← prerequisite for trusted emails
-4. Password reset flow                                     ← pairs with SMTP setup
+2. Gmail SMTP setup + email sending module                 ✅ DONE 2026-09-23
+3. Email verification flow                                 ✅ DONE 2026-09-23
+4. Password reset flow                                     ✅ DONE 2026-09-23
 5. Profile UI (popup + /profile page)                     ← now has full data to display
 6. Isolation audit                                        ← safety before more users
 7. Google OAuth                                           ← highest demand social login

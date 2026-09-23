@@ -1,5 +1,6 @@
 <!-- last-verified: eb0073b 2026-09-23 -->
 2026-09-23 | task: catch-up after claude-intelligence-plugin install | SQLite queries: 1 | context docs loaded: 2 (handoff, current-task) | full repo scan avoided: yes | added AI harness section to architecture.md; stamped staleness markers on all 15 docs
+2026-09-23 | task: Tasks 3-5 — email verification, password reset, profile UI, soft-delete, GitHub Actions | SQLite queries: 0 | context docs loaded: 2 (session-snapshot, current-task) | full repo scan avoided: yes | continued from compacted session
 # Intelligence System — Savings Log
 
 Each entry = one session that used the intelligence system instead of cold-scanning the repo.
@@ -31,3 +32,4 @@ YYYY-MM-DD | task: <what was done> | SQLite queries: <N> | context docs loaded: 
 2026-09-23 | task: add step 0b to auth-design (rename breakage fixes) | SQLite queries: 0 | context docs loaded: 1 (auth-design) | full repo scan avoided: yes | notes: subagent already had findings from prior discuss
 2026-09-23 | task: Task 0b - propagate GitHub rename Cashflow2.0->utility-tools | SQLite queries: 0 | context docs loaded: 1 (gitContext) | full repo scan avoided: yes | 7 files updated, build verified green
 2026-09-23 | task: Task 1 - email migration (auth.py + api.jsx + LoginScreen + SignupScreen) | SQLite queries: 0 | context docs loaded: 1 (auth-design) | full repo scan avoided: yes | build verified green
+2026-09-23 | task: Task 2 - email_service.py (Gmail SMTP module) | SQLite queries: 0 | context docs loaded: 0 | full repo scan avoided: yes | new file only, no existing code modified

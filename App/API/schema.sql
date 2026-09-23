@@ -345,3 +345,46 @@ CREATE INDEX IF NOT EXISTS idx_impersonation_log_created_at
 INSERT INTO permissions (key, description) VALUES
     ('audit.view', 'View the impersonation audit log (who impersonated whom, and when)')
 ON CONFLICT (key) DO NOTHING;
+
+-- =====================================================================
+-- Email migration (Task 1, 2026-09-23)
+-- =====================================================================
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS oauth_provider TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS oauth_sub TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'none';
+-- password_hash nullable for future OAuth-only users (no password)
+ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+
+-- Backfill display_name from username for existing accounts
+UPDATE users SET display_name = username WHERE display_name IS NULL;
+
+-- =====================================================================
+-- Email sending rate limits + one-time token invalidation (Task 3, 2026-09-23)
+-- =====================================================================
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_email_sent_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_daily_count INTEGER DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_daily_count_date DATE;
+-- last_token_used_at: set to now() after any action token (verify/reset) is consumed.
+-- Any token whose iat <= this timestamp is considered already used.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_token_used_at TIMESTAMPTZ;
+-- Task 5: soft-delete + pending email change
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_email TEXT;
+
+-- =====================================================================
+-- Login brute-force protection (Task 3, 2026-09-23)
+-- =====================================================================
+ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS login_locked BOOLEAN DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS login_locked_until TIMESTAMPTZ;
+
+-- =====================================================================
+-- Email rate-limit bypass permission (Task 3, 2026-09-23)
+-- =====================================================================
+INSERT INTO permissions (key, description) VALUES
+    ('email.bypass_ratelimit', 'Bypass email send rate limits and daily cap — owner/testing use')
+ON CONFLICT (key) DO NOTHING;

@@ -301,14 +301,14 @@ export async function signup(username, password, email) {
     return data;
 }
 
-export async function login(identifier, password) {
+export async function login(identifier, password, elapsedMs) {
     // identifier may be an email or a username — backend routes by presence of @
     const field = identifier.includes('@') ? 'email' : 'username';
     const response = await fetchWithTimeout(`${BASE_URL}/auth/login`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [field]: identifier, password }),
+        body: JSON.stringify({ [field]: identifier, password, _elapsed_ms: elapsedMs, website: '' }),
     }, COLD_START_TIMEOUT_MS);
 
     const data = await parseJsonResponse(response, 'Login failed');
@@ -365,6 +365,88 @@ export async function logout() {
     }).catch(() => {});
     csrfAccessToken = null;
     csrfRefreshToken = null;
+}
+
+export async function updateProfile(fields) {
+    const response = await authorizedFetch(`${BASE_URL}/auth/profile`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fields),
+    });
+    return parseJsonResponse(response, 'Failed to update profile');
+}
+
+export async function changePassword(currentPassword, newPassword) {
+    const response = await authorizedFetch(`${BASE_URL}/auth/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    });
+    return parseJsonResponse(response, 'Failed to change password');
+}
+
+export async function deleteAccount() {
+    const response = await authorizedFetch(`${BASE_URL}/auth/account`, { method: 'DELETE' });
+    return parseJsonResponse(response, 'Failed to delete account');
+}
+
+export async function cancelDeletion(token) {
+    const response = await fetchWithTimeout(`${BASE_URL}/auth/cancel-deletion`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+    }, 30000);
+    const data = await parseJsonResponse(response, 'Failed to cancel deletion');
+    if (data.code) {
+        const err = new Error(data.error || 'Failed');
+        err.code = data.code;
+        throw err;
+    }
+    return data;
+}
+
+export async function sendVerificationEmail() {
+    const response = await authorizedFetch(`${BASE_URL}/auth/send-verification`, { method: 'POST' });
+    return parseJsonResponse(response, 'Failed to send verification email');
+}
+
+export async function verifyEmail(token) {
+    const response = await fetchWithTimeout(
+        `${BASE_URL}/auth/verify-email?token=${encodeURIComponent(token)}`,
+        { method: 'GET' },
+        30000,
+    );
+    const data = await parseJsonResponse(response, 'Email verification failed');
+    if (data.code) {
+        const err = new Error(data.error || 'Verification failed');
+        err.code = data.code;
+        throw err;
+    }
+    return data;
+}
+
+export async function forgotPassword(email, elapsedMs) {
+    const response = await fetchWithTimeout(`${BASE_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, _elapsed_ms: elapsedMs, website: '' }),
+    }, 30000);
+    return parseJsonResponse(response, 'Request failed');
+}
+
+export async function resetPassword(token, password) {
+    const response = await fetchWithTimeout(`${BASE_URL}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password }),
+    }, 30000);
+    const data = await parseJsonResponse(response, 'Password reset failed');
+    if (data.code) {
+        const err = new Error(data.error || 'Password reset failed');
+        err.code = data.code;
+        throw err;
+    }
+    return data;
 }
 
 export async function getPreferences() {
