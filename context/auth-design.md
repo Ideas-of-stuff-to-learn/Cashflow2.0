@@ -239,24 +239,14 @@ Before any paying users, every DB query touching `transactions`, `categorized_re
 ## 9. Agreed Implementation Order
 
 ```
-0. Repo rename propagation                                ← owner renames repo on GitHub;
-                                                            Claude then updates all hardcoded
-                                                            references throughout codebase
-                                                            (package.json, render config,
-                                                            CORS origins, README, any
-                                                            github.com URLs in docs/code)
-0b. Fix rename breakages                                  ← after GitHub rename, update the
-                                                            3 source files and 4 tooling/docs
-                                                            files that hardcode the old name:
-                                                            · App/WebUI/vite.config.js (base path)
-                                                            · App/WebUI/src/App.jsx (router basename)
-                                                            · App/WebUI/public/404.html (SPA redirect)
-                                                            · context/gitContext.md (remote URL)
-                                                            · .ai/rebuild_db.py (remote URL in seed)
-                                                            · App/handoffFiles/chatLog.txt (link)
-                                                            · App/handoffFiles/10_web-migration.txt
-                                                            Run sync_context.py after doc updates.
-                                                            Verify GitHub Pages build still works.
+0. Repo rename propagation                                ✅ DONE 2026-09-23 — renamed to
+                                                            utility-tools on GitHub; git remote
+                                                            updated locally
+0b. Fix rename breakages                                  ✅ DONE 2026-09-23 — all 7 files
+                                                            updated (vite.config.js, App.jsx,
+                                                            404.html, gitContext.md,
+                                                            rebuild_db.py, chatLog.txt,
+                                                            10_web-migration.txt); build verified
 1. Email migration (schema + auth routes + login UI)       ← prerequisite for everything
 2. Gmail SMTP setup + email sending module                 ← prerequisite for verify + reset
 3. Email verification flow                                 ← prerequisite for trusted emails

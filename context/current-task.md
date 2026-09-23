@@ -1,11 +1,11 @@
 <!-- last-verified: eb0073b 2026-09-23 -->
 # Cashflow2.0 — Current Task
 
-## Status (2026-09-21)
+## Status (2026-09-23)
 
-No active task. Clean main branch.
+No active task. Clean main branch. Repo renamed to `utility-tools` and fully propagated.
 
-**Next session:** implement auth — start with email migration (schema + auth routes + login UI). Full plan in `context/auth-design.md`.
+**Next session:** implement auth — start with Task 1: email migration (schema + auth routes + login UI). Full plan in `context/auth-design.md` §9.
 
 ## Recently Completed
 
