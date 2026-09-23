@@ -1,3 +1,42 @@
+## Session handoff — 2026-09-23
+
+**Git HEAD:** `cba0d37`
+**Branch:** main (pushed)
+
+### What was done this session
+
+**Tasks 3–5 — email verification, password reset, profile UI, soft-delete (cba0d37):**
+- `POST /auth/send-verification` + `GET /auth/verify-email` — 5-min JWT, one-time use, 60s cooldown + 5/day cap, owner bypasses via `email.bypass_ratelimit` permission
+- `POST /auth/forgot-password` + `POST /auth/reset-password` — bot detection layers 1–4 (IP rate limit, per-account lockout, honeypot field, timing check); login brute-force: 5 failed → 15-min auto-lock (`login_locked_until`)
+- `POST /auth/change-password` — verifies current password, hashes new one
+- `PATCH /auth/profile` — updates `display_name` or sets `pending_email` (no immediate email change; old address active until new one verified)
+- `DELETE /auth/account` — sets `deleted_at`, sends 48h cancellation email with JWT link
+- `POST /auth/cancel-deletion` — clears `deleted_at` within 48h window
+- New screens: `VerifyEmailScreen`, `ForgotPasswordScreen`, `ResetPasswordScreen`, `ProfileScreen`, `CancelDeletionScreen`
+- `ProfilePopup.jsx` — clickable avatar/badge shows popup with name, email, verified badge, pending email, Edit Profile + Sign out buttons
+- `RoleBadge.jsx` — rewritten: elevated role = colored badge button, regular user = avatar circle button; both open ProfilePopup
+- `App.jsx` — routes added: `/profile`, `/cancel-deletion`, `/forgot-password`, `/reset-password`, `/verify-email`
+- `schema.sql` — `deleted_at TIMESTAMPTZ`, `pending_email TEXT`, brute-force columns, email rate-limit columns all added
+- `supabase-keep-alive.yml` — daily schedule, soft-deleted users query as keep-alive, hard-delete step via `SUPABASE_SERVICE_ROLE_KEY` for accounts past 48h window
+- start-*.bat — window titles renamed from "Cashflow" → "utility-tools"
+
+**Post-ship UI fixes (shipped separately):**
+- `ProfilePopup.css` — `position: fixed; top: 56px; right: 12px; z-index: 1001; background: var(--bg-page)` — portal render via `createPortal` to document.body so popup escapes `.app-header` stacking context; background fixed (`--surface` undefined → transparent, switched to `--bg-page`)
+- `RoleBadge.jsx` — popup rendered via `createPortal(…, document.body)`
+- `Layout.css` — `.app-header` gets `position: relative; z-index: 10`
+- `dashboardStyles.css` — `.dashboard-chart-area`: `overflow: visible`, `padding-top: 16px`, `padding-bottom: 20px`; nav row `margin-bottom: 0`
+- `chartStyles.css` — `.chart-header-row` `margin-top` removed (was causing title clip under overflow:hidden)
+
+### DB migrations run by user this session
+- `deleted_at TIMESTAMPTZ` and `pending_email TEXT` added manually in Supabase
+- `failed_login_attempts`, `login_locked`, `login_locked_until` — user prompted to add these after 500 error on login
+
+### Open / pending
+- `SUPABASE_SERVICE_ROLE_KEY` GitHub secret added by user this session
+- Next task: Task 6 — Google/Microsoft OAuth
+
+---
+
 ## Pre-Compact Snapshot — 2026-09-23 18:16
 
 **Git HEAD:** `71241d4`

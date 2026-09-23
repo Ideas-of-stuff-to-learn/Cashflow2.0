@@ -34,15 +34,16 @@
 .dashboard-chart-area {
     flex: 1;
     min-height: 0;
-    overflow: hidden;
     display: flex;
     flex-direction: column;
-    padding-top: 12px;
+    padding-top: 16px;
+    padding-bottom: 20px;
+    overflow: visible;
 }
 
 .dashboard-chart-area .window-nav-row {
     margin-top: auto;
-    margin-bottom: -4px;
+    margin-bottom: 0;
 }
 
 

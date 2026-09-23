@@ -1,5 +1,6 @@
 <!-- last-verified: 71241d4 2026-09-23 -->
 2026-09-23 | task: Task 5 — profile UI, soft-delete, GitHub Actions cleanup | safe-point: 71241d4c3512f3caf4c2460e698023cd87743795 | status: complete
+2026-09-23 | task: UI polish — chart title clip, arrow clip, popup z-index + opacity | safe-point: cba0d37aa5d3db9b1d73bcde5d815fdf46404292 | status: complete
 # Revert State — Safe Points
 
 A safe-point commit hash is recorded here before every task that touches code.

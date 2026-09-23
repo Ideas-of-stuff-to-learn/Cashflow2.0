@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../appState';
 import { ROLE_COLORS, DEFAULT_ROLE_COLOR } from '../theme';
 import ProfilePopup from './ProfilePopup';
@@ -65,7 +66,10 @@ export default function RoleBadge() {
                 </button>
             )}
 
-            {open && <ProfilePopup onClose={() => setOpen(false)} />}
+            {open && createPortal(
+                <ProfilePopup onClose={() => setOpen(false)} />,
+                document.body
+            )}
         </div>
     );
 }
