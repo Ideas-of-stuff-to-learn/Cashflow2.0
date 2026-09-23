@@ -84,7 +84,7 @@ function ToolCard({ tool }) {
 
 function RequireAuth({ children }) {
   const { isLoggedIn, isChecking } = useAuth();
-  if (isChecking) return null;
+  if (isChecking) return <div style={{ minHeight: '100vh', background: '#0f0f13' }} />;
   if (!isLoggedIn) return <Navigate to="/login" replace />;
   return children;
 }

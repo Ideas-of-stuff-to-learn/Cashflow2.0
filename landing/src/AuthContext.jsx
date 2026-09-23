@@ -26,8 +26,9 @@ export function AuthProvider({ children }) {
         return () => { cancelled = true; };
     }, []);
 
-    const completeLogin = useCallback((username) => {
+    const completeLogin = useCallback(() => {
         setIsLoggedIn(true);
+        getMe().then(data => setUserRole(data)).catch(() => {});
     }, []);
 
     const endSession = useCallback(() => {
