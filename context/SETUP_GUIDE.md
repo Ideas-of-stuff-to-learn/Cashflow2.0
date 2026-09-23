@@ -1,12 +1,23 @@
-# Installing the Intelligence System in Any Project
-
-Three steps from a completely fresh project (or cleared memory) to a fully wired intelligence system.
+# Intelligence System — Setup Guide
 
 ---
 
-## Step 1 — Add the marketplace (one-time, global)
+## Starting fresh in a chat (clear stale context)
 
-Edit `~/.claude/settings.json` (your global Claude Code config — not the project one) and add:
+Before installing or running anything in a new session, clear the context window:
+
+```
+/clear
+```
+
+This wipes the conversation history so the hooks and skills load clean on the next message.
+
+---
+
+## One-time machine setup — add the marketplace
+
+Edit `~/.claude/settings.json` (your global Claude Code config, not the project one).
+Add the `extraKnownMarketplaces` block so Claude Code knows where the plugin lives:
 
 ```json
 {
@@ -19,11 +30,11 @@ Edit `~/.claude/settings.json` (your global Claude Code config — not the proje
 }
 ```
 
-This teaches Claude Code where your private plugin marketplace lives. Do this once per machine.
+Do this once per machine. If `~/.claude/settings.json` already has other entries, add the `extraKnownMarketplaces` key alongside them.
 
 ---
 
-## Step 2 — Install the plugin in your project
+## Per-project — install the plugin
 
 In a terminal at your project root:
 
@@ -31,41 +42,53 @@ In a terminal at your project root:
 claude plugin add claude-intelligence
 ```
 
-This copies the skills and agents into your project's `.claude/` directory. After this step you have all 13 skills and 4 agents available in any Claude Code session for that project.
+This copies the skills and agents into your project's `.claude/` directory. You now have all 13 skills and 4 subagents available in every Claude Code session for that project.
 
 ---
 
-## Step 3 — Run `/build-intelligence`
+## After install — wire and fill the system
 
-Open a Claude Code session in the project and type:
+Open a Claude Code session in the project, then:
+
+**If the intelligence system is NOT yet in place** (fresh project, or just installed the plugin for the first time):
 
 ```
 /build-intelligence
 ```
 
-Claude will detect which of three cases applies:
+Claude detects which of three cases applies and handles it automatically:
+- Empty project → scaffolds context docs, copies hooks, wires `settings.json`, fills docs from codebase using explorer subagents
+- Partial system → audits gaps, adds what's missing, leaves existing content alone
+- Different context system → maps your existing docs to the standard schema, confirms with you, migrates
 
-| Case | What it does |
-|---|---|
-| **Empty project** | Scaffolds all context docs, copies hooks, wires settings.json, runs explorer subagents to fill the docs from the codebase |
-| **Partial system** | Audits what's missing, adds gaps only, leaves existing content alone |
-| **Different context system** | Maps your existing docs to the standard schema, confirms with you, migrates, then fills gaps |
-
-At the end: restart your Claude Code session so the SessionStart hook fires fresh.
+Restart your Claude Code session after this completes so the SessionStart hook fires fresh.
 
 ---
 
-## That's it
+**If the intelligence system IS already in place** (returning to a project, resuming after a gap, or after a merge):
 
-After step 3, every future session in that project will:
-- Load your last handoff and active task automatically on session start
-- Block edits without a recorded safe-point
-- Auto-sync context docs to SQLite on every edit
-- Snapshot full context before any context compaction
-- Require `/task-done` after each subtask and `/verifier` before declaring done
-- Print task-complete stats (files changed, % impact, opinion) after every task
+```
+/catch-up
+```
 
-To bring context up to date after a gap or merge: `/catch-up`
-To discuss before coding: `/discuss`
-To execute with auto-permissions: `/execute`
-To execute cautiously: `/execute-careful`
+Checks each context doc's staleness marker, spawns targeted subagents only for stale docs, updates and re-stamps them, syncs the DB. Does not touch source code.
+
+---
+
+## Quick reference — skills available after setup
+
+| Skill | When to use |
+|---|---|
+| `/catch-up` | Start of session, after merge, after a gap |
+| `/discuss` | Before coding — plan and align first |
+| `/execute` | Run an agreed plan, auto-permissions |
+| `/execute-careful` | High-risk task, ask before every action |
+| `/task-done` | After every completed subtask |
+| `/ship-main` | Explicit: commit + push to main |
+| `/ship-branch` | Explicit: commit + push to new branch |
+| `/safe-point` | Record a revert anchor before risky work |
+| `/ghost-test` | Dry-run a change before writing code |
+| `/handoff` | End-of-session ritual |
+| `/realign` | Recover working memory after confusion |
+| `/audit-context` | Check context docs for drift vs source |
+| `/build-intelligence` | Install or repair the system |
