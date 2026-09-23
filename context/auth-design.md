@@ -245,6 +245,18 @@ Before any paying users, every DB query touching `transactions`, `categorized_re
                                                             (package.json, render config,
                                                             CORS origins, README, any
                                                             github.com URLs in docs/code)
+0b. Fix rename breakages                                  ← after GitHub rename, update the
+                                                            3 source files and 4 tooling/docs
+                                                            files that hardcode the old name:
+                                                            · App/WebUI/vite.config.js (base path)
+                                                            · App/WebUI/src/App.jsx (router basename)
+                                                            · App/WebUI/public/404.html (SPA redirect)
+                                                            · context/gitContext.md (remote URL)
+                                                            · .ai/rebuild_db.py (remote URL in seed)
+                                                            · App/handoffFiles/chatLog.txt (link)
+                                                            · App/handoffFiles/10_web-migration.txt
+                                                            Run sync_context.py after doc updates.
+                                                            Verify GitHub Pages build still works.
 1. Email migration (schema + auth routes + login UI)       ← prerequisite for everything
 2. Gmail SMTP setup + email sending module                 ← prerequisite for verify + reset
 3. Email verification flow                                 ← prerequisite for trusted emails
