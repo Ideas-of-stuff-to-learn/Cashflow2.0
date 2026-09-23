@@ -130,7 +130,7 @@ function AppRoutes() {
       <Route path="/verify-email" element={<VerifyEmailScreen />} />
       <Route path="/cancel-deletion" element={<CancelDeletionScreen />} />
       <Route path="/profile" element={<RequireAuth><ProfileScreen /></RequireAuth>} />
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={<RequireAuth><LandingPage /></RequireAuth>} />
     </Routes>
   );
 }

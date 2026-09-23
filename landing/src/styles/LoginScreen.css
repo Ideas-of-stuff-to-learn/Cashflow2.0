@@ -3,7 +3,14 @@
 .login-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; background: var(--bg-page); min-height: 100vh; }
 .login-title { font-size: 26px; font-weight: bold; margin-bottom: 8px; }
 .login-subtitle { font-size: 16px; color: var(--text-secondary); margin-bottom: 32px; }
-.login-input { width: 100%; border: 1px solid var(--border-medium); border-radius: 8px; padding: 12px; font-size: 16px; margin-bottom: 12px; color: var(--text-primary); }
+.login-input { width: 100%; border: 1px solid var(--border-medium); border-radius: 8px; padding: 12px; font-size: 16px; margin-bottom: 12px; color: var(--text-primary); background: var(--input-bg); }
+.login-input:-webkit-autofill,
+.login-input:-webkit-autofill:hover,
+.login-input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px var(--input-bg) inset;
+    -webkit-text-fill-color: var(--text-primary);
+    caret-color: var(--text-primary);
+}
 .login-error { color: var(--danger); margin-bottom: 12px; font-size: 14px; }
 .login-button { width: 100%; background: var(--primary); padding: 14px 0; border-radius: 8px; color: var(--bg-page); font-size: 16px; font-weight: 600; margin-top: 8px; border: none; cursor: pointer; }
 .login-button:disabled { opacity: 0.6; }
