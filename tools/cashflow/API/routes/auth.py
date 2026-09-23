@@ -373,8 +373,8 @@ def forgot_password():
             reset_url,
             'Reset password',
         )
-        _increment_email_count(conn, user_id)
         send_email(email, 'Reset your password', html)
+        _increment_email_count(conn, user_id)
         return generic_ok, 200
     except Exception as e:
         conn.rollback()
