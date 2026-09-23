@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
 import RoleBadge from './components/RoleBadge';
+import StartupScreen from './components/StartupScreen';
 import LoginScreen from './screens/LoginScreen';
 import SignupScreen from './screens/SignupScreen';
 import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
@@ -84,7 +85,7 @@ function ToolCard({ tool }) {
 
 function RequireAuth({ children }) {
   const { isLoggedIn, isChecking } = useAuth();
-  if (isChecking) return <div style={{ minHeight: '100vh', background: '#0f0f13' }} />;
+  if (isChecking) return <StartupScreen />;
   if (!isLoggedIn) return <Navigate to="/login" replace />;
   return children;
 }
