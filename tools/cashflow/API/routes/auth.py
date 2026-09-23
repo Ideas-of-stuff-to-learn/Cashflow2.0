@@ -22,6 +22,7 @@ from extensions import app, limiter
 from rate_limits import (
     RL_AUTH_ME, RL_AUTH_LOGIN, RL_AUTH_SIGNUP, RL_AUTH_REFRESH,
     RL_ADMIN_SENSITIVE, RL_AUTH_EMAIL_SEND, RL_AUTH_FORGOT_PASSWORD,
+    RL_AUTH_CHANGE_PASSWORD, RL_AUTH_CANCEL_DELETION,
 )
 from database import get_connection, release_connection
 from permissions import get_user_role_and_permissions, user_has_permission
@@ -267,8 +268,8 @@ def send_verification():
             verify_url,
             'Verify email',
         )
-        _increment_email_count(conn, current_user)
         send_email(email, 'Verify your email address', html)
+        _increment_email_count(conn, current_user)
         return jsonify({'status': 'ok', 'message': 'Verification email sent'}), 200
     except Exception as e:
         conn.rollback()
@@ -495,6 +496,7 @@ def update_profile():
 
 @app.route('/auth/change-password', methods=['POST'])
 @jwt_required()
+@limiter.limit(RL_AUTH_CHANGE_PASSWORD)
 def change_password():
     current_user = int(get_jwt_identity())
     data = request.get_json() or {}
@@ -573,6 +575,7 @@ def delete_account():
 
 
 @app.route('/auth/cancel-deletion', methods=['POST'])
+@limiter.limit(RL_AUTH_CANCEL_DELETION)
 def cancel_deletion():
     data = request.get_json() or {}
     token_str = data.get('token', '')
@@ -585,6 +588,9 @@ def cancel_deletion():
 
     conn = get_connection()
     try:
+        if not _check_one_time_token(conn, user_id, claims['iat']):
+            return jsonify({'error': 'This cancellation link has already been used', 'code': 'token_used'}), 400
+
         with conn.cursor() as cur:
             cur.execute("SELECT deleted_at FROM users WHERE id = %s", (user_id,))
             row = cur.fetchone()
@@ -592,8 +598,10 @@ def cancel_deletion():
             return jsonify({'error': 'Account not found'}), 404
         deleted_at = row[0]
         if deleted_at is None:
+            _mark_token_used(conn, user_id)
             return jsonify({'status': 'ok', 'message': 'Account is already active'}), 200
 
+        _mark_token_used(conn, user_id)
         with conn.cursor() as cur:
             cur.execute("UPDATE users SET deleted_at = NULL WHERE id = %s", (user_id,))
         conn.commit()

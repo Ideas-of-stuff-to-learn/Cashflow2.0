@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTransactions, useProcessing, useChartFilter } from '../appState';
 import { useInitialLoadLogic } from '../customHooks/homescreen/useInitialLoadLogic';
 import { useLogout } from '../customHooks/homescreen/useLogout';
@@ -15,7 +14,6 @@ import ActionButtons from '../components/homepage/ActionButtons';
 import '../styles/dashboardStyles.css';
 
 export default function DashboardScreen() {
-    const navigate = useNavigate();
     const { transactions, initialLoadError, retryInitialLoad, allTransactionsLoaded, categoryColors, uploadBreakdown, refetchUploadBreakdown } = useTransactions();
     const { categorising, manualReviewFlow } = useProcessing();
     const { contentsSelectedCategories, toggleContentsCategory, toggleAllContentsCategories } = useChartFilter();

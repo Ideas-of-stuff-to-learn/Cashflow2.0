@@ -283,15 +283,6 @@ def resolve_manual():
                     (category, current_user, desc, date, amount),
                 )
 
-            status_after = combined_status(desc, personal_cache, global_cache)
-            if status_after['status'] == 'resolved':
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """UPDATE transactions SET category = %s
-                           WHERE user_id = %s AND description = %s""",
-                        (category, current_user, desc),
-                    )
-
             updated.append({'description': desc, 'date': date, 'amount': amount, 'category': category})
 
         if personal_cache.dirty:
@@ -361,15 +352,6 @@ def resolve_and_exit():
                          AND txn_date = %s AND amount = %s""",
                     (category, current_user, desc, date, amount),
                 )
-
-            status_after = combined_status(desc, personal_cache, global_cache)
-            if status_after['status'] == 'resolved':
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """UPDATE transactions SET category = %s
-                           WHERE user_id = %s AND description = %s""",
-                        (category, current_user, desc),
-                    )
 
             updated.append({'description': desc, 'date': date, 'amount': amount, 'category': category})
 

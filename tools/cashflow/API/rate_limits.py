@@ -22,7 +22,7 @@ DISABLE SWITCHES  (set True to bypass — testing / debugging only)
 """
 
 # ── MASTER KILL SWITCH ───────────────────────────────────────────────────────
-DISABLE_ALL_RATE_LIMITS = True
+DISABLE_ALL_RATE_LIMITS = False
 # Set True to bypass EVERY rate limit in the entire backend at once.
 # Useful when hammering the API locally or running bulk imports.
 
@@ -119,6 +119,16 @@ RL_AUTH_SIGNUP = _rl("5 per minute", "DISABLE_RL_AUTH_SIGNUP")
 RL_AUTH_REFRESH = _rl("60 per hour", "DISABLE_RL_AUTH_REFRESH")
 # POST /auth/refresh + POST /auth/logout — 60/hour = once per minute, way more
 # than the app needs; just catches a runaway refresh loop.
+# Used in: routes/auth.py
+
+RL_AUTH_CHANGE_PASSWORD = _rl("10 per hour", "DISABLE_RL_AUTH_EMAIL_SEND")
+# POST /auth/change-password — brute-force protection for password change.
+# 10/hour per IP is generous for a legitimate user; stops credential stuffing.
+# Used in: routes/auth.py
+
+RL_AUTH_CANCEL_DELETION = _rl("10 per hour", "DISABLE_RL_AUTH_EMAIL_SEND")
+# POST /auth/cancel-deletion — unauthenticated token redemption endpoint.
+# 10/hour stops replay-flooding a valid token before it's marked used.
 # Used in: routes/auth.py
 
 

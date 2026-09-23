@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTransactions, useProcessing, useChartFilter } from '../appState';
 import { useChartData } from '../customHooks/charts/useChartData';
 import { useDetailedChartReveal } from '../customHooks/charts/useDetailedChartReveal';
@@ -10,7 +9,6 @@ import FilterPane from '../components/dashboard/FilterPane';
 import '../styles/chartStyles.css';
 
 export default function ChartsScreen() {
-    const navigate = useNavigate();
     const { initialLoading, categoryColors } = useTransactions();
     const { categorising, processingStage } = useProcessing();
     const { mobileSelectedCategories, toggleMobileCategory, toggleAllMobileCategories } = useChartFilter();
