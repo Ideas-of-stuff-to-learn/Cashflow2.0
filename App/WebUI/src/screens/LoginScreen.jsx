@@ -56,7 +56,7 @@ const WAKEUP_STAGES = [
 ];
 
 export default function LoginScreen() {
-    const [username, setUsername] = useState('');
+    const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -152,16 +152,15 @@ export default function LoginScreen() {
 
     async function handleLogin(e) {
         e.preventDefault();
-        if (!username.trim() || !password.trim()) {
-            setError('Please enter username and password');
+        if (!identifier.trim() || !password.trim()) {
+            setError('Please enter your email or username and password');
             return;
         }
         setLoading(true);
         setError(null);
         try {
-            const trimmedUsername = username.trim();
-            await login(trimmedUsername, password);
-            completeLogin(trimmedUsername);
+            await login(identifier.trim(), password);
+            completeLogin(identifier.trim());
             navigate(POST_LOGIN_ROUTE, { replace: true });
         } catch (e) {
             setError(e.message);
@@ -215,11 +214,12 @@ export default function LoginScreen() {
             <form onSubmit={handleLogin}>
                 <input
                     className="login-input"
-                    placeholder="Username"
-                    value={username}
-                    onChange={e => setUsername(e.target.value)}
+                    placeholder="Email or username"
+                    value={identifier}
+                    onChange={e => setIdentifier(e.target.value)}
                     autoCapitalize="none"
                     autoCorrect="off"
+                    autoComplete="username"
                 />
 
                 <input

@@ -7,6 +7,7 @@ import { POST_LOGIN_ROUTE } from '../config/routes';
 
 export default function SignupScreen() {
     const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -32,7 +33,8 @@ export default function SignupScreen() {
         setError(null);
         try {
             const trimmedUsername = username.trim();
-            await signup(trimmedUsername, password);
+            const trimmedEmail = email.trim() || undefined;
+            await signup(trimmedUsername, password, trimmedEmail);
             completeLogin(trimmedUsername);
             navigate(POST_LOGIN_ROUTE, { replace: true });
         } catch (e) {
@@ -55,6 +57,16 @@ export default function SignupScreen() {
                     onChange={e => setUsername(e.target.value)}
                     autoCapitalize="none"
                     autoCorrect="off"
+                />
+
+                <input
+                    className="login-input"
+                    placeholder="Email (optional)"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    type="email"
+                    autoCapitalize="none"
+                    autoComplete="email"
                 />
 
                 <input

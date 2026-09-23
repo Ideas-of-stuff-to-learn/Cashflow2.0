@@ -285,12 +285,14 @@ export async function deleteTransactions(ids) {
     return data.deleted;
 }
 
-export async function signup(username, password) {
+export async function signup(username, password, email) {
+    const body = { username, password };
+    if (email) body.email = email;
     const response = await fetchWithTimeout(`${BASE_URL}/auth/signup`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify(body),
     }, COLD_START_TIMEOUT_MS);
 
     const data = await parseJsonResponse(response, 'Signup failed');
@@ -299,12 +301,14 @@ export async function signup(username, password) {
     return data;
 }
 
-export async function login(username, password) {
+export async function login(identifier, password) {
+    // identifier may be an email or a username — backend routes by presence of @
+    const field = identifier.includes('@') ? 'email' : 'username';
     const response = await fetchWithTimeout(`${BASE_URL}/auth/login`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ [field]: identifier, password }),
     }, COLD_START_TIMEOUT_MS);
 
     const data = await parseJsonResponse(response, 'Login failed');

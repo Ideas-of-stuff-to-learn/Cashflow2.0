@@ -29,12 +29,16 @@ def auth_me():
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT username FROM users WHERE id = %s", (current_user,))
+            cur.execute("SELECT username, email, display_name FROM users WHERE id = %s", (current_user,))
             row = cur.fetchone()
         username = row[0] if row else None
+        email = row[1] if row else None
+        display_name = row[2] if row else None
         role_name, level, perms = get_user_role_and_permissions(conn, current_user)
         return jsonify({
             'username': username,
+            'email': email,
+            'display_name': display_name,
             'role': role_name,
             'level': level,
             'permissions': sorted(perms),
@@ -56,13 +60,38 @@ def get_user_by_username(conn, username):
         return row if row else None
 
 
+def get_user_by_email(conn, email):
+    """Returns (id, password_hash) for an email address, or None if not found."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT id, password_hash FROM users WHERE email = %s", (email.lower(),))
+        row = cur.fetchone()
+        return row if row else None
+
+
 def username_exists(conn, username):
     with conn.cursor() as cur:
         cur.execute("SELECT 1 FROM users WHERE username = %s", (username,))
         return cur.fetchone() is not None
 
 
-def create_user(conn, username, password_hash):
+def email_exists(conn, email):
+    with conn.cursor() as cur:
+        cur.execute("SELECT 1 FROM users WHERE email = %s", (email.lower(),))
+        return cur.fetchone() is not None
+
+
+def validate_email(email):
+    """Returns an error message string, or None if valid."""
+    if not email:
+        return 'Email cannot be empty'
+    if '@' not in email or '.' not in email.split('@')[-1]:
+        return 'Enter a valid email address'
+    if len(email) > 254:
+        return 'Email address is too long'
+    return None
+
+
+def create_user(conn, username, password_hash, email=None):
     """Inserts a new user and returns the new integer id. Assigned the
     'user' role immediately at creation time - NOT left NULL to be
     picked up by schema.sql's backfill later, since that backfill only
@@ -72,10 +101,10 @@ def create_user(conn, username, password_hash):
     next happens to run."""
     with conn.cursor() as cur:
         cur.execute(
-            """INSERT INTO users (username, password_hash, role_id)
-               VALUES (%s, %s, (SELECT id FROM roles WHERE name = 'user'))
+            """INSERT INTO users (username, password_hash, role_id, email, display_name)
+               VALUES (%s, %s, (SELECT id FROM roles WHERE name = 'user'), %s, %s)
                RETURNING id""",
-            (username, password_hash),
+            (username, password_hash, email.lower() if email else None, username),
         )
         new_id = cur.fetchone()[0]
     conn.commit()
@@ -86,19 +115,22 @@ def create_user(conn, username, password_hash):
 def login():
     data = request.get_json()
 
-    if not data or 'username' not in data or 'password' not in data:
-        return jsonify({'error': 'username and password required'}), 400
-
-    username = data['username']
-    password = data['password']
+    identifier = (data or {}).get('email') or (data or {}).get('username')
+    password = (data or {}).get('password')
+    if not identifier or not password:
+        return jsonify({'error': 'Email/username and password required'}), 400
 
     conn = get_connection()
     try:
-        row = get_user_by_username(conn, username)
+        # Route by presence of @ — usernames cannot contain @
+        if '@' in identifier:
+            row = get_user_by_email(conn, identifier)
+        else:
+            row = get_user_by_username(conn, identifier)
 
         if not row:
             # Dummy check to prevent timing attacks revealing whether
-            # the username exists
+            # the account exists
             bcrypt.checkpw(b'dummy', bcrypt.hashpw(b'dummy', bcrypt.gensalt()))
             return jsonify({'error': 'Invalid credentials'}), 401
 
@@ -180,18 +212,25 @@ def signup():
 
     username = data['username'].strip()
     password = data['password']
+    email = data.get('email', '').strip() or None
 
     error = validate_username(username) or validate_password(password)
     if error:
         return jsonify({'error': error}), 400
+    if email:
+        error = validate_email(email)
+        if error:
+            return jsonify({'error': error}), 400
 
     conn = get_connection()
     try:
         if username_exists(conn, username):
             return jsonify({'error': 'Username already taken'}), 409
+        if email and email_exists(conn, email):
+            return jsonify({'error': 'An account with that email already exists'}), 409
 
         hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=12))
-        new_id = create_user(conn, username, hashed.decode('utf-8'))
+        new_id = create_user(conn, username, hashed.decode('utf-8'), email=email)
 
         # fresh=True: they just set this password, this instant - same
         # reasoning as login()'s fresh=True above.
