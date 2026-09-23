@@ -7,6 +7,8 @@ Each entry = one session that used the intelligence system instead of cold-scann
 2026-09-21 | task: auth & platform architecture design | SQLite queries: 2 | context docs loaded: 3 (handoff, current-task, auth.py read) | full repo scan avoided: yes | discussion-only session; no code changed; auth-design.md created
 2026-09-20 | task: app title centralisation, header flex layout, filter pane spacing, mobile pills routing, popup mobile scroll | SQLite queries: 0 | context docs loaded: 4 | full repo scan avoided: yes | resumed from compacted context via handoff.md
 
+2026-09-23 | task: Block 2b — 5 hook scripts, session-snapshot, 3 ship skills, enforcement rules in AGENTS.md, DB/sync registration | SQLite queries: 0 | context docs loaded: 3 (via session summary) | full repo scan avoided: yes | continued from compacted context; all Block 2b items completed and committed 87f997d
+
 Format:
 ```
 YYYY-MM-DD | task: <what was done> | SQLite queries: <N> | context docs loaded: <N> | full repo scan avoided: yes/no | notes

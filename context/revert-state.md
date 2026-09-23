@@ -30,4 +30,5 @@ Use `git revert` when changes have already been pushed to origin.
 | 2026-09-20 | Dashboard chart top spacing + manual review modal max-height scrollable + modal-card/modal-list desktop scroll fix | d70c5a3 | complete |
 | 2026-09-21 | Auth & platform design session — no code changes, docs only | 924ac92 | complete |
 
-| 2026-09-23 | task: Block 2b — hook scripts + ship skills + session-snapshot | 3c45a4975181036ad87d98ce23e21ccff6e37206 | in-progress |
+| 2026-09-23 | task: Block 2b — hook scripts + ship skills + session-snapshot | 87f997d | complete |
+| 2026-09-23 | task: discuss/execute skills + status-update enforcement + task-complete stats hook | 87f997d | in-progress |

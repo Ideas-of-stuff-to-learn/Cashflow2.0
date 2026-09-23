@@ -120,11 +120,20 @@ When a change is substantial enough to count as its own milestone: promote the e
 
 These rules are non-negotiable and apply to every task, every session:
 
-1. **Run `/task-done` after every completed subtask.** Any time you finish a discrete piece of work and report it to the user, run `/task-done` first. This records the safe-point, updates the backlog and current-task, updates relevant context files, and syncs the DB. Never skip it just because the task feels small.
+1. **Give rolling status after every chunk within a task.** After each meaningful sub-step (file edited, command run, decision made), output a visible status line:
+   ```
+   ✓ <what was just done> [~X% complete]
+   → <what's next> [~X% complete]
+   ```
+   Do not go silent between tool calls. The percentage is a rough pulse, not a precise figure.
 
-2. **Run `/verifier` before declaring a task complete.** If the task touched source code (not just context docs), the verifier must pass before you tell the user it is done. If `/verifier` fails, fix the issue or surface it explicitly — never report "done" over a failing verifier.
+2. **Emit a task-complete summary when a task finishes.** Run `python .claude/hooks/task_complete_stats.py` and include the output in your reply. The summary must show: files changed, % of codebase affected, git diff line count, any critical areas touched, and a one-line opinion on scope/risk. If the script fails, emit this inline.
 
-3. **Never push without an explicit "ship" from the user.** Commits are fine at any point; pushing to any remote requires the user to say "ship", "ship to main", or "ship to branch". These are manual-only skills (`/ship-main`, `/ship-branch`) — do not invoke them automatically.
+3. **Run `/task-done` after every completed subtask.** Any time you finish a discrete piece of work and report it to the user, run `/task-done` first. This records the safe-point, updates the backlog and current-task, updates relevant context files, and syncs the DB. Never skip it just because the task feels small.
+
+4. **Run `/verifier` before declaring a task complete.** If the task touched source code (not just context docs), the verifier must pass before you tell the user it is done. If `/verifier` fails, fix the issue or surface it explicitly — never report "done" over a failing verifier.
+
+5. **Never push without an explicit "ship" from the user.** Commits are fine at any point; pushing to any remote requires the user to say "ship", "ship to main", or "ship to branch". These are manual-only skills (`/ship-main`, `/ship-branch`) — do not invoke them automatically.
 
 ---
 

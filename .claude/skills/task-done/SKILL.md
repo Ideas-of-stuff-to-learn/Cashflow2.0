@@ -19,4 +19,6 @@ Run this after completing any discrete subtask. Exact order, no skipping:
 6. **savings-log.md** — append one line:
    `YYYY-MM-DD | task: <what was done> | SQLite queries: <N> | context docs loaded: <N> | full repo scan avoided: yes/no | notes`
 
+7. **Task-complete stats** — run `python .claude/hooks/task_complete_stats.py` and include the output in your reply to the user. If the script fails, emit the stats inline: files changed (from `git diff --name-only HEAD~1`), count vs total source files (rough %), and a one-line opinion on scope/risk.
+
 Do NOT commit or push — that is `/ship-main` or `/ship-branch`.
