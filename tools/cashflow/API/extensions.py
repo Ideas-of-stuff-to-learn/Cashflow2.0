@@ -18,6 +18,7 @@ this same `app`), then re-exports `app` for gunicorn.
 import os
 from datetime import timedelta
 import sys
+import psycopg2
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from flask import Flask
@@ -91,9 +92,21 @@ def check_if_token_revoked(jwt_header, jwt_payload):
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT 1 FROM revoked_tokens WHERE jti = %s", (jti,))
-            return cur.fetchone() is not None
-    finally:
+            result = cur.fetchone() is not None
         release_connection(conn)
+        return result
+    except psycopg2.OperationalError:
+        # SSL connection went stale after cold start — discard it and retry
+        # once with a fresh connection. This clears the bad connection from
+        # the pool so all subsequent requests in this process also get clean ones.
+        release_connection(conn, discard=True)
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1 FROM revoked_tokens WHERE jti = %s", (jti,))
+                return cur.fetchone() is not None
+        finally:
+            release_connection(conn)
 
 
 limiter = Limiter(

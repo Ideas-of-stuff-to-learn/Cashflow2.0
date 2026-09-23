@@ -30,6 +30,13 @@ def get_connection():
     return connection_pool.getconn()
 
 
-def release_connection(conn):
-    """Return a connection to the pool for reuse."""
-    connection_pool.putconn(conn)
+def release_connection(conn, discard=False):
+    """Return a connection to the pool. Pass discard=True if the connection is broken."""
+    if discard or conn.closed:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        connection_pool.putconn(conn, close=True)
+    else:
+        connection_pool.putconn(conn)
