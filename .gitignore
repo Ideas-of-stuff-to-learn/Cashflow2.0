@@ -3,6 +3,9 @@
 # =========================================================
 .claude/settings.local.json
 .claude/**/*.local.*
+.claude/.last_edit_hash
+.claude/.last_verified
+.claude/.current_task_id
 
 # =========================================================
 # Node / JavaScript (frontend)

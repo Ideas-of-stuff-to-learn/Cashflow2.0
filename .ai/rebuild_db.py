@@ -99,6 +99,7 @@ context_docs = [
     ("gitContext",       "context/gitContext.md",        "Git repo URL, workflow rules, CI/CD summary",                            "git,workflow,ci,deploy"),
     ("revert-state",     "context/revert-state.md",      "Safe-point commit hashes recorded before each task for instant revert",   "git,revert,safety"),
     ("savings-log",      "context/savings-log.md",       "Running log of sessions using the intelligence system vs cold-scanning",  "meta,savings,log"),
+    ("session-snapshot", "context/session-snapshot.md",  "Most recent pre-compact session snapshot — active task, files in flight, open decisions, open questions, what was about to happen next. Highest-priority recovery doc after a context compact.", "session,snapshot,recovery,compact,priority"),
 ]
 c.executemany(
     "INSERT OR REPLACE INTO context_documents (name, path, description, tags, updated_at) VALUES (?, ?, ?, ?, date('now'))",

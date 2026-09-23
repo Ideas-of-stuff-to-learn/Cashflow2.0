@@ -1,6 +1,16 @@
 {
   "permissions": {
-    "deny": []
+    "allow": [
+      "Edit(context/**)",
+      "Edit(tasks/**)",
+      "Edit(.claude/**)",
+      "Write(context/**)",
+      "Write(tasks/**)",
+      "Write(.claude/**)"
+    ],
+    "deny": [
+      "Read(context/overview.html)"
+    ]
   },
   "hooks": {
     "SessionStart": [
@@ -41,6 +51,16 @@
           {
             "type": "command",
             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/context_sync.py\""
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/precompact_snapshot.py\""
           }
         ]
       }

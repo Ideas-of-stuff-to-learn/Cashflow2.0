@@ -30,6 +30,7 @@ CONTEXT_DOCS = {
     "gitContext":       "context/gitContext.md",
     "revert-state":    "context/revert-state.md",
     "savings-log":     "context/savings-log.md",
+    "session-snapshot": "context/session-snapshot.md",
 }
 
 def file_hash(path):
