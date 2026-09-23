@@ -2,7 +2,7 @@ export default function BarLabelsRow({ stackData, totalWidth, rowTop, rowHeight,
     return (
         <div style={{ position: 'absolute', top: rowTop, left: 0, width: totalWidth, height: rowHeight , pointerEvents: 'none' }}>
             {stackData.map((bar, i) => (
-                <span key={i} className="bar-label" style={{ position: 'absolute', left: leftPadding + i * columnWidth, width: barWidth }}>
+                <span key={i} className="bar-label" style={{ position: 'absolute', left: leftPadding + i * columnWidth - (columnWidth - barWidth) / 2, width: columnWidth }}>
                     {bar.label}
                 </span>
             ))}

@@ -53,11 +53,8 @@ export default function DashboardScreen() {
     const chartReady = useDetailedChartReveal();
     const chartAreaRef = useRef(null);
 
-    useEffect(() => {
-        if (hasData && chartAreaRef.current) {
-            chartAreaRef.current.scrollTop = chartAreaRef.current.scrollHeight;
-        }
-    }, [hasData]);
+    // scrollTop removed — chart area uses overflow:hidden and a windowed
+    // view; programmatic scroll was pushing the title off the top edge.
 
     useEffect(() => {
         setChartSelectedCategories(new Set(contentsSelectedCategories));

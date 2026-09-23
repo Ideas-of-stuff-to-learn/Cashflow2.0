@@ -14,6 +14,8 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    position: relative;
+    z-index: 1;
 }
 
 .dashboard-main {
@@ -34,16 +36,16 @@
 .dashboard-chart-area {
     flex: 1;
     min-height: 0;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     padding-top: 16px;
-    padding-bottom: 20px;
-    overflow: visible;
+    padding-bottom: 8px;
 }
 
 .dashboard-chart-area .window-nav-row {
-    margin-top: auto;
-    margin-bottom: 0;
+    flex-shrink: 0;
+    margin-top: 8px;
 }
 
 

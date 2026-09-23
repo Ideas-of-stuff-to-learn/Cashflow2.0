@@ -137,6 +137,7 @@
     align-items: flex-start;
     gap: 6px;
     margin-bottom: 4px;
+    flex-shrink: 0;
 }
 
 
@@ -162,7 +163,8 @@
     gap: 8px;
     min-width: 0;
     width: 100%;
-
+    flex: 1;
+    min-height: 0;
 }
 
 /* NEW - arrows below the chart, spread to its left/right edges rather
@@ -183,7 +185,6 @@
     height: 32px;
     font-size: 14px;
     cursor: pointer;
-    margin-bottom: 15px;
 }
 
 /* OLD - kept here, unused, as a reference/fallback in case you want
