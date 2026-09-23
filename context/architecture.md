@@ -1,3 +1,4 @@
+<!-- last-verified: eb0073b 2026-09-23 -->
 # Cashflow2.0 — Architecture
 
 ## System Layers
@@ -221,3 +222,13 @@ Categories: colours/setColorAdmin.py, users/, permissions/
 ## CI/CD
 
 GitHub Actions runs on push to main. Likely: `npm run build` (web) + deploy to Render (backend) + Expo EAS build (mobile). See `.github/workflows/` for exact steps.
+
+## AI Development Harness (`.claude/`)
+
+Checked into the repo. Contains:
+- **Skills** (`.claude/skills/`) — slash-command recipes: `catch-up`, `build-intelligence`, `safe-point`, `task-done`, `verifier`, `realign`, `ghost-test`, `discuss`, `execute`, `execute-careful`, `ship-main`, `ship-branch`
+- **Hooks** (`.claude/hooks/`) — lifecycle scripts wired via `settings.json`: session-start writes revert-state + snapshot; pre-compact writes session-snapshot; task-complete emits stats
+- **Subagents** (`.claude/agents/`) — `explorer`, `librarian`, `verifier`, `context-auditor`
+- **Intelligence DB** (`.ai/knowledge.db`) — SQLite index of context docs, files, constraints, decisions, failed solutions
+- **Sync scripts** (`.ai/sync_context.py`, `.ai/rebuild_db.py`) — keep DB in sync with `context/*.md`
+- **Plugin** — `claude-intelligence-plugin` installed via Claude Code marketplace; provides `/catch-up` and `/build-intelligence` as installable skills

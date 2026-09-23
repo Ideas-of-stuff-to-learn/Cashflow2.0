@@ -1,3 +1,4 @@
+<!-- last-verified: eb0073b 2026-09-23 -->
 # Cashflow2.0 — Ideas & Optimizations Backlog
 
 Full audit of the frontend and backend (what's already implemented, and every potential performance optimization found — how it would work, what it would take, whether it's feasible, and how much it would likely help), plus a running backlog of proposed features not yet discussed in depth. Written in response to reports that login/signup take noticeably long, and that automatic categorization stalls for a while even after reaching 100%.

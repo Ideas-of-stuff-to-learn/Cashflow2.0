@@ -1,3 +1,4 @@
+<!-- last-verified: eb0073b 2026-09-23 -->
 # Auth & Platform Architecture — Design Document
 
 **Session:** 2026-09-21  

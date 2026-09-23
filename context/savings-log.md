@@ -1,3 +1,5 @@
+<!-- last-verified: eb0073b 2026-09-23 -->
+2026-09-23 | task: catch-up after claude-intelligence-plugin install | SQLite queries: 1 | context docs loaded: 2 (handoff, current-task) | full repo scan avoided: yes | added AI harness section to architecture.md; stamped staleness markers on all 15 docs
 # Intelligence System — Savings Log
 
 Each entry = one session that used the intelligence system instead of cold-scanning the repo.

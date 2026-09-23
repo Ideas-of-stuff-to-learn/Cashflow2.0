@@ -1,3 +1,4 @@
+<!-- last-verified: eb0073b 2026-09-23 -->
 # Cashflow2.0 — Realignment Map
 
 Use this document when: starting a new session, recovering from context loss, unsure about architecture, or continuing work from another session. It tells you what to retrieve and in what order — it is not itself a complete knowledge dump.

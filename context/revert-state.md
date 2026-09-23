@@ -1,3 +1,4 @@
+<!-- last-verified: eb0073b 2026-09-23 -->
 # Revert State — Safe Points
 
 A safe-point commit hash is recorded here before every task that touches code.

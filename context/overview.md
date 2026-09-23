@@ -1,3 +1,4 @@
+<!-- last-verified: eb0073b 2026-09-23 -->
 # Cashflow2.0 — Project Overview
 
 ## Purpose
