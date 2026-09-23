@@ -1,4 +1,5 @@
-<!-- last-verified: 71241d4 2026-09-23 -->
+<!-- last-verified: ace91bc 2026-09-23 -->
+2026-09-23 | task: Task 7 — repo restructure: App→tools/cashflow, landing page, dual deploy workflows | safe-point: ace91bccff2b76840f8ce047039093046d7ba744 | status: in-progress
 2026-09-23 | task: Task 5 — profile UI, soft-delete, GitHub Actions cleanup | safe-point: 71241d4c3512f3caf4c2460e698023cd87743795 | status: complete
 2026-09-23 | task: UI polish — chart title clip, arrow clip, popup z-index + opacity | safe-point: cba0d37aa5d3db9b1d73bcde5d815fdf46404292 | status: complete
 # Revert State — Safe Points

@@ -6,7 +6,7 @@
 ```
 ┌─────────────────────────────────────────────────┐
 │  Web (React/Vite)        Mobile (Expo/RN)        │
-│  App/WebUI/              App/NativeAppUI/         │
+│  tools/cashflow/WebUI/              tools/cashflow/NativeAppUI/         │
 │  ─ 4 split contexts      ─ single AppContext.js  │
 │  ─ react-virtual         ─ FlatList              │
 │  ─ react-router-dom      ─ react-navigation      │
@@ -15,7 +15,7 @@
 └────────────────┬────────────────────────────────┘
                  │ REST API (fetch + httpOnly cookie / secure-store)
 ┌────────────────▼────────────────────────────────┐
-│  Flask Backend              App/API/             │
+│  Flask Backend              tools/cashflow/API/             │
 │  ─ no ORM (raw psycopg2)                        │
 │  ─ JWT revocation                               │
 │  ─ tiered categorization pipeline               │
@@ -29,8 +29,8 @@
 
 ## Backend Components
 
-**Entry point:** `App/API/backend.py` — creates Flask app, registers all route blueprints
-**Shared state:** `App/API/extensions.py` — single Flask app + JWT manager + rate limiter instance shared by all modules to avoid circular imports
+**Entry point:** `tools/cashflow/API/backend.py` — creates Flask app, registers all route blueprints
+**Shared state:** `tools/cashflow/API/extensions.py` — single Flask app + JWT manager + rate limiter instance shared by all modules to avoid circular imports
 
 **Routes:**
 | File | Path | Purpose |
@@ -44,7 +44,7 @@
 | `routes/admin.py` | `/api/admin/*` | User/role/permission management, impersonation |
 | `routes/health.py` | `/api/health` | Keep-alive ping |
 
-**Categorization pipeline** (`App/API/categorise/`):
+**Categorization pipeline** (`tools/cashflow/API/categorise/`):
 1. `exact_tier.py` — exact match against `category_records` (user's own prior categorizations)
 2. `merchant_tier.py` — Aho-Corasick substring match on merchant name
 3. `similarity_tier.py` — rapidfuzz fuzzy scoring
@@ -52,22 +52,22 @@
 5. Sentinel: if even Gemini can't categorize → `NEEDS_MANUAL_REVIEW = "MANUALLY CATEGORISE"` (manual fallback) or `NOT_YET_CATEGORISED = "NOT YET CATEGORISED"` (timed-out batch, will retry — never surfaced to user)
 
 **Sentinel files (must stay in sync):**
-- Canonical JS: `App/shared/checkingName.js`
-- Web JSX: `App/WebUI/src/checkingName.jsx`
-- RN JS: `App/NativeAppUI/checkingName.js`
-- Python: `App/API/checkingName.py`
+- Canonical JS: `tools/cashflow/shared/checkingName.js`
+- Web JSX: `tools/cashflow/WebUI/src/checkingName.jsx`
+- RN JS: `tools/cashflow/NativeAppUI/checkingName.js`
+- Python: `tools/cashflow/API/checkingName.py`
 
-**Auth & permissions:** `App/API/permissions.py` — `@require_permission` decorator, role/permission lookup from DB on every authenticated request, checks `revoked_tokens` table.
+**Auth & permissions:** `tools/cashflow/API/permissions.py` — `@require_permission` decorator, role/permission lookup from DB on every authenticated request, checks `revoked_tokens` table.
 
-**Database:** `App/API/database.py` — psycopg2 connection helpers. No migrations; schema changes are hand-applied to Supabase and documented in `App/API/schema.sql`.
+**Database:** `tools/cashflow/API/database.py` — psycopg2 connection helpers. No migrations; schema changes are hand-applied to Supabase and documented in `tools/cashflow/API/schema.sql`.
 
 ## Web Frontend
 
-**Entry:** `App/WebUI/src/main.jsx` → `App.jsx`
+**Entry:** `tools/cashflow/WebUI/src/main.jsx` → `App.jsx`
 
 **Global State — 4 split contexts composed via AppStateProvider:**
 
-`App/WebUI/src/appState/index.jsx` wraps them in this order (outer → inner):
+`tools/cashflow/WebUI/src/appState/index.jsx` wraps them in this order (outer → inner):
 ```
 AuthContext → ProcessingContext → TransactionsContext → ChartFilterContext
 ```
@@ -98,7 +98,7 @@ AuthContext → ProcessingContext → TransactionsContext → ChartFilterContext
 | `ChartsScreen.jsx` | `/charts` | mobile | FilterPane + ChartWindowSection + ChartFootnote. Called "phone mimic" — mirrors what RN shows. |
 | `ContentsScreen.jsx` | `/contents` | all | Transaction table with sidebar, virtualization, search, SelectionBar |
 
-**Layout:** `App/WebUI/src/components/Layout.jsx` — 3-column CSS grid header:
+**Layout:** `tools/cashflow/WebUI/src/components/Layout.jsx` — 3-column CSS grid header:
 - Left col: `← Dashboard` button on /contents; `Cashflow` title on /dashboard; spacer otherwise
 - Center col: `Transactions` title on /contents; empty otherwise
 - Right col: `<RoleBadge />` always (justify-self: end)
@@ -130,7 +130,7 @@ AuthContext → ProcessingContext → TransactionsContext → ChartFilterContext
 
 ## Mobile Frontend (React Native / Expo)
 
-**Entry:** `App/NativeAppUI/index.js` → `App.js`
+**Entry:** `tools/cashflow/NativeAppUI/index.js` → `App.js`
 
 **Global State — single combined context:**
 `AppContext.js` holds ALL state (auth + transactions + categories + chart data + processing + manual review) in one place. Accessed via `useApp()` hook. This is different from the web's 4-context split.
@@ -155,13 +155,13 @@ AuthContext → ProcessingContext → TransactionsContext → ChartFilterContext
 - `ChartsScreen.js` — FilterPane + charts
 - `ContentsScreen.js` — FlatList transaction table + CategoryChipRow
 
-**Metro resolver alias:** `metro.config.js` maps `App/shared/` so RN can import shared JS utils by path.
+**Metro resolver alias:** `metro.config.js` maps `tools/cashflow/shared/` so RN can import shared JS utils by path.
 
-**Expo warning:** Before modifying any Expo API, read `App/NativeAppUI/AGENTS.md` for the SDK 54 compatibility note.
+**Expo warning:** Before modifying any Expo API, read `tools/cashflow/NativeAppUI/AGENTS.md` for the SDK 54 compatibility note.
 
 ## Shared Utils
 
-`App/shared/` — platform-neutral JS utilities imported by both web and RN via:
+`tools/cashflow/shared/` — platform-neutral JS utilities imported by both web and RN via:
 - Web: standard import path
 - RN: metro.config.js resolver alias
 
@@ -215,7 +215,7 @@ SpendingStackedChart (web: recharts, RN: react-native-gifted-charts)
 
 ## Admin Flow
 
-`App/adminClI/` — standalone Python CLI scripts. `BASE_URL` in each script hardcoded to `https://cashflow2-0.onrender.com` (production). Never run against prod without intent.
+`tools/cashflow/adminClI/` — standalone Python CLI scripts. `BASE_URL` in each script hardcoded to `https://cashflow2-0.onrender.com` (production). Never run against prod without intent.
 
 Categories: colours/setColorAdmin.py, users/, permissions/
 

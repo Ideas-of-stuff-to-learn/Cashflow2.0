@@ -1,0 +1,268 @@
+/* ── Tokens ───────────────────────────────────────────────── */
+:root {
+  --bg:          #0f0f13;
+  --bg-card:     #17171d;
+  --bg-card-hover: #1d1d26;
+  --border:      rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.18);
+  --text-primary: #f0f0f4;
+  --text-secondary: #8a8a9a;
+  --text-muted:  #55556a;
+  --badge-bg:    rgba(255, 255, 255, 0.06);
+  --badge-text:  #65657a;
+  --accent:      #4f8ef7;
+  --radius:      14px;
+  --shadow-card: 0 2px 16px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0 8px 32px rgba(0, 0, 0, 0.55);
+  --transition:  0.2s ease;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg:          #f3f4f8;
+    --bg-card:     #ffffff;
+    --bg-card-hover: #f8f9ff;
+    --border:      rgba(0, 0, 0, 0.08);
+    --border-hover: rgba(0, 0, 0, 0.16);
+    --text-primary: #111118;
+    --text-secondary: #555566;
+    --text-muted:  #aaaabc;
+    --badge-bg:    rgba(0, 0, 0, 0.05);
+    --badge-text:  #999aaa;
+    --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.08);
+    --shadow-hover: 0 8px 28px rgba(0, 0, 0, 0.14);
+  }
+}
+
+/* ── Reset ────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  min-height: 100vh;
+}
+
+/* ── Layout ───────────────────────────────────────────────── */
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ── Header ───────────────────────────────────────────────── */
+.header {
+  padding: 56px 24px 40px;
+  text-align: center;
+}
+
+.header__inner {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.header__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.header__logo {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.header__title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--text-primary);
+}
+
+.header__sub {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ── Main / Grid ──────────────────────────────────────────── */
+.main {
+  flex: 1;
+  padding: 0 24px 64px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+@media (max-width: 720px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Card link wrapper ────────────────────────────────────── */
+.tool-card-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  border-radius: var(--radius);
+  outline: none;
+}
+
+.tool-card-link--disabled {
+  cursor: default;
+  pointer-events: none;
+}
+
+.tool-card-link:focus-visible .tool-card {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Card ─────────────────────────────────────────────────── */
+.tool-card {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px 24px;
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--shadow-card);
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    box-shadow var(--transition),
+    transform var(--transition);
+  overflow: hidden;
+}
+
+/* Live card hover */
+.tool-card--live {
+  cursor: pointer;
+}
+
+.tool-card-link:hover .tool-card--live,
+.tool-card-link:focus-visible .tool-card--live {
+  background: var(--bg-card-hover);
+  border-color: var(--accent, var(--border-hover));
+  box-shadow: var(--shadow-hover), 0 0 0 1px var(--accent, transparent);
+  transform: translateY(-3px);
+}
+
+/* Accent bar on top for live card */
+.tool-card--live::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--accent, #4f8ef7);
+  opacity: 0;
+  transition: opacity var(--transition);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.tool-card-link:hover .tool-card--live::before,
+.tool-card-link:focus-visible .tool-card--live::before {
+  opacity: 1;
+}
+
+/* Coming-soon card */
+.tool-card--soon {
+  opacity: 0.45;
+}
+
+/* ── Badge ────────────────────────────────────────────────── */
+.badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  background: var(--badge-bg);
+  color: var(--badge-text);
+  padding: 3px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+}
+
+/* ── Card internals ───────────────────────────────────────── */
+.tool-card__icon {
+  font-size: 32px;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.tool-card__name {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
+
+.tool-card__desc {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.tool-card__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent, #4f8ef7);
+  margin-top: auto;
+  transition: gap var(--transition);
+}
+
+.tool-card-link:hover .tool-card__cta {
+  gap: 10px;
+}
+
+.cta-arrow {
+  transition: transform var(--transition);
+}
+
+.tool-card-link:hover .cta-arrow {
+  transform: translateX(3px);
+}
+
+/* ── Footer ───────────────────────────────────────────────── */
+.footer {
+  padding: 24px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+}
