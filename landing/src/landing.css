@@ -64,6 +64,15 @@ body {
 .header {
   padding: 56px 24px 40px;
   text-align: center;
+  position: relative;
+}
+
+.header__actions {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
 }
 
 .header__inner {

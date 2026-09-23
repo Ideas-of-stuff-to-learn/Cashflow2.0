@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../appState';
+import { useAuth } from '../AuthContext';
 import {
     updateProfile, changePassword, deleteAccount,
     sendVerificationEmail, logout,
@@ -38,8 +38,6 @@ export default function ProfileScreen() {
     const [deleting, setDeleting] = useState(false);
     const [deleteMsg, setDeleteMsg] = useState(null);
     const [showDeleteForm, setShowDeleteForm] = useState(false);
-
-    const pageLoadRef = useRef(Date.now());
 
     useEffect(() => {
         if (userRole) {
@@ -126,8 +124,7 @@ export default function ProfileScreen() {
             await deleteAccount();
             await logout();
             endSession();
-            const loginUrl = import.meta.env.PROD ? '/utility-tools/login' : 'http://localhost:5174/login';
-            window.location.href = loginUrl;
+            navigate('/login', { replace: true });
         } catch (err) {
             setDeleteMsg({ text: err.message || 'Failed to schedule deletion.', ok: false });
             setDeleting(false);

@@ -2,9 +2,9 @@
 setlocal
 
 set "SCRIPT_DIR=%~dp0"
-set "BACKEND_DIR=%SCRIPT_DIR%App\API"
-set "FRONTEND_DIR=%SCRIPT_DIR%App\WebUI"
-set "ENV_FILE=%SCRIPT_DIR%App\.env"
+set "BACKEND_DIR=%SCRIPT_DIR%API"
+set "FRONTEND_DIR=%SCRIPT_DIR%WebUI"
+set "ENV_FILE=%SCRIPT_DIR%.env"
 
 :: ── Detect local IP ───────────────────────────────────────────────────────────
 set "LOCAL_IP="
@@ -25,7 +25,7 @@ if not defined LOCAL_IP (
 
 echo [config] Detected IP: %LOCAL_IP%
 
-:: ── Write App\.env (Vite only — Flask reads App\API\.env separately) ──────────
+:: ── Write .env (Vite only — Flask reads API\.env separately) ──────────
 (
     echo VITE_LOCAL_DEV=true
     echo VITE_LOCAL_IP=%LOCAL_IP%

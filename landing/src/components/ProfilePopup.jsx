@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../appState';
+import { useAuth } from '../AuthContext';
+import { logout } from '../api';
 import '../styles/ProfilePopup.css';
 
 export default function ProfilePopup({ onClose }) {
-    const { userRole } = useAuth();
+    const { userRole, endSession } = useAuth();
     const navigate = useNavigate();
     const popupRef = useRef(null);
 
@@ -18,9 +19,11 @@ export default function ProfilePopup({ onClose }) {
         return () => document.removeEventListener('mousedown', handleClick);
     }, [onClose]);
 
-    function handleBackToTools() {
+    async function handleLogout() {
         onClose();
-        window.location.href = import.meta.env.PROD ? '/utility-tools/' : 'http://localhost:5174/';
+        await logout();
+        endSession();
+        navigate('/login', { replace: true });
     }
 
     function handleEditProfile() {
@@ -51,7 +54,7 @@ export default function ProfilePopup({ onClose }) {
             )}
             <div className="profile-popup-divider" />
             <button className="profile-popup-btn" onClick={handleEditProfile}>Edit Profile</button>
-            <button className="profile-popup-btn" onClick={handleBackToTools}>← Back to Tools</button>
+            <button className="profile-popup-btn profile-popup-logout" onClick={handleLogout}>Sign out</button>
         </div>
     );
 }

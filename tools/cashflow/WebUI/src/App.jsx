@@ -6,11 +6,6 @@ import ResponsiveGate from './components/ResponsiveGate';
 import Layout from './components/Layout';
 import ManualReviewGate from './components/manualReview/ManualReviewGate';
 
-import LoginScreen from './screens/LoginScreen';
-import SignupScreen from './screens/SignupScreen';
-import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
-import ResetPasswordScreen from './screens/ResetPasswordScreen';
-import VerifyEmailScreen from './screens/VerifyEmailScreen';
 import HomeScreen from './screens/HomeScreen';
 import DashboardScreen from './screens/Dashboard';
 import PrivacyScreen from './screens/PrivacyScreen';
@@ -19,7 +14,6 @@ import AccessibilityScreen from './screens/AccessibilityScreen';
 import CookiesScreen from './screens/CookiesScreen';
 import DataSecurityScreen from './screens/DataSecurityScreen';
 import ProfileScreen from './screens/ProfileScreen';
-import CancelDeletionScreen from './screens/CancelDeletionScreen';
 
 const ChartsScreen = lazy(() => import('./screens/ChartsScreen'));
 const ContentsScreen = lazy(() => import('./screens/ContentsScreen'));
@@ -42,12 +36,6 @@ export default function App() {
       <BrowserRouter basename={import.meta.env.PROD ? '/utility-tools/cashflow' : '/'}>
         <Suspense fallback={<ScreenSpinner />}>
           <Routes>
-            <Route path="/login" element={<LoginScreen />} />
-            <Route path="/signup" element={<SignupScreen />} />
-            <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
-            <Route path="/reset-password" element={<ResetPasswordScreen />} />
-            <Route path="/verify-email" element={<VerifyEmailScreen />} />
-            <Route path="/cancel-deletion" element={<CancelDeletionScreen />} />
             <Route path="/privacy" element={<PrivacyScreen />} />
             <Route path="/terms" element={<TermsScreen />} />
             <Route path="/accessibility" element={<AccessibilityScreen />} />

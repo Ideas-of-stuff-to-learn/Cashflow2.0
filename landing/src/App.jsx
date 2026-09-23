@@ -1,3 +1,14 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './AuthContext';
+import RoleBadge from './components/RoleBadge';
+import LoginScreen from './screens/LoginScreen';
+import SignupScreen from './screens/SignupScreen';
+import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
+import ResetPasswordScreen from './screens/ResetPasswordScreen';
+import VerifyEmailScreen from './screens/VerifyEmailScreen';
+import CancelDeletionScreen from './screens/CancelDeletionScreen';
+import ProfileScreen from './screens/ProfileScreen';
+
 const tools = [
   {
     id: 'cashflow',
@@ -43,10 +54,10 @@ const tools = [
     icon: '⚙️',
     status: 'soon',
   },
-]
+];
 
 function ToolCard({ tool }) {
-  const isLive = tool.status === 'live'
+  const isLive = tool.status === 'live';
 
   const card = (
     <div
@@ -63,20 +74,22 @@ function ToolCard({ tool }) {
         </span>
       )}
     </div>
-  )
+  );
 
   if (isLive) {
-    return (
-      <a href={tool.href} className="tool-card-link">
-        {card}
-      </a>
-    )
+    return <a href={tool.href} className="tool-card-link">{card}</a>;
   }
-
-  return <div className="tool-card-link tool-card-link--disabled">{card}</div>
+  return <div className="tool-card-link tool-card-link--disabled">{card}</div>;
 }
 
-export default function App() {
+function RequireAuth({ children }) {
+  const { isLoggedIn, isChecking } = useAuth();
+  if (isChecking) return null;
+  if (!isLoggedIn) return <Navigate to="/login" replace />;
+  return children;
+}
+
+function LandingPage() {
   return (
     <div className="page">
       <header className="header">
@@ -86,6 +99,9 @@ export default function App() {
             <span className="header__title">Utility Tools</span>
           </div>
           <p className="header__sub">A growing collection of personal productivity tools.</p>
+        </div>
+        <div className="header__actions">
+          <RoleBadge />
         </div>
       </header>
 
@@ -101,5 +117,30 @@ export default function App() {
         <p>© {new Date().getFullYear()} Utility Tools. All rights reserved.</p>
       </footer>
     </div>
-  )
+  );
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginScreen />} />
+      <Route path="/signup" element={<SignupScreen />} />
+      <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
+      <Route path="/reset-password" element={<ResetPasswordScreen />} />
+      <Route path="/verify-email" element={<VerifyEmailScreen />} />
+      <Route path="/cancel-deletion" element={<CancelDeletionScreen />} />
+      <Route path="/profile" element={<RequireAuth><ProfileScreen /></RequireAuth>} />
+      <Route path="/" element={<LandingPage />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter basename={import.meta.env.PROD ? '/utility-tools' : '/'}>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
+  );
 }

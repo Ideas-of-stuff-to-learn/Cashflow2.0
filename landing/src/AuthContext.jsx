@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { getMe } from '../api';
+import { getMe } from './api';
 
 const AuthContext = createContext();
 
@@ -26,22 +26,23 @@ export function AuthProvider({ children }) {
         return () => { cancelled = true; };
     }, []);
 
+    const completeLogin = useCallback((username) => {
+        setIsLoggedIn(true);
+    }, []);
+
     const endSession = useCallback(() => {
         setIsLoggedIn(false);
         setUserRole(null);
     }, []);
 
     useEffect(() => {
-        function handleExpired() {
-            setIsLoggedIn(false);
-            setUserRole(null);
-        }
+        function handleExpired() { setIsLoggedIn(false); setUserRole(null); }
         window.addEventListener('auth:session-expired', handleExpired);
         return () => window.removeEventListener('auth:session-expired', handleExpired);
     }, []);
 
     return (
-        <AuthContext.Provider value={{ isLoggedIn, isChecking, userRole, endSession }}>
+        <AuthContext.Provider value={{ isLoggedIn, isChecking, userRole, completeLogin, endSession }}>
             {children}
         </AuthContext.Provider>
     );
