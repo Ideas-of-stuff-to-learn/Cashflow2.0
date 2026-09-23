@@ -1,4 +1,5 @@
-<!-- last-verified: a834bca 2026-09-23 -->
+<!-- last-verified: ab56534 2026-09-23 -->
+2026-09-23 | task: RoleBadge after first login + RequireAuth blank screen fix | safe-point: ab56534 | status: complete
 2026-09-23 | task: Auth isolation — move auth to landing page, platform-level session | safe-point: a834bca62e25cde734442f1df2d4fd7ce467c2b1 | status: complete
 2026-09-23 | task: Task 7 — repo restructure: App→tools/cashflow, landing page, dual deploy workflows | safe-point: ace91bccff2b76840f8ce047039093046d7ba744 | status: complete
 2026-09-23 | task: Task 5 — profile UI, soft-delete, GitHub Actions cleanup | safe-point: 71241d4c3512f3caf4c2460e698023cd87743795 | status: complete
@@ -43,3 +44,4 @@ Use `git revert` when changes have already been pushed to origin.
 2026-09-23 | task: Task 1 - email migration (backend + frontend) | safe-point: 35c42c9 | status: complete
 2026-09-23 | task: Task 2 - Gmail SMTP email_service.py | safe-point: 71241d4 | status: complete
 2026-09-23 | task: Tasks 3+4 - email verification + password reset + bot protection | safe-point: 71241d4 | status: in-progress
+2026-09-23 | task: security audit fixes — rate limits, auth vulns, categorisation data integrity, dead code | safe-point: 7b38603 | status: complete
