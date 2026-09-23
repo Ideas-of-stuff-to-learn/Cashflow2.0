@@ -100,7 +100,7 @@ export default function ActionButtons({
             </button>
 
             <button className="logout-btn" onClick={handleLogout}>
-                Log Out
+                ← Back to Tools
             </button>
         </>
     );
