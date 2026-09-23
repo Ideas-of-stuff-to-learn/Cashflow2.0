@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import { AppStateProvider } from './appState';
 import { useAuth } from './appState';
 import RequireAuth from './components/RequiresAuth';
@@ -9,14 +10,15 @@ import StartupScreen from './components/StartupScreen';
 
 import HomeScreen from './screens/HomeScreen';
 import DashboardScreen from './screens/Dashboard';
-import ChartsScreen from './screens/ChartsScreen';
-import ContentsScreen from './screens/ContentsScreen';
 import PrivacyScreen from './screens/PrivacyScreen';
 import TermsScreen from './screens/TermsScreen';
 import AccessibilityScreen from './screens/AccessibilityScreen';
 import CookiesScreen from './screens/CookiesScreen';
 import DataSecurityScreen from './screens/DataSecurityScreen';
 import ProfileScreen from './screens/ProfileScreen';
+
+const ChartsScreen = lazy(() => import('./screens/ChartsScreen'));
+const ContentsScreen = lazy(() => import('./screens/ContentsScreen'));
 
 function AppContent() {
   const { isChecking } = useAuth();
@@ -37,8 +39,8 @@ function AppContent() {
           <Route element={<Layout />}>
             <Route path="/dashboard" element={<RequireAuth><DashboardScreen /></RequireAuth>} />
             <Route path="/home" element={<RequireAuth><HomeScreen /></RequireAuth>} />
-            <Route path="/charts" element={<RequireAuth><ChartsScreen /></RequireAuth>} />
-            <Route path="/contents" element={<RequireAuth><ContentsScreen /></RequireAuth>} />
+            <Route path="/charts" element={<RequireAuth><Suspense fallback={null}><ChartsScreen /></Suspense></RequireAuth>} />
+            <Route path="/contents" element={<RequireAuth><Suspense fallback={null}><ContentsScreen /></Suspense></RequireAuth>} />
             <Route path="/profile" element={<RequireAuth><ProfileScreen /></RequireAuth>} />
           </Route>
         </Route>

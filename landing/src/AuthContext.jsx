@@ -3,9 +3,16 @@ import { getMe } from './api';
 
 const AuthContext = createContext();
 
+const HINT_KEY = 'auth_hint';
+function readHint() { try { return sessionStorage.getItem(HINT_KEY) === '1'; } catch { return false; } }
+function setHint() { try { sessionStorage.setItem(HINT_KEY, '1'); } catch {} }
+function clearHint() { try { sessionStorage.removeItem(HINT_KEY); } catch {} }
+
 export function AuthProvider({ children }) {
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [isChecking, setIsChecking] = useState(true);
+    const hasHint = readHint();
+
+    const [isLoggedIn, setIsLoggedIn] = useState(hasHint);
+    const [isChecking, setIsChecking] = useState(!hasHint);
     const [userRole, setUserRole] = useState(null);
 
     useEffect(() => {
@@ -15,10 +22,12 @@ export function AuthProvider({ children }) {
                 if (cancelled) return;
                 setUserRole(data);
                 setIsLoggedIn(true);
+                setHint();
             })
             .catch(() => {
                 if (cancelled) return;
                 setIsLoggedIn(false);
+                clearHint();
             })
             .finally(() => {
                 if (!cancelled) setIsChecking(false);
@@ -28,16 +37,18 @@ export function AuthProvider({ children }) {
 
     const completeLogin = useCallback(() => {
         setIsLoggedIn(true);
+        setHint();
         getMe().then(data => setUserRole(data)).catch(() => {});
     }, []);
 
     const endSession = useCallback(() => {
         setIsLoggedIn(false);
         setUserRole(null);
+        clearHint();
     }, []);
 
     useEffect(() => {
-        function handleExpired() { setIsLoggedIn(false); setUserRole(null); }
+        function handleExpired() { setIsLoggedIn(false); setUserRole(null); clearHint(); }
         window.addEventListener('auth:session-expired', handleExpired);
         return () => window.removeEventListener('auth:session-expired', handleExpired);
     }, []);
