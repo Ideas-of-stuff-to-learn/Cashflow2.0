@@ -1,11 +1,11 @@
-<!-- last-verified: 71241d4 2026-09-23 -->
+<!-- last-verified: a834bca 2026-09-23 -->
 # Cashflow2.0 — Current Task
 
 ## Status (2026-09-23)
 
-No active task. Tasks 1–5 complete (auth email pipeline, verification, password reset, profile UI, soft-delete, GitHub Actions cleanup).
+No active task. Auth isolation complete (Task 8-prep).
 
-**Next session:** Task 6 — Google/Microsoft OAuth (login screen social buttons → backend OAuth flow → user linking).
+**Next session:** Task 8 — Google/Microsoft OAuth. Note: auth now lives on the landing page, so OAuth buttons + callback routes go in landing, not Cashflow. Cashflow only needs RequireAuth to redirect to landing login on unauthenticated.
 
 ## Recently Completed
 

@@ -1,6 +1,7 @@
 <!-- last-verified: eb0073b 2026-09-23 -->
 2026-09-23 | task: catch-up after claude-intelligence-plugin install | SQLite queries: 1 | context docs loaded: 2 (handoff, current-task) | full repo scan avoided: yes | added AI harness section to architecture.md; stamped staleness markers on all 15 docs
 2026-09-23 | task: Tasks 3-5 — email verification, password reset, profile UI, soft-delete, GitHub Actions | SQLite queries: 0 | context docs loaded: 2 (session-snapshot, current-task) | full repo scan avoided: yes | continued from compacted session
+2026-09-23 | task: Auth isolation — move auth to landing page, Cashflow platform tool | SQLite queries: 0 | context docs loaded: 0 (used session summary) | full repo scan avoided: yes | 31 files changed, both builds pass, commit a834bca
 # Intelligence System — Savings Log
 
 Each entry = one session that used the intelligence system instead of cold-scanning the repo.

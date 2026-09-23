@@ -1,3 +1,23 @@
+## Pre-Compact Snapshot — 2026-09-23 19:53
+
+**Git HEAD:** `910fcb6`
+**Files touched:** tools/cashflow/start-all.bat, context/handoff.md, context/session-snapshot.md, tools/cashflow/start-rn.bat, tools/cashflow/start-web.bat...
+**Active task:** (no active task)
+
+*(Auto-written by PreCompact hook — full snapshot in context/session-snapshot.md)*
+
+---
+
+## Pre-Compact Snapshot — 2026-09-23 19:00
+
+**Git HEAD:** `07979ee`
+**Files touched:** App/WebUI/src/styles/chartStyles.css, App/WebUI/src/screens/Dashboard.jsx, context/handoff.md, App/WebUI/src/styles/dashboardStyles.css
+**Active task:** (no active task)
+
+*(Auto-written by PreCompact hook — full snapshot in context/session-snapshot.md)*
+
+---
+
 ## Session handoff — 2026-09-23
 
 **Git HEAD:** `cba0d37`
@@ -24,8 +44,9 @@
 - `ProfilePopup.css` — `position: fixed; top: 56px; right: 12px; z-index: 1001; background: var(--bg-page)` — portal render via `createPortal` to document.body so popup escapes `.app-header` stacking context; background fixed (`--surface` undefined → transparent, switched to `--bg-page`)
 - `RoleBadge.jsx` — popup rendered via `createPortal(…, document.body)`
 - `Layout.css` — `.app-header` gets `position: relative; z-index: 10`
-- `dashboardStyles.css` — `.dashboard-chart-area`: `overflow: visible`, `padding-top: 16px`, `padding-bottom: 20px`; nav row `margin-bottom: 0`
-- `chartStyles.css` — `.chart-header-row` `margin-top` removed (was causing title clip under overflow:hidden)
+- `dashboardStyles.css` — `.dashboard-chart-area`: `overflow: hidden`, `padding-top: 16px`, `padding-bottom: 8px`; nav row `margin-bottom: 0`
+- `chartStyles.css` — `.chart-header-row`: `margin-top` removed, `flex-shrink: 0` added (prevents flex from compressing title row to zero under tight height)
+- Logout button fix: reverted `overflow: visible` (was causing invisible overflow to block left-panel clicks) back to `overflow: hidden`; title stays visible because `flex-shrink: 0` stops the header row being squished
 
 ### DB migrations run by user this session
 - `deleted_at TIMESTAMPTZ` and `pending_email TEXT` added manually in Supabase

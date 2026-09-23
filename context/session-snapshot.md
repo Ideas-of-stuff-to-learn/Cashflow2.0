@@ -1,29 +1,18 @@
-# Session Snapshot — 2026-09-23 18:16
+# Session Snapshot — 2026-09-23 19:53
 
-**Git HEAD:** `71241d4`
+**Git HEAD:** `910fcb6`
 **Triggered by:** PreCompact (context window about to be summarised)
 
 ## Active Task
 (no active task)
 
 ## Files Touched This Session
-- context/revert-state.md
-- App/WebUI/src/api.jsx
-- context/savings-log.md
-- start-web.bat
-- App/API/rate_limits.py
-- App/WebUI/src/components/RoleBadge.jsx
-- start-all.bat
-- App/API/routes/auth.py
-- App/WebUI/src/styles/LoginScreen.css
-- context/session-snapshot.md
-- context/auth-design.md
-- start-rn.bat
+- tools/cashflow/start-all.bat
 - context/handoff.md
-- App/API/schema.sql
-- App/WebUI/src/App.jsx
-- context/current-task.md
-- App/WebUI/src/screens/LoginScreen.jsx
+- context/session-snapshot.md
+- tools/cashflow/start-rn.bat
+- tools/cashflow/start-web.bat
+- context/revert-state.md
 
 ## Context
 This snapshot was auto-written before context summarisation.
