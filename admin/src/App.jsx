@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { getMe, logout } from './api.js';
 import Sidebar from './components/Sidebar.jsx';
 import LoginScreen from './screens/Auth/LoginScreen.jsx';
@@ -119,8 +119,8 @@ export default function App() {
     }
 
     return (
-        <BrowserRouter basename={import.meta.env.PROD ? '/utility-tools/admin' : '/'}>
+        <HashRouter>
             <AdminApp user={user} onLogout={handleLogout} />
-        </BrowserRouter>
+        </HashRouter>
     );
 }
