@@ -20,7 +20,7 @@ from email.mime.text import MIMEText
 logger = logging.getLogger(__name__)
 
 _SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
-_SMTP_PORT = int(os.environ.get('SMTP_PORT', 465))
+_SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
 _SMTP_USER = os.environ.get('SMTP_USER', '')
 _SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
 _DISABLE = os.environ.get('DISABLE_EMAIL_SENDING', 'false').lower() == 'true'
@@ -61,7 +61,10 @@ def send_email(to_address, subject, html_body, text_body=None):
     msg.attach(MIMEText(html_body, 'html'))
 
     context = ssl.create_default_context()
-    with smtplib.SMTP_SSL(_SMTP_HOST, _SMTP_PORT, context=context, timeout=15) as server:
+    with smtplib.SMTP(_SMTP_HOST, _SMTP_PORT, timeout=15) as server:
+        server.ehlo()
+        server.starttls(context=context)
+        server.ehlo()
         server.login(_SMTP_USER, _SMTP_PASSWORD)
         server.sendmail(_SMTP_USER, to_address, msg.as_string())
 

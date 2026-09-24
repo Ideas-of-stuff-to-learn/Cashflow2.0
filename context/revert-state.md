@@ -1,4 +1,5 @@
-<!-- last-verified: b09b9ce 2026-09-24 -->
+<!-- last-verified: 86be875 2026-09-24 -->
+2026-09-24 | task: switch SMTP to port 587 STARTTLS (port 465 blocked on Render) | safe-point: 86be8755d0cba0ff7a80405f9c8823c2eb1cefeb | status: in-progress
 2026-09-24 | task: ProxyFix + remove default_limits to fix shared-IP rate limit bucket | safe-point: b09b9ce5f7a48198e6ba808d3078f22c09872e73 | status: complete
 2026-09-23 | task: RoleBadge after first login + RequireAuth blank screen fix | safe-point: ab56534 | status: complete
 2026-09-23 | task: Auth isolation — move auth to landing page, platform-level session | safe-point: a834bca62e25cde734442f1df2d4fd7ce467c2b1 | status: complete
