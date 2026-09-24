@@ -88,3 +88,8 @@
 .profile-popup-logout {
     color: var(--danger, #c0392b);
 }
+
+.profile-popup-admin {
+    text-decoration: none;
+    font-weight: 500;
+}

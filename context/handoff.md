@@ -1,3 +1,13 @@
+## Pre-Compact Snapshot — 2026-09-24 17:59
+
+**Git HEAD:** `6202034`
+**Files touched:** (none — no uncommitted changes)
+**Active task:** (no active task)
+
+*(Auto-written by PreCompact hook — full snapshot in context/session-snapshot.md)*
+
+---
+
 ## 2026-09-24 — Email flow fully working end-to-end
 
 **Commits:** `82faa98` (Brevo HTTP API), `def2130` (Brevo SMTP attempt), `6f2e7cb` (IPv4 force), `b4a0a59` (port 587)

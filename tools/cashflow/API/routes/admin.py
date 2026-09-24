@@ -12,7 +12,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_tok
 import bcrypt
 
 from extensions import app, limiter, IMPERSONATION_TOKEN_EXPIRES
-from rate_limits import RL_READ_ADMIN, RL_CATEGORY_WRITE, RL_ADMIN_SENSITIVE, RL_ADMIN_UNLOCK
+from rate_limits import RL_READ_ADMIN, RL_CATEGORY_WRITE, RL_ADMIN_SENSITIVE, RL_ADMIN_UNLOCK, RL_ADMIN_USER_TRANSACTIONS
 from database import get_connection, release_connection
 from permissions import (
     require_permission, get_user_role_and_permissions,
@@ -563,6 +563,70 @@ def admin_revoke_token():
         conn.rollback()
         app.logger.error(f'Token revoke failed: {e}')
         return jsonify({'error': 'Revoke failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/admin/users/<int:target_user_id>/transactions', methods=['GET'])
+@jwt_required()
+@require_permission('users.view')
+@limiter.limit(RL_ADMIN_USER_TRANSACTIONS)
+def admin_get_user_transactions(target_user_id):
+    """Returns all transactions for any user, for admin inspection.
+    Gated by users.view — same permission that already lets an admin
+    list all users. Supports ?offset=N&limit=N pagination identical to
+    GET /transactions."""
+    raw_offset = request.args.get('offset')
+    raw_limit = request.args.get('limit')
+    paginated = raw_limit is not None
+
+    try:
+        offset = max(0, int(raw_offset)) if raw_offset is not None else 0
+        limit = min(max(1, int(raw_limit)), 2000) if raw_limit is not None else None
+    except (TypeError, ValueError):
+        return jsonify({'error': 'offset and limit must be integers'}), 400
+
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM users WHERE id = %s", (target_user_id,))
+            if not cur.fetchone():
+                return jsonify({'error': 'User not found'}), 404
+
+            if paginated:
+                cur.execute(
+                    "SELECT COUNT(*) FROM transactions WHERE user_id = %s",
+                    (target_user_id,),
+                )
+                total = cur.fetchone()[0]
+                cur.execute(
+                    """SELECT id, txn_date, description, amount, category
+                       FROM transactions WHERE user_id = %s
+                       ORDER BY id LIMIT %s OFFSET %s""",
+                    (target_user_id, limit, offset),
+                )
+            else:
+                total = None
+                cur.execute(
+                    """SELECT id, txn_date, description, amount, category
+                       FROM transactions WHERE user_id = %s ORDER BY id""",
+                    (target_user_id,),
+                )
+
+            rows = cur.fetchall()
+
+        transactions = [
+            {'id': r[0], 'txn_date': r[1], 'description': r[2],
+             'amount': float(r[3]), 'category': r[4]}
+            for r in rows
+        ]
+        response = {'transactions': transactions}
+        if total is not None:
+            response['total'] = total
+        return jsonify(response), 200
+    except Exception as e:
+        app.logger.error(f'Admin fetch transactions for user {target_user_id} failed: {e}')
+        return jsonify({'error': 'Failed to fetch transactions'}), 500
     finally:
         release_connection(conn)
 

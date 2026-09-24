@@ -32,6 +32,10 @@ export default function ProfilePopup({ onClose }) {
     const email = userRole?.email;
     const emailVerified = userRole?.email_verified;
     const pendingEmail = userRole?.pending_email;
+    const isAdmin = userRole?.role === 'owner' || (userRole?.permissions || []).includes('roles.view');
+    const adminUrl = import.meta.env.PROD
+        ? 'https://ideas-of-stuff-to-learn.github.io/utility-tools/admin/'
+        : 'http://localhost:5175/';
 
     return (
         <div className="profile-popup" ref={popupRef}>
@@ -51,6 +55,9 @@ export default function ProfilePopup({ onClose }) {
             )}
             <div className="profile-popup-divider" />
             <button className="profile-popup-btn" onClick={handleEditProfile}>Edit Profile</button>
+            {isAdmin && (
+                <a className="profile-popup-btn profile-popup-admin" href={adminUrl} target="_blank" rel="noreferrer">Admin Panel →</a>
+            )}
             <button className="profile-popup-btn" onClick={handleBackToTools}>← Back to Tools</button>
         </div>
     );

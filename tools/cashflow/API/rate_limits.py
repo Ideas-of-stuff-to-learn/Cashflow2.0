@@ -63,7 +63,8 @@ DISABLE_RL_UPLOAD            = False  # POST /api/parse-csv
 
 # Admin sensitive
 DISABLE_RL_ADMIN_SENSITIVE   = False  # POST /admin/tokens/revoke
-DISABLE_RL_ADMIN_UNLOCK      = False  # POST /admin/users/<id>/unlock
+DISABLE_RL_ADMIN_UNLOCK              = False  # POST /admin/users/<id>/unlock
+DISABLE_RL_ADMIN_USER_TRANSACTIONS   = False  # GET  /admin/users/<id>/transactions
 
 
 # ── INTERNAL HELPER ──────────────────────────────────────────────────────────
@@ -216,3 +217,7 @@ RL_ADMIN_SENSITIVE = _rl("60 per hour", "DISABLE_RL_ADMIN_SENSITIVE")
 RL_ADMIN_UNLOCK = _rl("30 per hour", "DISABLE_RL_ADMIN_UNLOCK")
 # POST /admin/users/<id>/unlock — account unlock by admin+.
 # Used in: routes/admin.py (users/unlock)
+
+RL_ADMIN_USER_TRANSACTIONS = _rl("200 per day", "DISABLE_RL_ADMIN_USER_TRANSACTIONS")
+# GET /admin/users/<id>/transactions — admin view of any user's transactions.
+# Used in: routes/admin.py (admin_get_user_transactions)

@@ -1,0 +1,372 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface-2: #22263a;
+    --border: #2e3250;
+    --text: #e2e4f0;
+    --text-muted: #8890b0;
+    --accent: #6c7fff;
+    --accent-hover: #8a96ff;
+    --danger: #e05c5c;
+    --success: #4caf80;
+    --warning: #e0a94c;
+    --radius: 8px;
+    --sidebar-w: 220px;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+
+.admin-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+.admin-main {
+    flex: 1;
+    padding: 32px;
+    overflow-y: auto;
+    min-width: 0;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+
+.admin-sidebar {
+    width: var(--sidebar-w);
+    min-height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 0;
+    flex-shrink: 0;
+}
+
+.admin-sidebar-header {
+    padding: 0 16px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.admin-sidebar-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.01em;
+}
+
+.admin-sidebar-role {
+    font-size: 11px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.admin-sidebar-user {
+    padding: 8px 16px 16px;
+    font-size: 12px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+}
+
+.admin-sidebar-section {
+    padding: 14px 16px 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+}
+
+.admin-nav-item {
+    display: block;
+    padding: 8px 16px;
+    color: var(--text-muted);
+    text-decoration: none;
+    border-radius: 0;
+    transition: color 0.15s, background 0.15s;
+}
+
+.admin-nav-item:hover {
+    color: var(--text);
+    background: var(--surface-2);
+}
+
+.admin-nav-item.active {
+    color: var(--accent);
+    background: var(--surface-2);
+    border-left: 2px solid var(--accent);
+    padding-left: 14px;
+}
+
+.admin-nav-back {
+    display: block;
+    margin-top: auto;
+    padding: 16px 16px 4px;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+}
+
+.admin-nav-back:hover { color: var(--text); }
+
+/* ── Loading / denied ────────────────────────────────────────────────────── */
+
+.admin-loading, .admin-denied {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--text-muted);
+}
+
+.admin-denied h2 { color: var(--text); font-size: 20px; }
+.admin-denied a { color: var(--accent); text-decoration: none; font-size: 13px; }
+
+/* ── Screen shared ───────────────────────────────────────────────────────── */
+
+.screen-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: var(--text);
+}
+
+.screen-error {
+    color: var(--danger);
+    margin-bottom: 16px;
+    font-size: 13px;
+}
+
+.screen-success {
+    color: var(--success);
+    margin-bottom: 16px;
+    font-size: 13px;
+}
+
+/* ── Table ───────────────────────────────────────────────────────────────── */
+
+.admin-table-wrap {
+    overflow-x: auto;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+th {
+    background: var(--surface);
+    color: var(--text-muted);
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: middle;
+}
+
+tr:last-child td { border-bottom: none; }
+
+tr:hover td { background: var(--surface-2); }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: var(--radius);
+    border: none;
+    font-size: 13px;
+    cursor: pointer;
+    transition: opacity 0.15s, background 0.15s;
+}
+
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover:not(:disabled) { opacity: 0.85; }
+
+.btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+}
+.btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--text-muted); }
+
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+
+/* ── Form inputs ─────────────────────────────────────────────────────────── */
+
+.admin-input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius);
+    padding: 7px 12px;
+    font-size: 13px;
+    outline: none;
+    width: 100%;
+}
+
+.admin-input:focus { border-color: var(--accent); }
+
+.admin-select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius);
+    padding: 7px 12px;
+    font-size: 13px;
+    outline: none;
+}
+
+.admin-select:focus { border-color: var(--accent); }
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+
+.admin-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.admin-card-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    color: var(--text);
+}
+
+/* ── Badge ───────────────────────────────────────────────────────────────── */
+
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.badge-owner  { background: #3a2a10; color: #e0b44c; }
+.badge-admin  { background: #1a2a3a; color: #4caadf; }
+.badge-user   { background: #1e2030; color: var(--text-muted); }
+
+/* ── Row actions ─────────────────────────────────────────────────────────── */
+
+.row-actions { display: flex; gap: 6px; align-items: center; }
+
+/* ── Colour swatch ───────────────────────────────────────────────────────── */
+
+.colour-swatch {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.15);
+    vertical-align: middle;
+}
+
+/* ── Search bar ──────────────────────────────────────────────────────────── */
+
+.admin-search-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    align-items: center;
+}
+
+.admin-search-row .admin-input {
+    max-width: 320px;
+}
+
+/* ── Pagination ──────────────────────────────────────────────────────────── */
+
+.admin-pagination {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    min-width: 340px;
+    max-width: 520px;
+    width: 100%;
+}
+
+.modal-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--text);
+}
+
+.modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+
+.form-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
