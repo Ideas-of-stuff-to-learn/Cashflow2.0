@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '../../api.js';
+import ConfirmDeleteModal from '../../components/ConfirmDeleteModal.jsx';
 
 function CategoryModal({ category, onSave, onClose }) {
     const [name, setName] = useState(category?.name || '');
@@ -52,6 +53,7 @@ export default function CategoriesScreen() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [modal, setModal] = useState(null); // null | 'create' | category object
+    const [deleteTarget, setDeleteTarget] = useState(null);
 
     useEffect(() => {
         getCategories()
@@ -72,16 +74,11 @@ export default function CategoriesScreen() {
         }
     }
 
-    async function handleDelete(cat) {
-        if (!window.confirm(`Delete category "${cat.name}"?`)) return;
+    async function confirmDelete(cat) {
         setError(''); setSuccess('');
-        try {
-            await deleteCategory(cat.id);
-            setCategories(prev => prev.filter(c => c.id !== cat.id));
-            setSuccess(`Category "${cat.name}" deleted`);
-        } catch (e) {
-            setError(e.message);
-        }
+        await deleteCategory(cat.id);
+        setCategories(prev => prev.filter(c => c.id !== cat.id));
+        setSuccess(`Category "${cat.name}" deleted`);
     }
 
     return (
@@ -117,7 +114,7 @@ export default function CategoriesScreen() {
                                     <td>
                                         <div className="row-actions">
                                             <button className="btn btn-ghost btn-sm" onClick={() => setModal(c)}>Edit</button>
-                                            <button className="btn btn-danger btn-sm" onClick={() => handleDelete(c)}>Delete</button>
+                                            <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(c)}>Delete</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -125,6 +122,14 @@ export default function CategoriesScreen() {
                         </tbody>
                     </table>
                 </div>
+            )}
+            {deleteTarget && (
+                <ConfirmDeleteModal
+                    title={`Delete category "${deleteTarget.name}"`}
+                    description={`This will permanently remove the "${deleteTarget.name}" category. Existing transactions assigned to it will become uncategorised.`}
+                    onConfirm={() => confirmDelete(deleteTarget)}
+                    onClose={() => setDeleteTarget(null)}
+                />
             )}
             {modal && (
                 <CategoryModal

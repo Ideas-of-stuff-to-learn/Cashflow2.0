@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getRoles, getPermissions, createRole, updateRole, deleteRole } from '../../api.js';
+import ConfirmDeleteModal from '../../components/ConfirmDeleteModal.jsx';
 
 function levelLabel(level, roles) {
     const match = roles.find(r => r.level === level);
@@ -124,6 +125,7 @@ export default function RolesScreen({ caller }) {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [modal, setModal] = useState(null);
+    const [deleteTarget, setDeleteTarget] = useState(null);
 
     useEffect(() => {
         Promise.all([getRoles(), getPermissions()])
@@ -144,16 +146,11 @@ export default function RolesScreen({ caller }) {
         }
     }
 
-    async function handleDelete(role) {
-        if (!window.confirm(`Delete role "${role.name}"? This cannot be undone.`)) return;
+    async function confirmDelete(role) {
         setError(''); setSuccess('');
-        try {
-            await deleteRole(role.id);
-            setRoles(prev => prev.filter(r => r.id !== role.id));
-            setSuccess(`Role "${role.name}" deleted`);
-        } catch (e) {
-            setError(e.message);
-        }
+        await deleteRole(role.id);
+        setRoles(prev => prev.filter(r => r.id !== role.id));
+        setSuccess(`Role "${role.name}" deleted`);
     }
 
     return (
@@ -191,7 +188,7 @@ export default function RolesScreen({ caller }) {
                                     <td>
                                         <div className="row-actions">
                                             <button className="btn btn-ghost btn-sm" onClick={() => setModal(r)}>Edit</button>
-                                            <button className="btn btn-danger btn-sm" onClick={() => handleDelete(r)}>Delete</button>
+                                            <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(r)}>Delete</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -199,6 +196,14 @@ export default function RolesScreen({ caller }) {
                         </tbody>
                     </table>
                 </div>
+            )}
+            {deleteTarget && (
+                <ConfirmDeleteModal
+                    title={`Delete role "${deleteTarget.name}"`}
+                    description={`This will permanently remove the "${deleteTarget.name}" role. Users assigned to it will lose their role.`}
+                    onConfirm={() => confirmDelete(deleteTarget)}
+                    onClose={() => setDeleteTarget(null)}
+                />
             )}
             {modal && (
                 <RoleModal
