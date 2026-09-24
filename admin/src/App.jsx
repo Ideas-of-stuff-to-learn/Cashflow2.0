@@ -35,7 +35,7 @@ function AdminApp({ user, onLogout }) {
 }
 
 function hasAdminAccess(data) {
-    return data.role === 'owner' || (data.permissions || []).includes('roles.view');
+    return data.role === 'owner' || (data.permissions || []).includes('admin.panel.view');
 }
 
 export default function App() {

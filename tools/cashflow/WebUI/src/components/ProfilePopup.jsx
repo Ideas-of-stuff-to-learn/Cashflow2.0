@@ -32,7 +32,7 @@ export default function ProfilePopup({ onClose }) {
     const email = userRole?.email;
     const emailVerified = userRole?.email_verified;
     const pendingEmail = userRole?.pending_email;
-    const isAdmin = userRole?.role === 'owner' || (userRole?.permissions || []).includes('roles.view');
+    const isAdmin = userRole?.role === 'owner' || (userRole?.permissions || []).includes('admin.panel.view');
     const adminUrl = import.meta.env.PROD
         ? 'https://ideas-of-stuff-to-learn.github.io/utility-tools/admin/'
         : 'http://localhost:5175/';
