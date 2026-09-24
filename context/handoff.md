@@ -1,3 +1,11 @@
+## 2026-09-24 — Email flow fully working end-to-end
+
+**Commits:** `82faa98` (Brevo HTTP API), `def2130` (Brevo SMTP attempt), `6f2e7cb` (IPv4 force), `b4a0a59` (port 587)
+**Root cause chain:** port 465 blocked → port 587 blocked → Brevo SMTP also blocked → switched to Brevo HTTP API (HTTPS/443, never blocked). `FRONTEND_BASE_URL` was set to GitHub repo URL instead of GitHub Pages URL — fixed by setting to `https://ideas-of-stuff-to-learn.github.io/utility-tools` in Render env vars.
+**Status:** Email verification, forgot password, cancel-deletion all working in production.
+
+---
+
 ## 2026-09-24 — ProxyFix + rate-limit global bucket fix shipped
 
 **Commits shipped:** `b09b9ce` (ProxyFix + remove default_limits), `5b8e64a` (forgot_password email order), `7b38603` (security audit fixes), `62c804c` (SMTP timeout)
