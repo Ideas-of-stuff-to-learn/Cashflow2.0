@@ -1,11 +1,21 @@
 <!-- last-verified: a834bca 2026-09-23 -->
 # Cashflow2.0 — Current Task
 
-## Status (2026-09-23)
+## Status (2026-09-24)
 
-No active task. Auth isolation complete (Task 8-prep).
+No active task. Level-ceiling enforcement + email CC matrix complete.
 
 **Next session:** Task 8 — Google/Microsoft OAuth. Note: auth now lives on the landing page, so OAuth buttons + callback routes go in landing, not Cashflow. Cashflow only needs RequireAuth to redirect to landing login on unauthenticated.
+
+## Recently Completed
+
+**Level-ceiling enforcement + email CC matrix (2026-09-24):**
+- Hard level-ceiling on all manipulation endpoints with no owner exemption
+- Email CC matrix: admin panel deletions (scheduled/cancelled/permanent) To: actor CC: owner
+- `pending_deletion_by_email` stored at schedule time; cancel emails added
+- `PROTECTED_ROLE_NAMES` removed (redundant)
+- Fixed `_get_owner_email` wrong join table
+- UI: RolesScreen and UsersScreen hide actions for equal/above level
 
 ## Recently Completed
 

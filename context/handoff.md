@@ -1,3 +1,26 @@
+## 2026-09-24 — Level-ceiling enforcement + email CC matrix + cancel emails
+
+**Commits:** `29c113d`, `3d9af1d`, `e6ffe8b`
+
+**What was done:**
+- Hard rule: no account can manipulate another at or above its own level — no exceptions, no owner bypass. Applied to delete role, cancel-delete role, assign role (both user-level and target-role-level checks), unlock user, view transactions, list users.
+- `email_service.py`: added `cc_address` param to `send_email` (Brevo cc array)
+- New `_send_deletion_cancelled_email` helper; all deletion email helpers updated to To: actor, CC: owner
+- New `_get_caller_email` helper; actor email stored at schedule time in `pending_deletion_by_email`
+- `categories.py`: stores actor email at schedule; sends cancel email; imports helpers from routes.admin
+- `process_pending_deletions`: uses actor email for role/category confirmed emails; CC owner on user account permanent-deletion
+- `PROTECTED_ROLE_NAMES` check removed from role deletion (redundant — level-ceiling + user-assignment check already cover it)
+- Fixed `_get_owner_email` — was using non-existent `user_roles` junction table; schema uses `users.role_id` directly
+- `RolesScreen.jsx`: hide Edit/Delete for roles >= caller level; owner modal bypass removed
+- `UsersScreen.jsx`: hide Change Role for users >= caller level; roles dropdown filtered to level < caller
+- Migration run: `pending_deletion_by_email TEXT` added to roles and categories tables
+
+**Migrations run by user:**
+- `add_pending_deletion_at.sql` (previous session)
+- `add_pending_deletion_by_email.sql` (this session)
+
+**Status:** All working in production. Emails landing (in Outlook "Other" tab — user moved to Focused).
+
 ## Pre-Compact Snapshot — 2026-09-24 19:53
 
 **Git HEAD:** `285970a`
