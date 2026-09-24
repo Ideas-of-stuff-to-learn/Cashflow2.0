@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { login } from '../../api.js';
+import StartupScreen from '../../components/StartupScreen.jsx';
 
 export default function LoginScreen({ onLogin, onGoSignup, onGoForgot }) {
     const [identifier, setIdentifier] = useState('');
@@ -18,6 +19,10 @@ export default function LoginScreen({ onLogin, onGoSignup, onGoForgot }) {
         } finally {
             setLoading(false);
         }
+    }
+
+    if (loading) {
+        return <StartupScreen />;
     }
 
     return (

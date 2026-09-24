@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { login, getMe } from '../api';
 import { useAuth } from '../AuthContext';
 import '../styles/LoginScreen.css';
+import StartupScreen from '../components/StartupScreen';
 
 // Progress bar easing: returns a % target given elapsed seconds.
 // Deliberately slows near the top — bar sits at ~93% until getMe() responds.
@@ -204,6 +205,10 @@ export default function LoginScreen() {
                 )}
             </div>
         );
+    }
+
+    if (loading) {
+        return <StartupScreen />;
     }
 
     return (
