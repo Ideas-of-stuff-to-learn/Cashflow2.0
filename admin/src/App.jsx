@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { getMe } from './api.js';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { getMe, logout } from './api.js';
 import Sidebar from './components/Sidebar.jsx';
+import LoginScreen from './screens/Auth/LoginScreen.jsx';
+import SignupScreen from './screens/Auth/SignupScreen.jsx';
+import ForgotPasswordScreen from './screens/Auth/ForgotPasswordScreen.jsx';
 import UsersScreen from './screens/General/UsersScreen.jsx';
 import RolesScreen from './screens/General/RolesScreen.jsx';
 import UnlockScreen from './screens/General/UnlockScreen.jsx';
@@ -9,14 +12,12 @@ import ImpersonationLogScreen from './screens/General/ImpersonationLogScreen.jsx
 import CategoriesScreen from './screens/Cashflow/CategoriesScreen.jsx';
 import UserTransactionsScreen from './screens/Cashflow/UserTransactionsScreen.jsx';
 
-const LANDING_URL = import.meta.env.PROD
-    ? 'https://ideas-of-stuff-to-learn.github.io/utility-tools/'
-    : 'http://localhost:5174/';
+// auth states: 'loading' | 'login' | 'signup' | 'forgot' | 'denied' | 'ok'
 
-function AdminApp({ user }) {
+function AdminApp({ user, onLogout }) {
     return (
         <div className="admin-layout">
-            <Sidebar user={user} />
+            <Sidebar user={user} onLogout={onLogout} />
             <main className="admin-main">
                 <Routes>
                     <Route path="/" element={<Navigate to="/general/users" replace />} />
@@ -33,42 +34,92 @@ function AdminApp({ user }) {
     );
 }
 
+function hasAdminAccess(data) {
+    return data.role === 'owner' || (data.permissions || []).includes('roles.view');
+}
+
 export default function App() {
-    const [state, setState] = useState('loading'); // loading | ok | denied | error
+    const [authState, setAuthState] = useState('loading');
     const [user, setUser] = useState(null);
 
     useEffect(() => {
         getMe()
             .then(data => {
-                const perms = data.permissions || [];
-                if (perms.includes('roles.view') || data.role === 'owner') {
+                if (hasAdminAccess(data)) {
                     setUser(data);
-                    setState('ok');
+                    setAuthState('ok');
                 } else {
-                    setState('denied');
+                    setUser(data);
+                    setAuthState('denied');
                 }
             })
-            .catch(() => {
-                window.location.href = LANDING_URL;
-            });
+            .catch(() => setAuthState('login'));
     }, []);
 
-    if (state === 'loading') {
+    function handleLoginSuccess(data) {
+        if (hasAdminAccess(data)) {
+            // data from login() doesn't include permissions/role in the same shape as /auth/me;
+            // re-fetch to get the full profile
+            getMe()
+                .then(me => { setUser(me); setAuthState('ok'); })
+                .catch(() => { setUser(data); setAuthState('denied'); });
+        } else {
+            setUser(data);
+            setAuthState('denied');
+        }
+    }
+
+    async function handleLogout() {
+        await logout();
+        setUser(null);
+        setAuthState('login');
+    }
+
+    if (authState === 'loading') {
         return <div className="admin-loading">Loading…</div>;
     }
-    if (state === 'denied') {
+
+    if (authState === 'login') {
+        return (
+            <LoginScreen
+                onLogin={handleLoginSuccess}
+                onGoSignup={() => setAuthState('signup')}
+                onGoForgot={() => setAuthState('forgot')}
+            />
+        );
+    }
+
+    if (authState === 'signup') {
+        return (
+            <SignupScreen
+                onLogin={handleLoginSuccess}
+                onGoLogin={() => setAuthState('login')}
+            />
+        );
+    }
+
+    if (authState === 'forgot') {
+        return (
+            <ForgotPasswordScreen
+                onGoLogin={() => setAuthState('login')}
+            />
+        );
+    }
+
+    if (authState === 'denied') {
         return (
             <div className="admin-denied">
                 <h2>Access denied</h2>
-                <p>You don't have permission to view this panel.</p>
-                <a href={LANDING_URL}>← Back to utility-tools</a>
+                <p>Your account doesn't have admin panel access.</p>
+                <p style={{ fontSize: 13, marginTop: 4 }}>Logged in as: <strong>{user?.username || '—'}</strong></p>
+                <button className="btn btn-ghost" style={{ marginTop: 16 }} onClick={handleLogout}>Sign out</button>
             </div>
         );
     }
 
     return (
         <BrowserRouter basename={import.meta.env.PROD ? '/utility-tools/admin' : '/'}>
-            <AdminApp user={user} />
+            <AdminApp user={user} onLogout={handleLogout} />
         </BrowserRouter>
     );
 }

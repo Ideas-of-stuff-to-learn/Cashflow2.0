@@ -81,6 +81,54 @@ async function authFetch(url, options = {}) {
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
+export async function login(identifier, password) {
+    const field = identifier.includes('@') ? 'email' : 'username';
+    const r = await fetchWithTimeout(`${BASE_URL}/auth/login`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: identifier, password, website: '' }),
+    }, 70000);
+    const d = await parseJson(r, 'Login failed');
+    csrfAccessToken = d.csrf_access_token;
+    csrfRefreshToken = d.csrf_refresh_token;
+    return d;
+}
+
+export async function signup(username, password, email) {
+    const body = { username, password };
+    if (email) body.email = email;
+    const r = await fetchWithTimeout(`${BASE_URL}/auth/signup`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    }, 70000);
+    const d = await parseJson(r, 'Signup failed');
+    csrfAccessToken = d.csrf_access_token;
+    csrfRefreshToken = d.csrf_refresh_token;
+    return d;
+}
+
+export async function logout() {
+    await fetch(`${BASE_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'X-CSRF-TOKEN': csrfAccessToken },
+    }).catch(() => {});
+    csrfAccessToken = null;
+    csrfRefreshToken = null;
+}
+
+export async function forgotPassword(email) {
+    const r = await fetchWithTimeout(`${BASE_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, website: '' }),
+    }, 30000);
+    return parseJson(r, 'Request failed');
+}
+
 export async function getMe() {
     const r = await authFetch(`${BASE_URL}/auth/me`, { method: 'GET' });
     const d = await parseJson(r, 'Failed to fetch account info');

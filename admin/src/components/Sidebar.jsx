@@ -4,7 +4,7 @@ const LANDING_URL = import.meta.env.PROD
     ? 'https://ideas-of-stuff-to-learn.github.io/utility-tools/'
     : 'http://localhost:5174/';
 
-export default function Sidebar({ user }) {
+export default function Sidebar({ user, onLogout }) {
     const displayName = user?.display_name || user?.username || '—';
     const role = user?.role || '';
 
@@ -27,7 +27,10 @@ export default function Sidebar({ user }) {
             <NavLink className="admin-nav-item" to="/cashflow/categories">Categories</NavLink>
             <NavLink className="admin-nav-item" to="/cashflow/user-transactions">User Transactions</NavLink>
 
-            <a className="admin-nav-back" href={LANDING_URL}>← Back to utility-tools</a>
+            <div style={{ marginTop: 'auto', padding: '12px 16px 4px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center' }} onClick={onLogout}>Sign out</button>
+                <a className="admin-nav-back" href={LANDING_URL}>← Back to utility-tools</a>
+            </div>
         </nav>
     );
 }
