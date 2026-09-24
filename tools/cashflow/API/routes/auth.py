@@ -32,8 +32,17 @@ FRONTEND_BASE_URL = os.environ.get('FRONTEND_BASE_URL', 'http://localhost:5173')
 _EMAIL_TOKEN_MINUTES = 5
 _EMAIL_DAILY_CAP = 5
 _EMAIL_COOLDOWN_SECONDS = 60
-_LOGIN_MAX_ATTEMPTS = 5
-_LOGIN_LOCKOUT_MINUTES = 15
+# Exponential lockout thresholds:
+#   >= 5  attempts  → 15-min timed lock
+#   >= 10 attempts  → 60-min timed lock
+#   >= 15 attempts  → permanent lock (login_locked_until = year 9999 sentinel)
+#                     only an admin+ unlock clears it
+_LOGIN_TIER1_ATTEMPTS = 5
+_LOGIN_TIER2_ATTEMPTS = 10
+_LOGIN_TIER3_ATTEMPTS = 15
+_LOGIN_TIER1_MINUTES  = 15
+_LOGIN_TIER2_MINUTES  = 60
+_LOGIN_PERMANENT_SENTINEL = '9999-01-01 00:00:00+00'
 
 
 @app.route('/auth/me', methods=['GET'])
@@ -674,10 +683,13 @@ def login():
         if lock_row:
             manual_locked, locked_until, _ = lock_row
             if manual_locked:
-                return jsonify({'error': 'Account is locked. Contact support to unlock.'}), 403
+                return jsonify({'error': 'Account is locked. Contact an admin to unlock.', 'code': 'account_locked'}), 403
             if locked_until and locked_until > datetime.now(timezone.utc):
+                # Sentinel year-9999 date means permanent lock — admin must unlock
+                if locked_until.year >= 9999:
+                    return jsonify({'error': 'Account is permanently locked due to too many failed attempts. Contact an admin to unlock.', 'code': 'account_locked_permanent'}), 403
                 remaining = int((locked_until - datetime.now(timezone.utc)).total_seconds() / 60) + 1
-                return jsonify({'error': f'Too many failed attempts. Try again in {remaining} minute(s).'}), 429
+                return jsonify({'error': f'Too many failed attempts. Try again in {remaining} minute(s).', 'code': 'account_locked_timed'}), 429
 
         if not stored_hash or not stored_hash.startswith('$2'):
             app.logger.error(f'Invalid password hash for user {user_id} — hash is missing or not bcrypt')
@@ -691,11 +703,16 @@ def login():
                          failed_login_attempts = COALESCE(failed_login_attempts, 0) + 1,
                          login_locked_until = CASE
                              WHEN COALESCE(failed_login_attempts, 0) + 1 >= %s
-                             THEN now() + (%s * interval '1 minute')
+                             THEN %s::timestamptz
+                             WHEN COALESCE(failed_login_attempts, 0) + 1 >= %s
+                             THEN now() + interval '60 minutes'
+                             WHEN COALESCE(failed_login_attempts, 0) + 1 >= %s
+                             THEN now() + interval '15 minutes'
                              ELSE login_locked_until
                          END
                        WHERE id = %s""",
-                    (_LOGIN_MAX_ATTEMPTS, _LOGIN_LOCKOUT_MINUTES, user_id)
+                    (_LOGIN_TIER3_ATTEMPTS, _LOGIN_PERMANENT_SENTINEL,
+                     _LOGIN_TIER2_ATTEMPTS, _LOGIN_TIER1_ATTEMPTS, user_id)
                 )
             conn.commit()
             return jsonify({'error': 'Invalid credentials'}), 401

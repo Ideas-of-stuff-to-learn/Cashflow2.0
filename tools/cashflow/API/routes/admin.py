@@ -12,7 +12,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_tok
 import bcrypt
 
 from extensions import app, limiter, IMPERSONATION_TOKEN_EXPIRES
-from rate_limits import RL_READ_ADMIN, RL_CATEGORY_WRITE, RL_ADMIN_SENSITIVE
+from rate_limits import RL_READ_ADMIN, RL_CATEGORY_WRITE, RL_ADMIN_SENSITIVE, RL_ADMIN_UNLOCK
 from database import get_connection, release_connection
 from permissions import (
     require_permission, get_user_role_and_permissions,
@@ -563,6 +563,51 @@ def admin_revoke_token():
         conn.rollback()
         app.logger.error(f'Token revoke failed: {e}')
         return jsonify({'error': 'Revoke failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/admin/users/<int:target_user_id>/unlock', methods=['POST'])
+@jwt_required()
+@require_permission('users.unlock')
+@limiter.limit(RL_ADMIN_UNLOCK)
+def admin_unlock_user(target_user_id):
+    """Clears login lockout and email rate-limit state for a user.
+
+    Resets: failed_login_attempts, login_locked_until, login_locked,
+    email_daily_count, last_email_sent_at. The user's limits still apply
+    normally after unlock — this only clears the accumulated counters,
+    not the limits themselves. Only owner bypasses limits permanently
+    (via email.bypass_ratelimit and the owner hard-ceiling in permissions.py).
+
+    Requires: users.unlock permission (admin role and above by default).
+    """
+    current_user = int(get_jwt_identity())
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM users WHERE id = %s", (target_user_id,))
+            if not cur.fetchone():
+                return jsonify({'error': 'User not found'}), 404
+
+            cur.execute(
+                """UPDATE users SET
+                     failed_login_attempts  = 0,
+                     login_locked_until     = NULL,
+                     login_locked           = FALSE,
+                     email_daily_count      = 0,
+                     email_daily_count_date = NULL,
+                     last_email_sent_at     = NULL
+                   WHERE id = %s""",
+                (target_user_id,),
+            )
+        conn.commit()
+        app.logger.info(f'Admin {current_user} unlocked account for user {target_user_id}')
+        return jsonify({'status': 'ok', 'unlocked_user_id': target_user_id}), 200
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Unlock failed for user {target_user_id}: {e}')
+        return jsonify({'error': 'Unlock failed - please try again'}), 500
     finally:
         release_connection(conn)
 

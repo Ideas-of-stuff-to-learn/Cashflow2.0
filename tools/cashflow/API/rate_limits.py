@@ -63,6 +63,7 @@ DISABLE_RL_UPLOAD            = False  # POST /api/parse-csv
 
 # Admin sensitive
 DISABLE_RL_ADMIN_SENSITIVE   = False  # POST /admin/tokens/revoke
+DISABLE_RL_ADMIN_UNLOCK      = False  # POST /admin/users/<id>/unlock
 
 
 # ── INTERNAL HELPER ──────────────────────────────────────────────────────────
@@ -211,3 +212,7 @@ RL_ADMIN_SENSITIVE = _rl("60 per hour", "DISABLE_RL_ADMIN_SENSITIVE")
 # POST /admin/tokens/revoke — token revocation. Legitimate use is rare
 # (one revoke per session); this blocks automated token-cycling abuse.
 # Used in: routes/admin.py (tokens/revoke), routes/auth.py (logout)
+
+RL_ADMIN_UNLOCK = _rl("30 per hour", "DISABLE_RL_ADMIN_UNLOCK")
+# POST /admin/users/<id>/unlock — account unlock by admin+.
+# Used in: routes/admin.py (users/unlock)
