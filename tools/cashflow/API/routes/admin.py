@@ -45,9 +45,14 @@ def admin_list_permissions():
 @require_permission('roles.view')
 @limiter.limit(RL_READ_ADMIN)
 def admin_list_roles():
+    current_user = int(get_jwt_identity())
     conn = get_connection()
     try:
-        return jsonify({'roles': list_all_roles(conn)}), 200
+        caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
+        roles = list_all_roles(conn)
+        if caller_role != 'owner':
+            roles = [r for r in roles if r['level'] < caller_level]
+        return jsonify({'roles': roles}), 200
     except Exception as e:
         app.logger.error(f'Fetching roles failed: {e}')
         return jsonify({'error': 'Failed to fetch roles'}), 500
@@ -165,9 +170,14 @@ def admin_delete_role(role_id):
 @require_permission('users.view')
 @limiter.limit(RL_READ_ADMIN)
 def admin_list_users():
+    current_user = int(get_jwt_identity())
     conn = get_connection()
     try:
-        return jsonify({'users': list_all_users(conn)}), 200
+        caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
+        users = list_all_users(conn)
+        if caller_role != 'owner':
+            users = [u for u in users if u['level'] < caller_level]
+        return jsonify({'users': users}), 200
     except Exception as e:
         app.logger.error(f'Fetching users failed: {e}')
         return jsonify({'error': 'Failed to fetch users'}), 500
@@ -496,16 +506,32 @@ def admin_impersonation_log():
     "we have no way to know if this happened" into "we can check" -
     see handoff5.txt.
     """
+    current_user = int(get_jwt_identity())
     conn = get_connection()
     try:
+        caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
         with conn.cursor() as cur:
-            cur.execute(
-                """SELECT il.id, ua.username, ut.username, il.jti, il.created_at
-                   FROM impersonation_log il
-                   JOIN users ua ON il.actor_user_id = ua.id
-                   JOIN users ut ON il.target_user_id = ut.id
-                   ORDER BY il.created_at DESC""",
-            )
+            if caller_role == 'owner':
+                cur.execute(
+                    """SELECT il.id, ua.username, ut.username, il.jti, il.created_at
+                       FROM impersonation_log il
+                       JOIN users ua ON il.actor_user_id = ua.id
+                       JOIN users ut ON il.target_user_id = ut.id
+                       ORDER BY il.created_at DESC""",
+                )
+            else:
+                # Only show entries where both actor and target are below caller's level
+                cur.execute(
+                    """SELECT il.id, ua.username, ut.username, il.jti, il.created_at
+                       FROM impersonation_log il
+                       JOIN users ua ON il.actor_user_id = ua.id
+                       JOIN users ut ON il.target_user_id = ut.id
+                       JOIN roles ra ON ua.role_id = ra.id
+                       JOIN roles rt ON ut.role_id = rt.id
+                       WHERE ra.level < %s AND rt.level < %s
+                       ORDER BY il.created_at DESC""",
+                    (caller_level, caller_level),
+                )
             rows = cur.fetchall()
 
         log = [
@@ -586,13 +612,17 @@ def admin_get_user_transactions(target_user_id):
     except (TypeError, ValueError):
         return jsonify({'error': 'offset and limit must be integers'}), 400
 
+    current_user = int(get_jwt_identity())
     conn = get_connection()
     try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT id FROM users WHERE id = %s", (target_user_id,))
-            if not cur.fetchone():
-                return jsonify({'error': 'User not found'}), 404
+        caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
+        target = get_user_level(conn, target_user_id)
+        if not target:
+            return jsonify({'error': 'User not found'}), 404
+        if caller_role != 'owner' and target['level'] >= caller_level:
+            return jsonify({'error': f'Cannot view transactions for a user at or above your own level ({caller_level})'}), 403
 
+        with conn.cursor() as cur:
             if paginated:
                 cur.execute(
                     "SELECT COUNT(*) FROM transactions WHERE user_id = %s",
@@ -649,11 +679,14 @@ def admin_unlock_user(target_user_id):
     current_user = int(get_jwt_identity())
     conn = get_connection()
     try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT id FROM users WHERE id = %s", (target_user_id,))
-            if not cur.fetchone():
-                return jsonify({'error': 'User not found'}), 404
+        caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
+        target = get_user_level(conn, target_user_id)
+        if not target:
+            return jsonify({'error': 'User not found'}), 404
+        if caller_role != 'owner' and target['level'] >= caller_level:
+            return jsonify({'error': f'Cannot unlock a user at or above your own level ({caller_level})'}), 403
 
+        with conn.cursor() as cur:
             cur.execute(
                 """UPDATE users SET
                      failed_login_attempts  = 0,
