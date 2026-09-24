@@ -1,3 +1,13 @@
+## Pre-Compact Snapshot — 2026-09-24 20:43
+
+**Git HEAD:** `7e49833`
+**Files touched:** tasks/backlog.md
+**Active task:** (no active task)
+
+*(Auto-written by PreCompact hook — full snapshot in context/session-snapshot.md)*
+
+---
+
 ## 2026-09-24 — Level-ceiling enforcement + email CC matrix + cancel emails
 
 **Commits:** `29c113d`, `3d9af1d`, `e6ffe8b`

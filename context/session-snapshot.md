@@ -1,14 +1,13 @@
-# Session Snapshot — 2026-09-24 19:53
+# Session Snapshot — 2026-09-24 20:43
 
-**Git HEAD:** `285970a`
+**Git HEAD:** `7e49833`
 **Triggered by:** PreCompact (context window about to be summarised)
 
 ## Active Task
 (no active task)
 
 ## Files Touched This Session
-- context/handoff.md
-- context/session-snapshot.md
+- tasks/backlog.md
 
 ## Context
 This snapshot was auto-written before context summarisation.
