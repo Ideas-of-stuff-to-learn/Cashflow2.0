@@ -167,14 +167,15 @@ def list_all_users(conn):
     listUsersAdmin.py shows, and what /admin/users returns."""
     with conn.cursor() as cur:
         cur.execute(
-            """SELECT u.id, u.username, r.name, r.level, u.email
+            """SELECT u.id, u.username, r.name, r.level, u.email,
+                      u.login_locked, u.login_locked_until, u.failed_login_attempts
                FROM users u LEFT JOIN roles r ON u.role_id = r.id
                ORDER BY r.level DESC NULLS LAST, u.username""",
         )
         rows = cur.fetchall()
 
     users = []
-    for user_id, username, role_name, role_level, email in rows:
+    for user_id, username, role_name, role_level, email, login_locked, login_locked_until, failed_attempts in rows:
         _role_name, _level, perms = get_user_role_and_permissions(conn, user_id)
         users.append({
             'id': user_id,
@@ -182,6 +183,9 @@ def list_all_users(conn):
             'role': role_name or 'user',
             'level': role_level if role_level is not None else 0,
             'email': email,
+            'login_locked': bool(login_locked),
+            'login_locked_until': login_locked_until.isoformat() if login_locked_until else None,
+            'failed_login_attempts': failed_attempts or 0,
             'permissions': sorted(perms),
         })
     return users
