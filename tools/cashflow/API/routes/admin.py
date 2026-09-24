@@ -35,8 +35,7 @@ def _get_owner_email(conn):
     with conn.cursor() as cur:
         cur.execute(
             """SELECT u.email FROM users u
-               JOIN user_roles ur ON ur.user_id = u.id
-               JOIN roles r ON ur.role_id = r.id
+               JOIN roles r ON u.role_id = r.id
                WHERE r.name = 'owner' LIMIT 1"""
         )
         row = cur.fetchone()
