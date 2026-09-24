@@ -6,69 +6,54 @@ Single reusable send_email() function used by all outbound email flows:
   - Password reset      (Task 4)
   - Welcome email       (optional, low priority)
 
-Reads SMTP credentials from environment variables. Set
-DISABLE_EMAIL_SENDING=true in .env to log instead of sending
-(useful for local dev without burning quota).
+Uses the Brevo transactional email API (HTTPS) — SMTP is blocked on Render.
+Set DISABLE_EMAIL_SENDING=true in .env to log instead of sending.
 """
 import os
-import smtplib
-import socket
-import ssl
 import logging
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+import requests
 
 logger = logging.getLogger(__name__)
 
-_SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp-relay.brevo.com')
-_SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
-_SMTP_USER = os.environ.get('SMTP_USER', '')
-_SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
-_DISABLE = os.environ.get('DISABLE_EMAIL_SENDING', 'false').lower() == 'true'
+_BREVO_API_KEY    = os.environ.get('BREVO_API_KEY', '')
+_SENDER_EMAIL     = os.environ.get('BREVO_SENDER_EMAIL', '')
+_SENDER_NAME      = os.environ.get('BREVO_SENDER_NAME', 'utility-tools')
+_DISABLE          = os.environ.get('DISABLE_EMAIL_SENDING', 'false').lower() == 'true'
+
+_BREVO_URL = 'https://api.brevo.com/v3/smtp/email'
 
 
 def send_email(to_address, subject, html_body, text_body=None):
-    """Send a transactional email.
-
-    Args:
-        to_address:  recipient email string
-        subject:     email subject line
-        html_body:   HTML content (primary)
-        text_body:   plain-text fallback (optional; auto-stripped from html if omitted)
+    """Send a transactional email via Brevo API.
 
     Raises:
-        RuntimeError if SMTP credentials are not configured
-        smtplib.SMTPException on delivery failure
+        RuntimeError if credentials are not configured
+        requests.HTTPError on API rejection
     """
     if _DISABLE:
-        logger.info(
-            'Email sending disabled. Would have sent: to=%s subject=%s',
-            to_address, subject
-        )
+        logger.info('Email sending disabled. Would have sent: to=%s subject=%s', to_address, subject)
         return
 
-    if not _SMTP_USER or not _SMTP_PASSWORD:
-        raise RuntimeError(
-            'SMTP credentials not configured — set SMTP_USER and SMTP_PASSWORD in .env'
-        )
+    if not _BREVO_API_KEY or not _SENDER_EMAIL:
+        raise RuntimeError('Brevo credentials not configured — set BREVO_API_KEY and BREVO_SENDER_EMAIL')
 
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = subject
-    msg['From'] = _SMTP_USER
-    msg['To'] = to_address
-
+    payload = {
+        'sender':  {'name': _SENDER_NAME, 'email': _SENDER_EMAIL},
+        'to':      [{'email': to_address}],
+        'subject': subject,
+        'htmlContent': html_body,
+    }
     if text_body:
-        msg.attach(MIMEText(text_body, 'plain'))
-    msg.attach(MIMEText(html_body, 'html'))
+        payload['textContent'] = text_body
 
-    context = ssl.create_default_context()
-    # Resolve to IPv4 explicitly — Render instances lack IPv6 outbound routing.
-    ipv4 = socket.getaddrinfo(_SMTP_HOST, _SMTP_PORT, socket.AF_INET, socket.SOCK_STREAM)[0][4][0]
-    with smtplib.SMTP(ipv4, _SMTP_PORT, timeout=15) as server:
-        server.ehlo(_SMTP_HOST)
-        server.starttls(context=context)
-        server.ehlo(_SMTP_HOST)
-        server.login(_SMTP_USER, _SMTP_PASSWORD)
-        server.sendmail(_SMTP_USER, to_address, msg.as_string())
-
+    resp = requests.post(
+        _BREVO_URL,
+        json=payload,
+        headers={
+            'api-key': _BREVO_API_KEY,
+            'Content-Type': 'application/json',
+        },
+        timeout=15,
+    )
+    resp.raise_for_status()
     logger.info('Email sent: to=%s subject=%s', to_address, subject)
