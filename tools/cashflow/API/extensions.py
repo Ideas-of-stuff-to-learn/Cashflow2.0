@@ -27,12 +27,18 @@ from flask_limiter.util import get_remote_address
 from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 from database import get_connection, release_connection
 from backendLocalConfig import CORS_ORIGINS, LOCAL_DEV
 
 load_dotenv()
 
 app = Flask(__name__)
+# Trust Render's single reverse-proxy hop so request.remote_addr reflects
+# the real client IP rather than the load-balancer IP. Without this every
+# request appears to come from the same IP and all users share one rate-limit
+# bucket — making per-IP limits useless in production.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 
 
@@ -112,7 +118,7 @@ def check_if_token_revoked(jwt_header, jwt_payload):
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["20 per day", "50 per hour"],
+    default_limits=[],
     storage_uri="memory://",
 )
 

@@ -280,6 +280,7 @@ def send_verification():
 
 
 @app.route('/auth/verify-email', methods=['GET'])
+@limiter.limit(RL_AUTH_EMAIL_SEND)
 def verify_email():
     token_str = request.args.get('token', '')
     if not token_str:
@@ -531,6 +532,7 @@ def change_password():
 
 @app.route('/auth/account', methods=['DELETE'])
 @jwt_required(fresh=True)
+@limiter.limit(RL_AUTH_CHANGE_PASSWORD)
 def delete_account():
     current_user = int(get_jwt_identity())
     conn = get_connection()
