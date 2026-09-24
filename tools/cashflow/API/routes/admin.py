@@ -234,15 +234,13 @@ def admin_delete_role(role_id):
     current_user = int(get_jwt_identity())
     conn = get_connection()
     try:
-        from permissions import get_role_by_id, PROTECTED_ROLE_NAMES
+        from permissions import get_role_by_id
         caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
         role = get_role_by_id(conn, role_id)
         if not role:
             return jsonify({'error': 'Role not found'}), 404
         if role['level'] >= caller_level:
             return jsonify({'error': f'Cannot delete a role at or above your own level ({caller_level})'}), 403
-        if role['name'] in PROTECTED_ROLE_NAMES:
-            return jsonify({'error': f'"{role["name"]}" is a protected role and cannot be deleted'}), 400
         with conn.cursor() as cur:
             cur.execute("SELECT COUNT(*) FROM users WHERE role_id = %s", (role_id,))
             if cur.fetchone()[0]:
