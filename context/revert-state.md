@@ -1,4 +1,5 @@
 <!-- last-verified: 86be875 2026-09-24 -->
+2026-09-24 | task: level-ceiling enforcement + email CC matrix + cancel emails | safe-point: 285970ac398a4df07e26cad4e745a52b0d852e36 | status: in-progress
 2026-09-24 | task: switch SMTP to port 587 STARTTLS (port 465 blocked on Render) | safe-point: 86be8755d0cba0ff7a80405f9c8823c2eb1cefeb | status: in-progress
 2026-09-24 | task: ProxyFix + remove default_limits to fix shared-IP rate limit bucket | safe-point: b09b9ce5f7a48198e6ba808d3078f22c09872e73 | status: complete
 2026-09-23 | task: RoleBadge after first login + RequireAuth blank screen fix | safe-point: ab56534 | status: complete

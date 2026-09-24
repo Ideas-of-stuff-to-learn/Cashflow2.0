@@ -43,10 +43,21 @@ def _get_owner_email(conn):
     return row[0] if row else None
 
 
-def _send_deletion_scheduled_email(owner_email, item_type, item_name, scheduled_at):
-    if not owner_email:
+def _get_caller_email(conn, user_id):
+    with conn.cursor() as cur:
+        cur.execute("SELECT email FROM users WHERE id = %s", (user_id,))
+        row = cur.fetchone()
+    return row[0] if row else None
+
+
+def _send_deletion_scheduled_email(actor_email, owner_email, item_type, item_name, scheduled_at):
+    if not actor_email:
         return
-    cancel_url = f'https://ideas-of-stuff-to-learn.github.io/utility-tools/admin/#/general/roles' if item_type == 'role' else 'https://ideas-of-stuff-to-learn.github.io/utility-tools/admin/#/cashflow/categories'
+    cancel_url = (
+        'https://ideas-of-stuff-to-learn.github.io/utility-tools/admin/#/general/roles'
+        if item_type == 'role'
+        else 'https://ideas-of-stuff-to-learn.github.io/utility-tools/admin/#/cashflow/categories'
+    )
     subject = f'[utility-tools] Deletion scheduled: {item_type} "{item_name}"'
     html = f"""
 <p>Hi,</p>
@@ -57,13 +68,28 @@ def _send_deletion_scheduled_email(owner_email, item_type, item_name, scheduled_
 <p>You will receive a confirmation email once the deletion is permanent.</p>
 """
     try:
-        send_email(owner_email, subject, html)
+        send_email(actor_email, subject, html, cc_address=owner_email)
     except Exception as e:
         app.logger.warning(f'Deletion-scheduled email failed: {e}')
 
 
-def _send_deletion_confirmed_email(owner_email, item_type, item_name):
-    if not owner_email:
+def _send_deletion_cancelled_email(actor_email, owner_email, item_type, item_name):
+    if not actor_email:
+        return
+    subject = f'[utility-tools] Deletion cancelled: {item_type} "{item_name}"'
+    html = f"""
+<p>Hi,</p>
+<p>The scheduled deletion of the <strong>{item_type}</strong> named <strong>{item_name}</strong> has been <strong>cancelled</strong>.</p>
+<p>No further action is needed — the {item_type} remains active.</p>
+"""
+    try:
+        send_email(actor_email, subject, html, cc_address=owner_email)
+    except Exception as e:
+        app.logger.warning(f'Deletion-cancelled email failed: {e}')
+
+
+def _send_deletion_confirmed_email(actor_email, owner_email, item_type, item_name):
+    if not actor_email:
         return
     subject = f'[utility-tools] Permanently deleted: {item_type} "{item_name}"'
     html = f"""
@@ -72,7 +98,7 @@ def _send_deletion_confirmed_email(owner_email, item_type, item_name):
 <p>This action cannot be undone.</p>
 """
     try:
-        send_email(owner_email, subject, html)
+        send_email(actor_email, subject, html, cc_address=owner_email)
     except Exception as e:
         app.logger.warning(f'Deletion-confirmed email failed: {e}')
 
@@ -205,12 +231,16 @@ def admin_update_role(role_id):
 def admin_delete_role(role_id):
     """Soft-delete: marks the role for deletion after a 48-hour grace period."""
     from datetime import datetime
+    current_user = int(get_jwt_identity())
     conn = get_connection()
     try:
         from permissions import get_role_by_id, PROTECTED_ROLE_NAMES
+        caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
         role = get_role_by_id(conn, role_id)
         if not role:
             return jsonify({'error': 'Role not found'}), 404
+        if role['level'] >= caller_level:
+            return jsonify({'error': f'Cannot delete a role at or above your own level ({caller_level})'}), 403
         if role['name'] in PROTECTED_ROLE_NAMES:
             return jsonify({'error': f'"{role["name"]}" is a protected role and cannot be deleted'}), 400
         with conn.cursor() as cur:
@@ -218,13 +248,14 @@ def admin_delete_role(role_id):
             if cur.fetchone()[0]:
                 return jsonify({'error': 'Users still have this role — reassign them first'}), 400
             now = datetime.now(timezone.utc)
+            actor_email = _get_caller_email(conn, current_user)
             cur.execute(
-                "UPDATE roles SET pending_deletion_at = %s WHERE id = %s",
-                (now, role_id)
+                "UPDATE roles SET pending_deletion_at = %s, pending_deletion_by_email = %s WHERE id = %s",
+                (now, actor_email, role_id)
             )
         conn.commit()
         owner_email = _get_owner_email(conn)
-        _send_deletion_scheduled_email(owner_email, 'role', role['name'], now)
+        _send_deletion_scheduled_email(actor_email, owner_email, 'role', role['name'], now)
         return jsonify({
             'status': 'pending',
             'role_id': role_id,
@@ -244,19 +275,34 @@ def admin_delete_role(role_id):
 @require_permission('roles.manage')
 @limiter.limit(RL_CATEGORY_WRITE)
 def admin_cancel_delete_role(role_id):
+    current_user = int(get_jwt_identity())
     conn = get_connection()
     try:
+        from permissions import get_role_by_id
+        caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
+        role = get_role_by_id(conn, role_id)
+        if not role:
+            return jsonify({'error': 'Role not found'}), 404
+        if role['level'] >= caller_level:
+            return jsonify({'error': f'Cannot cancel deletion of a role at or above your own level ({caller_level})'}), 403
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE roles SET pending_deletion_at = NULL WHERE id = %s RETURNING name",
+                "SELECT name, pending_deletion_by_email FROM roles WHERE id = %s",
                 (role_id,)
             )
-            row = cur.fetchone()
-        if not row:
-            conn.rollback()
-            return jsonify({'error': 'Role not found'}), 404
+            existing = cur.fetchone()
+            if not existing:
+                conn.rollback()
+                return jsonify({'error': 'Role not found'}), 404
+            role_name, actor_email = existing
+            cur.execute(
+                "UPDATE roles SET pending_deletion_at = NULL, pending_deletion_by_email = NULL WHERE id = %s",
+                (role_id,)
+            )
         conn.commit()
-        return jsonify({'status': 'ok', 'role_id': role_id, 'role_name': row[0]}), 200
+        owner_email = _get_owner_email(conn)
+        _send_deletion_cancelled_email(actor_email, owner_email, 'role', role_name)
+        return jsonify({'status': 'ok', 'role_id': role_id, 'role_name': role_name}), 200
     except Exception as e:
         conn.rollback()
         app.logger.error(f'Cancel role delete failed: {e}')
@@ -282,32 +328,32 @@ def process_pending_deletions():
         owner_email = _get_owner_email(conn)
         with conn.cursor() as cur:
             cur.execute(
-                """SELECT id, name FROM roles
+                """SELECT id, name, pending_deletion_by_email FROM roles
                    WHERE pending_deletion_at IS NOT NULL
                      AND pending_deletion_at < NOW() - INTERVAL '48 hours'"""
             )
             roles_to_delete = cur.fetchall()
 
-        for role_id, role_name in roles_to_delete:
+        for role_id, role_name, actor_email in roles_to_delete:
             try:
                 with conn.cursor() as cur:
                     cur.execute("DELETE FROM roles WHERE id = %s", (role_id,))
                 conn.commit()
                 deleted_roles.append(role_name)
-                _send_deletion_confirmed_email(owner_email, 'role', role_name)
+                _send_deletion_confirmed_email(actor_email or owner_email, owner_email, 'role', role_name)
             except Exception as e:
                 conn.rollback()
                 app.logger.error(f'Hard-delete role {role_id} failed: {e}')
 
         with conn.cursor() as cur:
             cur.execute(
-                """SELECT name FROM categories
+                """SELECT name, pending_deletion_by_email FROM categories
                    WHERE pending_deletion_at IS NOT NULL
                      AND pending_deletion_at < NOW() - INTERVAL '48 hours'"""
             )
-            cats_to_delete = [row[0] for row in cur.fetchall()]
+            cats_to_delete = cur.fetchall()
 
-        for cat_name in cats_to_delete:
+        for cat_name, actor_email in cats_to_delete:
             try:
                 with conn.cursor() as cur:
                     cur.execute(
@@ -325,7 +371,7 @@ def process_pending_deletions():
                     cur.execute("DELETE FROM categories WHERE name = %s", (cat_name,))
                 conn.commit()
                 deleted_categories.append(cat_name)
-                _send_deletion_confirmed_email(owner_email, 'category', cat_name)
+                _send_deletion_confirmed_email(actor_email or owner_email, owner_email, 'category', cat_name)
             except Exception as e:
                 conn.rollback()
                 app.logger.error(f'Hard-delete category {cat_name} failed: {e}')
@@ -354,6 +400,7 @@ def process_pending_deletions():
                             f'<p>Hi {username},</p>'
                             f'<p>Your utility-tools account and all associated data have been permanently deleted as scheduled.</p>'
                             f'<p>If you did not request this, please contact the site owner.</p>',
+                            cc_address=owner_email,
                         )
                     except Exception as email_err:
                         app.logger.warning(f'Deletion-confirmed email failed for user {user_id}: {email_err}')
@@ -382,10 +429,9 @@ def admin_list_users():
     current_user = int(get_jwt_identity())
     conn = get_connection()
     try:
-        caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
+        _caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
         users = list_all_users(conn)
-        if caller_role != 'owner':
-            users = [u for u in users if u['level'] < caller_level]
+        users = [u for u in users if u['level'] < caller_level]
         return jsonify({'users': users}), 200
     except Exception as e:
         app.logger.error(f'Fetching users failed: {e}')
@@ -419,10 +465,15 @@ def admin_assign_role(target_user_id):
     conn = get_connection()
     try:
         caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
+        target_user = get_user_level(conn, target_user_id)
+        if not target_user:
+            return jsonify({'error': 'User not found'}), 404
+        if target_user['level'] >= caller_level:
+            return jsonify({'error': f'Cannot reassign a user at or above your own level ({caller_level})'}), 403
         target_role = get_role_by_name(conn, role_name)
         if not target_role:
             return jsonify({'error': f'Role "{role_name}" not found'}), 404
-        if caller_role != 'owner' and target_role['level'] >= caller_level:
+        if target_role['level'] >= caller_level:
             return jsonify({'error': f'Cannot assign a role at or above your own level ({caller_level})'}), 403
 
         user = assign_user_role(conn, target_user_id, role_name)
@@ -851,11 +902,11 @@ def admin_get_user_transactions(target_user_id):
     current_user = int(get_jwt_identity())
     conn = get_connection()
     try:
-        caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
+        _caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
         target = get_user_level(conn, target_user_id)
         if not target:
             return jsonify({'error': 'User not found'}), 404
-        if caller_role != 'owner' and target['level'] >= caller_level:
+        if target['level'] >= caller_level:
             return jsonify({'error': f'Cannot view transactions for a user at or above your own level ({caller_level})'}), 403
 
         with conn.cursor() as cur:
@@ -915,11 +966,11 @@ def admin_unlock_user(target_user_id):
     current_user = int(get_jwt_identity())
     conn = get_connection()
     try:
-        caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
+        _caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
         target = get_user_level(conn, target_user_id)
         if not target:
             return jsonify({'error': 'User not found'}), 404
-        if caller_role != 'owner' and target['level'] >= caller_level:
+        if target['level'] >= caller_level:
             return jsonify({'error': f'Cannot unlock a user at or above your own level ({caller_level})'}), 403
 
         with conn.cursor() as cur:

@@ -34,6 +34,8 @@ export default function UsersScreen({ caller }) {
         u.username.toLowerCase().includes(search.toLowerCase())
     );
 
+    const assignableRoles = roles.filter(r => r.level < (caller?.level ?? 0));
+
     function roleBadgeClass(role) {
         if (role === 'owner') return 'badge badge-owner';
         if (role === 'admin') return 'badge badge-admin';
@@ -81,7 +83,9 @@ export default function UsersScreen({ caller }) {
                                     </td>
                                     <td style={{ color: 'var(--text-muted)' }}>{u.email || '—'}</td>
                                     <td>
-                                        {assigning?.userId === u.id ? (
+                                        {u.level >= (caller?.level ?? 0) ? (
+                                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>
+                                        ) : assigning?.userId === u.id ? (
                                             <div className="row-actions">
                                                 <select
                                                     className="admin-select"
@@ -91,7 +95,7 @@ export default function UsersScreen({ caller }) {
                                                     }}
                                                 >
                                                     <option value="" disabled>Select role…</option>
-                                                    {roles.map(r => (
+                                                    {assignableRoles.map(r => (
                                                         <option key={r.id} value={r.name}>{r.name}</option>
                                                     ))}
                                                 </select>

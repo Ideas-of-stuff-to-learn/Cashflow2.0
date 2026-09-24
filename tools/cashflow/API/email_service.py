@@ -23,7 +23,7 @@ _DISABLE          = os.environ.get('DISABLE_EMAIL_SENDING', 'false').lower() == 
 _BREVO_URL = 'https://api.brevo.com/v3/smtp/email'
 
 
-def send_email(to_address, subject, html_body, text_body=None):
+def send_email(to_address, subject, html_body, text_body=None, cc_address=None):
     """Send a transactional email via Brevo API.
 
     Raises:
@@ -31,7 +31,7 @@ def send_email(to_address, subject, html_body, text_body=None):
         requests.HTTPError on API rejection
     """
     if _DISABLE:
-        logger.info('Email sending disabled. Would have sent: to=%s subject=%s', to_address, subject)
+        logger.info('Email sending disabled. Would have sent: to=%s subject=%s cc=%s', to_address, subject, cc_address)
         return
 
     if not _BREVO_API_KEY or not _SENDER_EMAIL:
@@ -45,6 +45,8 @@ def send_email(to_address, subject, html_body, text_body=None):
     }
     if text_body:
         payload['textContent'] = text_body
+    if cc_address and cc_address != to_address:
+        payload['cc'] = [{'email': cc_address}]
 
     resp = requests.post(
         _BREVO_URL,

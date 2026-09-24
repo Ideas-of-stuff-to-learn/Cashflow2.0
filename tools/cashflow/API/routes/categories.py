@@ -259,27 +259,30 @@ def delete_category():
     The actual hard-delete (with transaction reassignment) happens via the
     daily /internal/process-pending-deletions job."""
     from datetime import datetime, timezone
-    from routes.admin import _get_owner_email, _send_deletion_scheduled_email
+    from flask_jwt_extended import get_jwt_identity
+    from routes.admin import _get_owner_email, _get_caller_email, _send_deletion_scheduled_email
     data = request.get_json() or {}
     name = (data.get('name') or '').strip()
 
     if not name:
         return jsonify({'error': 'name is required'}), 400
 
+    current_user = int(get_jwt_identity())
     conn = get_connection()
     try:
+        actor_email = _get_caller_email(conn, current_user)
         with conn.cursor() as cur:
             now = datetime.now(timezone.utc)
             cur.execute(
-                "UPDATE categories SET pending_deletion_at = %s WHERE name = %s RETURNING name",
-                (now, name)
+                "UPDATE categories SET pending_deletion_at = %s, pending_deletion_by_email = %s WHERE name = %s RETURNING name",
+                (now, actor_email, name)
             )
             if not cur.fetchone():
                 conn.rollback()
                 return jsonify({'error': f'Category "{name}" not found'}), 404
         conn.commit()
         owner_email = _get_owner_email(conn)
-        _send_deletion_scheduled_email(owner_email, 'category', name, now)
+        _send_deletion_scheduled_email(actor_email, owner_email, 'category', name, now)
         return jsonify({
             'status': 'pending',
             'name': name,
@@ -298,6 +301,7 @@ def delete_category():
 @require_permission('categories.delete')
 @limiter.limit(RL_CATEGORY_WRITE)
 def cancel_delete_category():
+    from routes.admin import _get_owner_email, _get_caller_email, _send_deletion_cancelled_email
     data = request.get_json() or {}
     name = (data.get('name') or '').strip()
     if not name:
@@ -306,13 +310,21 @@ def cancel_delete_category():
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE categories SET pending_deletion_at = NULL WHERE name = %s RETURNING name",
+                "SELECT pending_deletion_by_email FROM categories WHERE name = %s",
                 (name,)
             )
-            if not cur.fetchone():
+            row = cur.fetchone()
+            if not row:
                 conn.rollback()
                 return jsonify({'error': f'Category "{name}" not found'}), 404
+            actor_email = row[0]
+            cur.execute(
+                "UPDATE categories SET pending_deletion_at = NULL, pending_deletion_by_email = NULL WHERE name = %s",
+                (name,)
+            )
         conn.commit()
+        owner_email = _get_owner_email(conn)
+        _send_deletion_cancelled_email(actor_email, owner_email, 'category', name)
         return jsonify({'status': 'ok', 'name': name}), 200
     except Exception as e:
         conn.rollback()

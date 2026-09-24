@@ -14,20 +14,17 @@ function RoleModal({ role, allPermissions, allRoles, caller, onSave, onClose }) 
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
-    const isOwner = caller.role === 'owner';
-    const maxLevel = isOwner ? 999 : caller.level - 1;
+    const maxLevel = caller.level - 1;
 
     // Permissions the caller can grant (only those belonging to roles below their own level)
     const grantablePerms = new Set(
-        isOwner
-            ? allPermissions.map(p => p.key)
-            : allPermissions
-                .filter(p => {
-                    const rolesWithPerm = allRoles.filter(r => (r.permissions || []).includes(p.key));
-                    if (rolesWithPerm.length === 0) return true; // unassigned perm — allow
-                    return rolesWithPerm.some(r => r.level < caller.level);
-                })
-                .map(p => p.key)
+        allPermissions
+            .filter(p => {
+                const rolesWithPerm = allRoles.filter(r => (r.permissions || []).includes(p.key));
+                if (rolesWithPerm.length === 0) return true;
+                return rolesWithPerm.some(r => r.level < caller.level);
+            })
+            .map(p => p.key)
     );
 
     function togglePerm(key) {
@@ -41,7 +38,7 @@ function RoleModal({ role, allPermissions, allRoles, caller, onSave, onClose }) 
 
     async function handleSave() {
         const lvl = parseInt(level, 10);
-        if (!isOwner && lvl >= caller.level) {
+        if (lvl >= caller.level) {
             setError(`Level must be below your own level (${caller.level})`);
             return;
         }
@@ -78,11 +75,9 @@ function RoleModal({ role, allPermissions, allRoles, caller, onSave, onClose }) 
                         onChange={e => setLevel(e.target.value)}
                         style={{ maxWidth: 120 }}
                     />
-                    {!isOwner && (
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                            Max: {maxLevel} (must be below your level of {caller.level})
-                        </div>
-                    )}
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                        Max: {maxLevel} (must be below your level of {caller.level})
+                    </div>
                     {sortedRoles.length > 0 && (
                         <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--surface-2)', borderRadius: 6, fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.8 }}>
                             <strong style={{ color: 'var(--text)' }}>Existing levels:</strong>{' '}
@@ -118,7 +113,7 @@ function RoleModal({ role, allPermissions, allRoles, caller, onSave, onClose }) 
     );
 }
 
-export default function RolesScreen({ caller }) {
+export default function RolesScreen({ caller = { role: 'user', level: 0 } }) {
     const [roles, setRoles] = useState([]);
     const [allPermissions, setAllPermissions] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -210,7 +205,9 @@ export default function RolesScreen({ caller }) {
                                     </td>
                                     <td>
                                         <div className="row-actions">
-                                            {isPending ? (
+                                            {r.level >= caller.level ? (
+                                                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>
+                                            ) : isPending ? (
                                                 <button className="btn btn-primary btn-sm" onClick={() => handleCancelDelete(r)}>Cancel deletion</button>
                                             ) : (
                                                 <>
@@ -240,7 +237,7 @@ export default function RolesScreen({ caller }) {
                     role={modal === 'create' ? null : modal}
                     allPermissions={allPermissions}
                     allRoles={roles}
-                    caller={caller || { role: 'user', level: 0 }}
+                    caller={caller}
                     onSave={handleSave}
                     onClose={() => setModal(null)}
                 />

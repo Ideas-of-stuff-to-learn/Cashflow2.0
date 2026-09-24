@@ -1,3 +1,23 @@
+## Pre-Compact Snapshot — 2026-09-24 19:53
+
+**Git HEAD:** `285970a`
+**Files touched:** context/handoff.md, context/session-snapshot.md
+**Active task:** (no active task)
+
+*(Auto-written by PreCompact hook — full snapshot in context/session-snapshot.md)*
+
+---
+
+## Pre-Compact Snapshot — 2026-09-24 19:08
+
+**Git HEAD:** `9ed512a`
+**Files touched:** context/session-snapshot.md
+**Active task:** (no active task)
+
+*(Auto-written by PreCompact hook — full snapshot in context/session-snapshot.md)*
+
+---
+
 ## Pre-Compact Snapshot — 2026-09-24 17:59
 
 **Git HEAD:** `6202034`
