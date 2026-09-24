@@ -20,7 +20,7 @@ from email.mime.text import MIMEText
 
 logger = logging.getLogger(__name__)
 
-_SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+_SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp-relay.brevo.com')
 _SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
 _SMTP_USER = os.environ.get('SMTP_USER', '')
 _SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
@@ -62,9 +62,7 @@ def send_email(to_address, subject, html_body, text_body=None):
     msg.attach(MIMEText(html_body, 'html'))
 
     context = ssl.create_default_context()
-    # Resolve to IPv4 explicitly — Render instances lack IPv6 outbound routing,
-    # so letting Python pick the address family causes ENETUNREACH when it
-    # chooses an AAAA record for smtp.gmail.com.
+    # Resolve to IPv4 explicitly — Render instances lack IPv6 outbound routing.
     ipv4 = socket.getaddrinfo(_SMTP_HOST, _SMTP_PORT, socket.AF_INET, socket.SOCK_STREAM)[0][4][0]
     with smtplib.SMTP(ipv4, _SMTP_PORT, timeout=15) as server:
         server.ehlo(_SMTP_HOST)
