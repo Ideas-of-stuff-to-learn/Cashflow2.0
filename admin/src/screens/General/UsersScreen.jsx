@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getUsers, getRoles, assignRole } from '../../api.js';
 
-export default function UsersScreen() {
+export default function UsersScreen({ caller }) {
     const [users, setUsers] = useState([]);
     const [roles, setRoles] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -73,7 +73,12 @@ export default function UsersScreen() {
                                     <td style={{ color: 'var(--text-muted)' }}>{u.id}</td>
                                     <td>{u.username}</td>
                                     <td><span className={roleBadgeClass(u.role)}>{u.role}</span></td>
-                                    <td>{u.level}</td>
+                                    <td>
+                                        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{u.level}</span>
+                                        <span style={{ color: 'var(--text-muted)', fontSize: 11, marginLeft: 6 }}>
+                                            {u.level >= 100 ? '(owner tier)' : u.level >= 50 ? '(admin tier)' : '(user tier)'}
+                                        </span>
+                                    </td>
                                     <td style={{ color: 'var(--text-muted)' }}>{u.email || '—'}</td>
                                     <td>
                                         {assigning?.userId === u.id ? (

@@ -1,14 +1,36 @@
 import { useEffect, useState } from 'react';
 import { getRoles, getPermissions, createRole, updateRole, deleteRole } from '../../api.js';
 
-function RoleModal({ role, allPermissions, onSave, onClose }) {
+function levelLabel(level, roles) {
+    const match = roles.find(r => r.level === level);
+    return match ? `${match.name} (${level})` : `${level}`;
+}
+
+function RoleModal({ role, allPermissions, allRoles, caller, onSave, onClose }) {
     const [name, setName] = useState(role?.name || '');
     const [level, setLevel] = useState(role?.level ?? '');
     const [selected, setSelected] = useState(new Set(role?.permissions || []));
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
+    const isOwner = caller.role === 'owner';
+    const maxLevel = isOwner ? 999 : caller.level - 1;
+
+    // Permissions the caller can grant (only those belonging to roles below their own level)
+    const grantablePerms = new Set(
+        isOwner
+            ? allPermissions.map(p => p.key)
+            : allPermissions
+                .filter(p => {
+                    const rolesWithPerm = allRoles.filter(r => (r.permissions || []).includes(p.key));
+                    if (rolesWithPerm.length === 0) return true; // unassigned perm — allow
+                    return rolesWithPerm.some(r => r.level < caller.level);
+                })
+                .map(p => p.key)
+    );
+
     function togglePerm(key) {
+        if (!grantablePerms.has(key)) return;
         setSelected(prev => {
             const next = new Set(prev);
             next.has(key) ? next.delete(key) : next.add(key);
@@ -17,9 +39,14 @@ function RoleModal({ role, allPermissions, onSave, onClose }) {
     }
 
     async function handleSave() {
+        const lvl = parseInt(level, 10);
+        if (!isOwner && lvl >= caller.level) {
+            setError(`Level must be below your own level (${caller.level})`);
+            return;
+        }
         setSaving(true); setError('');
         try {
-            await onSave({ name, level: parseInt(level, 10), permissions: [...selected] });
+            await onSave({ name, level: lvl, permissions: [...selected] });
             onClose();
         } catch (e) {
             setError(e.message);
@@ -28,9 +55,11 @@ function RoleModal({ role, allPermissions, onSave, onClose }) {
         }
     }
 
+    const sortedRoles = [...allRoles].sort((a, b) => b.level - a.level);
+
     return (
         <div className="modal-backdrop">
-            <div className="modal">
+            <div className="modal" style={{ maxWidth: 560 }}>
                 <div className="modal-title">{role ? 'Edit Role' : 'Create Role'}</div>
                 {error && <div className="screen-error">{error}</div>}
                 <div className="form-row">
@@ -38,19 +67,43 @@ function RoleModal({ role, allPermissions, onSave, onClose }) {
                     <input className="admin-input" value={name} onChange={e => setName(e.target.value)} disabled={!!role} />
                 </div>
                 <div className="form-row">
-                    <label className="form-label">Level (higher = more powerful)</label>
-                    <input className="admin-input" type="number" value={level} onChange={e => setLevel(e.target.value)} />
+                    <label className="form-label">Level</label>
+                    <input
+                        className="admin-input"
+                        type="number"
+                        value={level}
+                        min={0}
+                        max={maxLevel}
+                        onChange={e => setLevel(e.target.value)}
+                        style={{ maxWidth: 120 }}
+                    />
+                    {!isOwner && (
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                            Max: {maxLevel} (must be below your level of {caller.level})
+                        </div>
+                    )}
+                    {sortedRoles.length > 0 && (
+                        <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--surface-2)', borderRadius: 6, fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.8 }}>
+                            <strong style={{ color: 'var(--text)' }}>Existing levels:</strong>{' '}
+                            {sortedRoles.map(r => `${r.name} = ${r.level}`).join(' · ')}
+                        </div>
+                    )}
                 </div>
                 <div className="form-row">
                     <label className="form-label">Permissions</label>
-                    <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {allPermissions.map(p => (
-                            <label key={p.key} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--text)' }}>
-                                <input type="checkbox" checked={selected.has(p.key)} onChange={() => togglePerm(p.key)} />
-                                <span>{p.key}</span>
-                                <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>— {p.description}</span>
-                            </label>
-                        ))}
+                    <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {allPermissions.map(p => {
+                            const canGrant = grantablePerms.has(p.key);
+                            return (
+                                <label key={p.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: canGrant ? 'pointer' : 'not-allowed', fontSize: 13, color: canGrant ? 'var(--text)' : 'var(--text-muted)', opacity: canGrant ? 1 : 0.5 }}>
+                                    <input type="checkbox" checked={selected.has(p.key)} onChange={() => togglePerm(p.key)} disabled={!canGrant} style={{ marginTop: 2 }} />
+                                    <span>
+                                        <span>{p.key}</span>
+                                        <span style={{ color: 'var(--text-muted)', fontSize: 11, display: 'block' }}>{p.description}{!canGrant ? ' — requires higher level' : ''}</span>
+                                    </span>
+                                </label>
+                            );
+                        })}
                     </div>
                 </div>
                 <div className="modal-actions">
@@ -64,13 +117,13 @@ function RoleModal({ role, allPermissions, onSave, onClose }) {
     );
 }
 
-export default function RolesScreen() {
+export default function RolesScreen({ caller }) {
     const [roles, setRoles] = useState([]);
     const [allPermissions, setAllPermissions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
-    const [modal, setModal] = useState(null); // null | 'create' | role object
+    const [modal, setModal] = useState(null);
 
     useEffect(() => {
         Promise.all([getRoles(), getPermissions()])
@@ -123,10 +176,15 @@ export default function RolesScreen() {
                             </tr>
                         </thead>
                         <tbody>
-                            {roles.sort((a,b) => b.level - a.level).map(r => (
+                            {[...roles].sort((a, b) => b.level - a.level).map(r => (
                                 <tr key={r.id}>
-                                    <td>{r.name}</td>
-                                    <td>{r.level}</td>
+                                    <td style={{ fontWeight: 600 }}>{r.name}</td>
+                                    <td>
+                                        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.level}</span>
+                                        <span style={{ color: 'var(--text-muted)', fontSize: 11, marginLeft: 6 }}>
+                                            {r.level >= 100 ? '(owner tier)' : r.level >= 50 ? '(admin tier)' : '(user tier)'}
+                                        </span>
+                                    </td>
                                     <td style={{ maxWidth: 400, fontSize: 12, color: 'var(--text-muted)', wordBreak: 'break-word' }}>
                                         {(r.permissions || []).join(', ') || '—'}
                                     </td>
@@ -146,6 +204,8 @@ export default function RolesScreen() {
                 <RoleModal
                     role={modal === 'create' ? null : modal}
                     allPermissions={allPermissions}
+                    allRoles={roles}
+                    caller={caller || { role: 'user', level: 0 }}
                     onSave={handleSave}
                     onClose={() => setModal(null)}
                 />

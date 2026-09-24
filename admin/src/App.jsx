@@ -15,18 +15,19 @@ import UserTransactionsScreen from './screens/Cashflow/UserTransactionsScreen.js
 // auth states: 'loading' | 'login' | 'signup' | 'forgot' | 'denied' | 'ok'
 
 function AdminApp({ user, onLogout }) {
+    const caller = { role: user?.role, level: user?.level ?? 0 };
     return (
         <div className="admin-layout">
             <Sidebar user={user} onLogout={onLogout} />
             <main className="admin-main">
                 <Routes>
                     <Route path="/" element={<Navigate to="/general/users" replace />} />
-                    <Route path="/general/users" element={<UsersScreen />} />
-                    <Route path="/general/roles" element={<RolesScreen />} />
+                    <Route path="/general/users" element={<UsersScreen caller={caller} />} />
+                    <Route path="/general/roles" element={<RolesScreen caller={caller} />} />
                     <Route path="/general/unlock" element={<UnlockScreen />} />
                     <Route path="/general/impersonation-log" element={<ImpersonationLogScreen />} />
                     <Route path="/cashflow/categories" element={<CategoriesScreen />} />
-                    <Route path="/cashflow/user-transactions" element={<UserTransactionsScreen />} />
+                    <Route path="/cashflow/user-transactions" element={<UserTransactionsScreen caller={caller} />} />
                     <Route path="*" element={<Navigate to="/general/users" replace />} />
                 </Routes>
             </main>

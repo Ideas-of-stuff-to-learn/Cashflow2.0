@@ -251,8 +251,35 @@ def admin_set_permission_override(target_user_id):
     if granted is not None and not isinstance(granted, bool):
         return jsonify({'error': 'granted must be true, false, or omitted/null'}), 400
 
+    current_user = int(get_jwt_identity())
     conn = get_connection()
     try:
+        caller_role, caller_level, _perms = get_user_role_and_permissions(conn, current_user)
+
+        # Level ceiling on the target user
+        target = get_user_level(conn, target_user_id)
+        if not target:
+            return jsonify({'error': 'User not found'}), 404
+        if caller_role != 'owner' and target['level'] >= caller_level:
+            return jsonify({'error': f'Cannot modify permissions for a user at or above your own level ({caller_level})'}), 403
+
+        # Level ceiling on the permission itself — non-owners cannot grant a
+        # permission that exclusively lives in roles at or above their own level.
+        # (Revoking is always safe; only granting is restricted.)
+        if granted is True and caller_role != 'owner':
+            with conn.cursor() as cur:
+                cur.execute(
+                    """SELECT MIN(r.level) FROM role_permissions rp
+                       JOIN permissions p ON rp.permission_id = p.id
+                       JOIN roles r ON rp.role_id = r.id
+                       WHERE p.key = %s""",
+                    (permission_key,),
+                )
+                row = cur.fetchone()
+                min_perm_level = row[0] if row and row[0] is not None else 0
+            if min_perm_level >= caller_level:
+                return jsonify({'error': f'Cannot grant a permission that belongs to a role at or above your own level ({caller_level})'}), 403
+
         user = set_user_permission_override(conn, target_user_id, permission_key, granted)
         conn.commit()
         return jsonify({'user': user}), 200
