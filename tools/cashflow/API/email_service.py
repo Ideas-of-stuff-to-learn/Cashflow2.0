@@ -12,6 +12,7 @@ DISABLE_EMAIL_SENDING=true in .env to log instead of sending
 """
 import os
 import smtplib
+import socket
 import ssl
 import logging
 from email.mime.multipart import MIMEMultipart
@@ -61,10 +62,14 @@ def send_email(to_address, subject, html_body, text_body=None):
     msg.attach(MIMEText(html_body, 'html'))
 
     context = ssl.create_default_context()
-    with smtplib.SMTP(_SMTP_HOST, _SMTP_PORT, timeout=15) as server:
-        server.ehlo()
+    # Resolve to IPv4 explicitly — Render instances lack IPv6 outbound routing,
+    # so letting Python pick the address family causes ENETUNREACH when it
+    # chooses an AAAA record for smtp.gmail.com.
+    ipv4 = socket.getaddrinfo(_SMTP_HOST, _SMTP_PORT, socket.AF_INET, socket.SOCK_STREAM)[0][4][0]
+    with smtplib.SMTP(ipv4, _SMTP_PORT, timeout=15) as server:
+        server.ehlo(_SMTP_HOST)
         server.starttls(context=context)
-        server.ehlo()
+        server.ehlo(_SMTP_HOST)
         server.login(_SMTP_USER, _SMTP_PASSWORD)
         server.sendmail(_SMTP_USER, to_address, msg.as_string())
 
