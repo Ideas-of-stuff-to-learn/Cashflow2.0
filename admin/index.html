@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin Panel</title>
+    <script>
+      (function () {
+        var redirect = sessionStorage.getItem('spa_redirect');
+        if (redirect) {
+          sessionStorage.removeItem('spa_redirect');
+          if (redirect !== location.href) {
+            history.replaceState(null, null, redirect);
+          }
+        }
+      })();
+    </script>
     <script type="module" crossorigin src="/utility-tools/admin/assets/index-B9rV8O3j.js"></script>
     <link rel="stylesheet" crossorigin href="/utility-tools/admin/assets/index-BI0rloWX.css">
   </head>
