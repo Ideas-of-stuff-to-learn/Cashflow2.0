@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { getMe, logout } from './api.js';
 import Sidebar from './components/Sidebar.jsx';
+import StartupScreen from './components/StartupScreen.jsx';
 import LoginScreen from './screens/Auth/LoginScreen.jsx';
 import SignupScreen from './screens/Auth/SignupScreen.jsx';
 import ForgotPasswordScreen from './screens/Auth/ForgotPasswordScreen.jsx';
@@ -73,7 +74,7 @@ export default function App() {
     }
 
     if (authState === 'loading') {
-        return <div className="admin-loading">Loading…</div>;
+        return <StartupScreen />;
     }
 
     if (authState === 'login') {
