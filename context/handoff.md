@@ -1,3 +1,41 @@
+## 2026-09-24 — ProxyFix + rate-limit global bucket fix shipped
+
+**Commits shipped:** `b09b9ce` (ProxyFix + remove default_limits), `5b8e64a` (forgot_password email order), `7b38603` (security audit fixes), `62c804c` (SMTP timeout)
+**Root cause resolved:** Render's shared proxy IP + `default_limits=["20 per day"]` caused page-load startup GETs to exhaust the global bucket before any user could add email. Fix: ProxyFix (real client IPs) + `default_limits=[]` (no cross-route bucket pollution).
+**Status:** Pushed to main, deployed on Render.
+
+---
+
+## Pre-Compact Snapshot — 2026-09-24 12:35
+
+**Git HEAD:** `b09b9ce`
+**Files touched:** context/handoff.md, context/revert-state.md, context/session-snapshot.md
+**Active task:** (no active task)
+
+*(Auto-written by PreCompact hook — full snapshot in context/session-snapshot.md)*
+
+---
+
+## Pre-Compact Snapshot — 2026-09-23 21:57
+
+**Git HEAD:** `62c804c`
+**Files touched:** context/session-snapshot.md, context/revert-state.md, context/handoff.md
+**Active task:** (no active task)
+
+*(Auto-written by PreCompact hook — full snapshot in context/session-snapshot.md)*
+
+---
+
+## Pre-Compact Snapshot — 2026-09-23 20:34
+
+**Git HEAD:** `a5f51b8`
+**Files touched:** (none — no uncommitted changes)
+**Active task:** (no active task)
+
+*(Auto-written by PreCompact hook — full snapshot in context/session-snapshot.md)*
+
+---
+
 ## Pre-Compact Snapshot — 2026-09-23 19:53
 
 **Git HEAD:** `910fcb6`

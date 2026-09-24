@@ -1,18 +1,15 @@
-# Session Snapshot — 2026-09-23 19:53
+# Session Snapshot — 2026-09-24 12:35
 
-**Git HEAD:** `910fcb6`
+**Git HEAD:** `b09b9ce`
 **Triggered by:** PreCompact (context window about to be summarised)
 
 ## Active Task
 (no active task)
 
 ## Files Touched This Session
-- tools/cashflow/start-all.bat
 - context/handoff.md
-- context/session-snapshot.md
-- tools/cashflow/start-rn.bat
-- tools/cashflow/start-web.bat
 - context/revert-state.md
+- context/session-snapshot.md
 
 ## Context
 This snapshot was auto-written before context summarisation.
