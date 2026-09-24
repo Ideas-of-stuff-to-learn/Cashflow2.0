@@ -33,11 +33,17 @@ def get_categories():
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT name, color, default_color FROM categories ORDER BY display_order"
+                "SELECT name, color, default_color, pending_deletion_at FROM categories ORDER BY display_order"
             )
             rows = cur.fetchall()
 
-        categories = [{'name': row[0], 'color': row[1], 'defaultColor': row[2]} for row in rows]
+        categories = [
+            {
+                'name': row[0], 'color': row[1], 'defaultColor': row[2],
+                'pending_deletion_at': row[3].isoformat() if row[3] else None,
+            }
+            for row in rows
+        ]
         return jsonify({'categories': categories}), 200
     except Exception as e:
         app.logger.error(f'Fetching categories failed: {e}')
@@ -249,55 +255,69 @@ def combine_categories():
 @require_permission('categories.delete')
 @limiter.limit(RL_CATEGORY_WRITE)
 def delete_category():
-    """Deletes a category entirely - admin-only, same reasoning as the
-    other category endpoints.
-
-    Anything currently in this category (category_records, merchants,
-    transactions) gets reassigned to NEEDS_MANUAL_REVIEW rather than
-    left pointing at a category string that no longer exists anywhere -
-    an orphaned reference like that can't self-heal the way a rename
-    desync can (there's no "fetch the current name" to resync to, the
-    category is just gone), so it would sit permanently broken instead.
-    NEEDS_MANUAL_REVIEW is the existing "needs a human to decide" state
-    already used when the LLM itself can't confidently categorise
-    something - conceptually the same situation here.
-
-    If you want a category's data to end up in some OTHER real
-    category rather than manual review, use /categories/combine
-    instead - this endpoint is specifically for abandoning a category
-    altogether.
-    """
+    """Soft-delete: marks the category for deletion after a 48-hour grace period.
+    The actual hard-delete (with transaction reassignment) happens via the
+    daily /internal/process-pending-deletions job."""
+    from datetime import datetime, timezone
+    from routes.admin import _get_owner_email, _send_deletion_scheduled_email
     data = request.get_json() or {}
     name = (data.get('name') or '').strip()
 
     if not name:
         return jsonify({'error': 'name is required'}), 400
 
-    current_user = int(get_jwt_identity())
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT 1 FROM categories WHERE name = %s", (name,))
+            now = datetime.now(timezone.utc)
+            cur.execute(
+                "UPDATE categories SET pending_deletion_at = %s WHERE name = %s RETURNING name",
+                (now, name)
+            )
             if not cur.fetchone():
+                conn.rollback()
                 return jsonify({'error': f'Category "{name}" not found'}), 404
-
-            cur.execute("UPDATE category_records SET category = %s WHERE category = %s", (NEEDS_MANUAL_REVIEW, name))
-            cur.execute("UPDATE merchants SET category = %s WHERE category = %s", (NEEDS_MANUAL_REVIEW, name))
-            cur.execute("UPDATE transactions SET category = %s WHERE category = %s", (NEEDS_MANUAL_REVIEW, name))
-            reassigned_count = cur.rowcount
-            cur.execute("DELETE FROM categories WHERE name = %s", (name,))
-
         conn.commit()
-
-        # Same in-memory cache patching as rename/combine.
-        CategoryCache.patch_global_category_rename(name, NEEDS_MANUAL_REVIEW)
-        patch_merchants_category_rename(name, NEEDS_MANUAL_REVIEW)
-
-        return jsonify({'status': 'ok', 'deleted': name, 'reassigned_transactions': reassigned_count}), 200
+        owner_email = _get_owner_email(conn)
+        _send_deletion_scheduled_email(owner_email, 'category', name, now)
+        return jsonify({
+            'status': 'pending',
+            'name': name,
+            'pending_deletion_at': now.isoformat(),
+        }), 200
     except Exception as e:
         conn.rollback()
-        app.logger.error(f'Category deletion failed: {e}')
+        app.logger.error(f'Category soft-delete failed: {e}')
         return jsonify({'error': 'Category deletion failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/categories/cancel-delete', methods=['POST'])
+@jwt_required()
+@require_permission('categories.delete')
+@limiter.limit(RL_CATEGORY_WRITE)
+def cancel_delete_category():
+    data = request.get_json() or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'name is required'}), 400
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE categories SET pending_deletion_at = NULL WHERE name = %s RETURNING name",
+                (name,)
+            )
+            if not cur.fetchone():
+                conn.rollback()
+                return jsonify({'error': f'Category "{name}" not found'}), 404
+        conn.commit()
+        return jsonify({'status': 'ok', 'name': name}), 200
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Cancel category delete failed: {e}')
+        return jsonify({'error': 'Cancel failed'}), 500
     finally:
         release_connection(conn)
 

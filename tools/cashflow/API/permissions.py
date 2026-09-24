@@ -145,8 +145,14 @@ def list_all_roles(conn):
     default (NOT including any individual's per-user overrides - those
     are per-person, not per-role, see list_all_users)."""
     with conn.cursor() as cur:
-        cur.execute("SELECT id, name, level FROM roles ORDER BY level DESC")
-        roles = [{'id': row[0], 'name': row[1], 'level': row[2]} for row in cur.fetchall()]
+        cur.execute("SELECT id, name, level, pending_deletion_at FROM roles ORDER BY level DESC")
+        roles = [
+            {
+                'id': row[0], 'name': row[1], 'level': row[2],
+                'pending_deletion_at': row[3].isoformat() if row[3] else None,
+            }
+            for row in cur.fetchall()
+        ]
 
     for role in roles:
         with conn.cursor() as cur:

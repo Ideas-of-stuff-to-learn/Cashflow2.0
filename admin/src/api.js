@@ -172,6 +172,11 @@ export async function deleteRole(roleId) {
     return parseJson(r, 'Failed to delete role');
 }
 
+export async function cancelRoleDeletion(roleId) {
+    const r = await authFetch(`${BASE_URL}/admin/roles/${roleId}/cancel-delete`, { method: 'POST' });
+    return parseJson(r, 'Failed to cancel role deletion');
+}
+
 // ── Admin — users ─────────────────────────────────────────────────────────────
 
 export async function getUsers() {
@@ -243,16 +248,30 @@ export async function createCategory(name, color) {
     return (await parseJson(r, 'Failed to create category')).category;
 }
 
-export async function updateCategory(id, fields) {
-    const r = await authFetch(`${BASE_URL}/categories/${id}`, {
+export async function updateCategory(currentName, fields) {
+    // Backend uses name as key, not id; categories table has no integer id exposed in API
+    const r = await authFetch(`${BASE_URL}/categories`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(fields),
+        body: JSON.stringify({ current_name: currentName, ...fields }),
     });
     return (await parseJson(r, 'Failed to update category')).category;
 }
 
-export async function deleteCategory(id) {
-    const r = await authFetch(`${BASE_URL}/categories/${id}`, { method: 'DELETE' });
+export async function deleteCategory(name) {
+    const r = await authFetch(`${BASE_URL}/categories`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+    });
     return parseJson(r, 'Failed to delete category');
+}
+
+export async function cancelCategoryDeletion(name) {
+    const r = await authFetch(`${BASE_URL}/categories/cancel-delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+    });
+    return parseJson(r, 'Failed to cancel category deletion');
 }

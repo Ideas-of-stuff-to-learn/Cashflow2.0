@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getCategories, createCategory, updateCategory, deleteCategory } from '../../api.js';
+import { getCategories, createCategory, updateCategory, deleteCategory, cancelCategoryDeletion } from '../../api.js';
 import ConfirmDeleteModal from '../../components/ConfirmDeleteModal.jsx';
 
 function CategoryModal({ category, onSave, onClose }) {
@@ -68,17 +68,32 @@ export default function CategoriesScreen() {
             setCategories(prev => [...prev, cat]);
             setSuccess(`Category "${name}" created`);
         } else {
-            const updated = await updateCategory(modal.id, { name, color });
-            setCategories(prev => prev.map(c => c.id === modal.id ? updated : c));
+            // Backend uses name as key; updateCategory(currentName, fields)
+            await updateCategory(modal.name, { new_name: name !== modal.name ? name : undefined, color });
+            setCategories(prev => prev.map(c => c.name === modal.name ? { ...c, name, color } : c));
             setSuccess(`Category "${name}" updated`);
         }
     }
 
     async function confirmDelete(cat) {
         setError(''); setSuccess('');
-        await deleteCategory(cat.id);
-        setCategories(prev => prev.filter(c => c.id !== cat.id));
-        setSuccess(`Category "${cat.name}" deleted`);
+        const result = await deleteCategory(cat.name);
+        setCategories(prev => prev.map(c =>
+            c.name === cat.name ? { ...c, pending_deletion_at: result.pending_deletion_at } : c
+        ));
+    }
+
+    async function handleCancelDelete(cat) {
+        setError(''); setSuccess('');
+        try {
+            await cancelCategoryDeletion(cat.name);
+            setCategories(prev => prev.map(c =>
+                c.name === cat.name ? { ...c, pending_deletion_at: null } : c
+            ));
+            setSuccess(`Deletion cancelled for "${cat.name}"`);
+        } catch (e) {
+            setError(e.message);
+        }
     }
 
     return (
@@ -94,17 +109,24 @@ export default function CategoriesScreen() {
                     <table>
                         <thead>
                             <tr>
-                                <th>ID</th>
                                 <th>Name</th>
                                 <th>Colour</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {categories.map(c => (
-                                <tr key={c.id}>
-                                    <td style={{ color: 'var(--text-muted)' }}>{c.id}</td>
-                                    <td>{c.name}</td>
+                            {categories.map(c => {
+                                const isPending = !!c.pending_deletion_at;
+                                return (
+                                <tr key={c.name} style={isPending ? { opacity: 0.6 } : {}}>
+                                    <td>
+                                        {c.name}
+                                        {isPending && (
+                                            <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--danger)' }}>
+                                                ⏳ pending deletion
+                                            </span>
+                                        )}
+                                    </td>
                                     <td>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                             <span className="colour-swatch" style={{ background: c.color }} />
@@ -113,17 +135,24 @@ export default function CategoriesScreen() {
                                     </td>
                                     <td>
                                         <div className="row-actions">
-                                            <button className="btn btn-ghost btn-sm" onClick={() => setModal(c)}>Edit</button>
-                                            <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(c)}>Delete</button>
+                                            {isPending ? (
+                                                <button className="btn btn-primary btn-sm" onClick={() => handleCancelDelete(c)}>Cancel deletion</button>
+                                            ) : (
+                                                <>
+                                                    <button className="btn btn-ghost btn-sm" onClick={() => setModal(c)}>Edit</button>
+                                                    <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(c)}>Delete</button>
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
             )}
-            {deleteTarget && (
+            {deleteTarget && !deleteTarget.pending_deletion_at && (
                 <ConfirmDeleteModal
                     title={`Delete category "${deleteTarget.name}"`}
                     description={`This will permanently remove the "${deleteTarget.name}" category. Existing transactions assigned to it will become uncategorised.`}

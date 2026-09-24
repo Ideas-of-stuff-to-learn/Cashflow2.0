@@ -90,6 +90,25 @@ jobs:
           git diff --staged --quiet || git commit -m "Backup log: ${{ steps.ping.outputs.result }} ($(date -u +'%Y-%m-%d %H:%M UTC'))"
           git push
 
+      - name: Process pending role/category deletions (48-hour grace period)
+        if: steps.ping.outputs.result == 'SUCCESS'
+        run: |
+          response=$(curl -s -w "\n%{http_code}" \
+            -X POST "https://cashflow2-0.onrender.com/internal/process-pending-deletions" \
+            -H "X-Cleanup-Secret: ${{ secrets.CLEANUP_SECRET }}" \
+            -H "Content-Type: application/json")
+
+          body=$(echo "$response" | head -n -1)
+          status=$(echo "$response" | tail -n 1)
+          echo "Cleanup endpoint HTTP status: $status"
+          echo "Response: $body"
+
+          if [ "$status" == "200" ]; then
+            echo "✅ Pending deletions processed."
+          else
+            echo "⚠️ Cleanup endpoint returned status $status — check CLEANUP_SECRET secret and Render logs."
+          fi
+
       - name: Fail the run if the ping itself failed
         if: steps.ping.outputs.result == 'FAILURE'
         run: exit 1

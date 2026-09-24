@@ -7,6 +7,9 @@ gated by its own specific permission key via require_permission() (see
 permissions.py) - there is no single "is_admin" shortcut anywhere here,
 same convention as routes/categories.py.
 """
+import os
+from datetime import timezone
+
 from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token, decode_token
 import bcrypt
@@ -21,6 +24,57 @@ from permissions import (
     assign_user_role, set_user_permission_override,
     get_user_level, delete_user, update_user_credentials,
 )
+from email_service import send_email
+
+_CLEANUP_SECRET = os.environ.get('CLEANUP_SECRET', '')
+
+NEEDS_MANUAL_REVIEW = 'NEEDS_MANUAL_REVIEW'
+
+
+def _get_owner_email(conn):
+    with conn.cursor() as cur:
+        cur.execute(
+            """SELECT u.email FROM users u
+               JOIN user_roles ur ON ur.user_id = u.id
+               JOIN roles r ON ur.role_id = r.id
+               WHERE r.name = 'owner' LIMIT 1"""
+        )
+        row = cur.fetchone()
+    return row[0] if row else None
+
+
+def _send_deletion_scheduled_email(owner_email, item_type, item_name, scheduled_at):
+    if not owner_email:
+        return
+    cancel_url = f'https://ideas-of-stuff-to-learn.github.io/utility-tools/admin/#/general/roles' if item_type == 'role' else 'https://ideas-of-stuff-to-learn.github.io/utility-tools/admin/#/cashflow/categories'
+    subject = f'[utility-tools] Deletion scheduled: {item_type} "{item_name}"'
+    html = f"""
+<p>Hi,</p>
+<p>A deletion has been scheduled for the <strong>{item_type}</strong> named <strong>{item_name}</strong>.</p>
+<p>It will be permanently deleted <strong>48 hours</strong> from now (around {scheduled_at.strftime('%Y-%m-%d %H:%M UTC')}).</p>
+<p>If you want to cancel this, visit the admin panel before then:</p>
+<p><a href="{cancel_url}">{cancel_url}</a></p>
+<p>You will receive a confirmation email once the deletion is permanent.</p>
+"""
+    try:
+        send_email(owner_email, subject, html)
+    except Exception as e:
+        app.logger.warning(f'Deletion-scheduled email failed: {e}')
+
+
+def _send_deletion_confirmed_email(owner_email, item_type, item_name):
+    if not owner_email:
+        return
+    subject = f'[utility-tools] Permanently deleted: {item_type} "{item_name}"'
+    html = f"""
+<p>Hi,</p>
+<p>The <strong>{item_type}</strong> named <strong>{item_name}</strong> has been permanently deleted.</p>
+<p>This action cannot be undone.</p>
+"""
+    try:
+        send_email(owner_email, subject, html)
+    except Exception as e:
+        app.logger.warning(f'Deletion-confirmed email failed: {e}')
 
 
 @app.route('/admin/permissions', methods=['GET'])
@@ -149,18 +203,141 @@ def admin_update_role(role_id):
 @require_permission('roles.manage')
 @limiter.limit(RL_CATEGORY_WRITE)
 def admin_delete_role(role_id):
+    """Soft-delete: marks the role for deletion after a 48-hour grace period."""
+    from datetime import datetime
     conn = get_connection()
     try:
-        delete_role(conn, role_id)
+        from permissions import get_role_by_id, PROTECTED_ROLE_NAMES
+        role = get_role_by_id(conn, role_id)
+        if not role:
+            return jsonify({'error': 'Role not found'}), 404
+        if role['name'] in PROTECTED_ROLE_NAMES:
+            return jsonify({'error': f'"{role["name"]}" is a protected role and cannot be deleted'}), 400
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM users WHERE role_id = %s", (role_id,))
+            if cur.fetchone()[0]:
+                return jsonify({'error': 'Users still have this role — reassign them first'}), 400
+            now = datetime.now(timezone.utc)
+            cur.execute(
+                "UPDATE roles SET pending_deletion_at = %s WHERE id = %s",
+                (now, role_id)
+            )
         conn.commit()
-        return jsonify({'status': 'ok', 'deleted_role_id': role_id}), 200
-    except ValueError as e:
-        conn.rollback()
-        return jsonify({'error': str(e)}), 400
+        owner_email = _get_owner_email(conn)
+        _send_deletion_scheduled_email(owner_email, 'role', role['name'], now)
+        return jsonify({
+            'status': 'pending',
+            'role_id': role_id,
+            'role_name': role['name'],
+            'pending_deletion_at': now.isoformat(),
+        }), 200
     except Exception as e:
         conn.rollback()
-        app.logger.error(f'Role deletion failed: {e}')
+        app.logger.error(f'Role soft-delete failed: {e}')
         return jsonify({'error': 'Role deletion failed - please try again'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/admin/roles/<int:role_id>/cancel-delete', methods=['POST'])
+@jwt_required()
+@require_permission('roles.manage')
+@limiter.limit(RL_CATEGORY_WRITE)
+def admin_cancel_delete_role(role_id):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE roles SET pending_deletion_at = NULL WHERE id = %s RETURNING name",
+                (role_id,)
+            )
+            row = cur.fetchone()
+        if not row:
+            conn.rollback()
+            return jsonify({'error': 'Role not found'}), 404
+        conn.commit()
+        return jsonify({'status': 'ok', 'role_id': role_id, 'role_name': row[0]}), 200
+    except Exception as e:
+        conn.rollback()
+        app.logger.error(f'Cancel role delete failed: {e}')
+        return jsonify({'error': 'Cancel failed'}), 500
+    finally:
+        release_connection(conn)
+
+
+@app.route('/internal/process-pending-deletions', methods=['POST'])
+def process_pending_deletions():
+    """Called daily by the GitHub Actions keep-alive workflow.
+    Hard-deletes roles and categories whose 48-hour grace period has expired,
+    then sends confirmation emails. Protected by CLEANUP_SECRET."""
+    secret = request.headers.get('X-Cleanup-Secret', '')
+    if not _CLEANUP_SECRET or secret != _CLEANUP_SECRET:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    from datetime import datetime
+    conn = get_connection()
+    deleted_roles = []
+    deleted_categories = []
+    try:
+        owner_email = _get_owner_email(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT id, name FROM roles
+                   WHERE pending_deletion_at IS NOT NULL
+                     AND pending_deletion_at < NOW() - INTERVAL '48 hours'"""
+            )
+            roles_to_delete = cur.fetchall()
+
+        for role_id, role_name in roles_to_delete:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("DELETE FROM roles WHERE id = %s", (role_id,))
+                conn.commit()
+                deleted_roles.append(role_name)
+                _send_deletion_confirmed_email(owner_email, 'role', role_name)
+            except Exception as e:
+                conn.rollback()
+                app.logger.error(f'Hard-delete role {role_id} failed: {e}')
+
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT name FROM categories
+                   WHERE pending_deletion_at IS NOT NULL
+                     AND pending_deletion_at < NOW() - INTERVAL '48 hours'"""
+            )
+            cats_to_delete = [row[0] for row in cur.fetchall()]
+
+        for cat_name in cats_to_delete:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE category_records SET category = %s WHERE category = %s",
+                        (NEEDS_MANUAL_REVIEW, cat_name)
+                    )
+                    cur.execute(
+                        "UPDATE merchants SET category = %s WHERE category = %s",
+                        (NEEDS_MANUAL_REVIEW, cat_name)
+                    )
+                    cur.execute(
+                        "UPDATE transactions SET category = %s WHERE category = %s",
+                        (NEEDS_MANUAL_REVIEW, cat_name)
+                    )
+                    cur.execute("DELETE FROM categories WHERE name = %s", (cat_name,))
+                conn.commit()
+                deleted_categories.append(cat_name)
+                _send_deletion_confirmed_email(owner_email, 'category', cat_name)
+            except Exception as e:
+                conn.rollback()
+                app.logger.error(f'Hard-delete category {cat_name} failed: {e}')
+
+        return jsonify({
+            'status': 'ok',
+            'deleted_roles': deleted_roles,
+            'deleted_categories': deleted_categories,
+        }), 200
+    except Exception as e:
+        app.logger.error(f'process_pending_deletions failed: {e}')
+        return jsonify({'error': str(e)}), 500
     finally:
         release_connection(conn)
 

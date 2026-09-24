@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getRoles, getPermissions, createRole, updateRole, deleteRole } from '../../api.js';
+import { getRoles, getPermissions, createRole, updateRole, deleteRole, cancelRoleDeletion } from '../../api.js';
 import ConfirmDeleteModal from '../../components/ConfirmDeleteModal.jsx';
 
 function levelLabel(level, roles) {
@@ -148,9 +148,23 @@ export default function RolesScreen({ caller }) {
 
     async function confirmDelete(role) {
         setError(''); setSuccess('');
-        await deleteRole(role.id);
-        setRoles(prev => prev.filter(r => r.id !== role.id));
-        setSuccess(`Role "${role.name}" deleted`);
+        const result = await deleteRole(role.id);
+        setRoles(prev => prev.map(r =>
+            r.id === role.id ? { ...r, pending_deletion_at: result.pending_deletion_at } : r
+        ));
+    }
+
+    async function handleCancelDelete(role) {
+        setError(''); setSuccess('');
+        try {
+            await cancelRoleDeletion(role.id);
+            setRoles(prev => prev.map(r =>
+                r.id === role.id ? { ...r, pending_deletion_at: null } : r
+            ));
+            setSuccess(`Deletion cancelled for "${role.name}"`);
+        } catch (e) {
+            setError(e.message);
+        }
     }
 
     return (
@@ -173,9 +187,18 @@ export default function RolesScreen({ caller }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {[...roles].sort((a, b) => b.level - a.level).map(r => (
-                                <tr key={r.id}>
-                                    <td style={{ fontWeight: 600 }}>{r.name}</td>
+                            {[...roles].sort((a, b) => b.level - a.level).map(r => {
+                                const isPending = !!r.pending_deletion_at;
+                                return (
+                                <tr key={r.id} style={isPending ? { opacity: 0.6 } : {}}>
+                                    <td style={{ fontWeight: 600 }}>
+                                        {r.name}
+                                        {isPending && (
+                                            <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--danger)', fontWeight: 400 }}>
+                                                ⏳ pending deletion
+                                            </span>
+                                        )}
+                                    </td>
                                     <td>
                                         <span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.level}</span>
                                         <span style={{ color: 'var(--text-muted)', fontSize: 11, marginLeft: 6 }}>
@@ -187,12 +210,19 @@ export default function RolesScreen({ caller }) {
                                     </td>
                                     <td>
                                         <div className="row-actions">
-                                            <button className="btn btn-ghost btn-sm" onClick={() => setModal(r)}>Edit</button>
-                                            <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(r)}>Delete</button>
+                                            {isPending ? (
+                                                <button className="btn btn-primary btn-sm" onClick={() => handleCancelDelete(r)}>Cancel deletion</button>
+                                            ) : (
+                                                <>
+                                                    <button className="btn btn-ghost btn-sm" onClick={() => setModal(r)}>Edit</button>
+                                                    <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(r)}>Delete</button>
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
