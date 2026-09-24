@@ -122,10 +122,13 @@ export default function ProfileScreen() {
         setDeleteMsg(null);
         try {
             await deleteAccount();
-            await logout();
-            endSession();
-            const loginUrl = import.meta.env.PROD ? '/utility-tools/login' : 'http://localhost:5174/login';
-            window.location.href = loginUrl;
+            setDeleteMsg({ text: 'Deletion scheduled. Check your email for a cancellation link — you have 48 hours. Logging you out…', ok: true });
+            setTimeout(async () => {
+                await logout();
+                endSession();
+                const loginUrl = import.meta.env.PROD ? '/utility-tools/login' : 'http://localhost:5174/login';
+                window.location.href = loginUrl;
+            }, 4000);
         } catch (err) {
             setDeleteMsg({ text: err.message || 'Failed to schedule deletion.', ok: false });
             setDeleting(false);
@@ -249,7 +252,7 @@ export default function ProfileScreen() {
                                 onChange={e => setDeleteConfirm(e.target.value)}
                                 autoComplete="off"
                             />
-                            {deleteMsg && <p className={`profile-msg err`}>{deleteMsg.text}</p>}
+                            {deleteMsg && <p className={`profile-msg ${deleteMsg.ok ? 'ok' : 'err'}`}>{deleteMsg.text}</p>}
                             <div className="profile-row">
                                 <button className="profile-btn-danger" type="submit" disabled={deleting}>
                                     {deleting ? '…' : 'Confirm deletion'}

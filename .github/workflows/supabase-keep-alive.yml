@@ -55,28 +55,6 @@ jobs:
             echo "result=FAILURE" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Hard-delete accounts past 48-hour window
-        if: steps.ping.outputs.result == 'SUCCESS'
-        run: |
-          # PostgREST filter: deleted_at is not null AND deleted_at < now() - 48h
-          # service_role key bypasses RLS so we can delete without an anon policy.
-          response=$(curl -s -w "\n%{http_code}" \
-            -X DELETE \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/users?deleted_at=not.is.null&deleted_at=lt.$(date -u -d '48 hours ago' +'%Y-%m-%dT%H:%M:%SZ')" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "Prefer: return=minimal")
-
-          status=$(echo "$response" | tail -n 1)
-          echo "Delete step HTTP status: $status"
-
-          if [ "$status" == "200" ] || [ "$status" == "204" ]; then
-            echo "✅ Hard-delete step completed (or no rows matched)."
-          else
-            body=$(echo "$response" | head -n -1)
-            echo "⚠️ Hard-delete step returned status $status — Body: $body"
-          fi
-
       - name: Append result to DBaliveLog.txt
         run: |
           timestamp=$(date -u +"%Y-%m-%d %H:%M:%S UTC")

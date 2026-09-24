@@ -330,10 +330,42 @@ def process_pending_deletions():
                 conn.rollback()
                 app.logger.error(f'Hard-delete category {cat_name} failed: {e}')
 
+        # Hard-delete user accounts past 48-hour grace period and notify them
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT id, email, username FROM users
+                   WHERE deleted_at IS NOT NULL
+                     AND deleted_at < NOW() - INTERVAL '48 hours'"""
+            )
+            users_to_delete = cur.fetchall()
+
+        deleted_users = []
+        for user_id, user_email, username in users_to_delete:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+                conn.commit()
+                deleted_users.append(username)
+                if user_email:
+                    try:
+                        send_email(
+                            user_email,
+                            '[utility-tools] Your account has been permanently deleted',
+                            f'<p>Hi {username},</p>'
+                            f'<p>Your utility-tools account and all associated data have been permanently deleted as scheduled.</p>'
+                            f'<p>If you did not request this, please contact the site owner.</p>',
+                        )
+                    except Exception as email_err:
+                        app.logger.warning(f'Deletion-confirmed email failed for user {user_id}: {email_err}')
+            except Exception as e:
+                conn.rollback()
+                app.logger.error(f'Hard-delete user {user_id} failed: {e}')
+
         return jsonify({
             'status': 'ok',
             'deleted_roles': deleted_roles,
             'deleted_categories': deleted_categories,
+            'deleted_users': deleted_users,
         }), 200
     except Exception as e:
         app.logger.error(f'process_pending_deletions failed: {e}')
