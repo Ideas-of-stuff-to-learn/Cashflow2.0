@@ -1,4 +1,5 @@
-<!-- last-verified: eb0073b 2026-09-23 -->
+<!-- last-verified: 7e49833 2026-09-24 -->
+2026-09-24 | task: backlog update — check-in 1, task 17 done, daily log 23-24 Sep | SQLite queries: 0 | context docs loaded: 3 (revert-state, savings-log, backlog) | full repo scan avoided: yes | compacted session resume; docs-only update
 2026-09-24 | task: level-ceiling enforcement + email CC matrix + cancel emails | SQLite queries: 0 | context docs loaded: 4 (compacted session summary, admin.py, categories.py, permissions.py) | full repo scan avoided: yes | 9 source files changed, 3 commits shipped, bug fix on _get_owner_email wrong join
 2026-09-23 | task: catch-up after claude-intelligence-plugin install | SQLite queries: 1 | context docs loaded: 2 (handoff, current-task) | full repo scan avoided: yes | added AI harness section to architecture.md; stamped staleness markers on all 15 docs
 2026-09-23 | task: Tasks 3-5 — email verification, password reset, profile UI, soft-delete, GitHub Actions | SQLite queries: 0 | context docs loaded: 2 (session-snapshot, current-task) | full repo scan avoided: yes | continued from compacted session

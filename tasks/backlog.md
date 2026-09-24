@@ -12,7 +12,7 @@
 
 | Check-in | Date | Notes |
 |----------|------|-------|
-| 1 | 22 Sep 2026 | _(write update here)_ |
+| 1 | 22 Sep 2026 | Ahead of schedule. Full auth system shipped (email verification, forgot/reset password, profile UI, soft-delete + 48h grace, account deletion email flow). Landing page live. Admin panel built (standalone Vite app, GitHub Pages). Roles/permissions/users management, impersonation log, category management all in admin panel. Task 2 ✓, Task 17 ✓, most of Task 21 ✓. |
 | 2 | 27 Sep 2026 | _(write update here)_ |
 | 3 | 02 Oct 2026 | _(extended if needed)_ |
 
@@ -363,9 +363,9 @@ Everything — this is a cross-cutting concern across `App/API/`, `App/WebUI/`, 
 
 ---
 
-## 17 — Owner admin page
+## ~~17 — Owner admin page~~ ✅
 
-**Status:** `[ ]` &nbsp;·&nbsp; **Priority:** 🟢 P4 &nbsp;·&nbsp; **Effort:** 2–3 days &nbsp;·&nbsp; **Complexity:** Medium
+**Status:** `[x]` Done — 2026-09-23 &nbsp;·&nbsp; **Priority:** 🟢 P4 &nbsp;·&nbsp; **Effort:** 2–3 days &nbsp;·&nbsp; **Complexity:** Medium
 
 A protected web UI page (`/admin`) visible only to the `owner` role (or a configurable high-permission role). Consolidates the admin CLI tools and the test SQL utilities into a point-and-click interface so there's no need to open a DB client or terminal for common owner tasks.
 
@@ -537,3 +537,5 @@ Full audit of every modal, popup, and overlay in the WebUI (all 17 CSS files + 4
 | 20 Sep 2026 | 🟢 Progressing well | ~18% | UI polish sprint — tasks 19 & 20 done, header/filter/mobile fixes shipped. Tasks 14 and 1 (auth, no billing) targeted for today. |
 | 20 Sep 2026 | 🟢 Progressing well | ~19% | Responsive modal/popup audit — task 22 added and completed: mr-card scrollable, dashboard chart spacing, modal-card/modal-list desktop scroll fix. All shipped to main. |
 | 21 Sep 2026 | 🟢 Planning | ~19% | Full auth + platform architecture discussion. No code today — agreed design for email auth, SMTP email sending, email verification, password reset, Google + Microsoft OAuth, Stripe billing, profile UI, isolation audit, and monorepo platform structure. Design doc written: `context/auth-design.md`. Implementation begins next session. |
+| 23 Sep 2026 | 🟢 Progressing well | ~45% | Auth system fully shipped: email verification, forgot/reset password, failed-attempt lockout, account deletion with 48h grace + cancellation. Brevo HTTP API for transactional email (SMTP blocked on Render). Platform restructure: landing page live, Cashflow moved to `tools/cashflow/`, dual deploy workflows. Admin panel built and deployed (standalone Vite + React, HashRouter, GitHub Pages at `/utility-tools/admin/`): roles management, users management, category management, impersonation/deletion logs. Task 2 ✓, Task 17 ✓, Task 21 partially ✓ (OAuth still pending). |
+| 24 Sep 2026 | 🟢 Progressing well | ~50% | Admin panel hardening: level-ceiling enforcement on all manipulation endpoints — no exceptions, no owner bypass (actor must be STRICTLY higher than target before and after). Email CC matrix: scheduled/cancelled/permanent deletion emails To: actor CC: owner. `pending_deletion_by_email` stored at schedule time so cron can email actor 48h later. Cancel emails added for roles and categories. Removed redundant `PROTECTED_ROLE_NAMES` check. Fixed `_get_owner_email` wrong join (`user_roles` doesn't exist — schema uses `users.role_id`). Migration `add_pending_deletion_by_email.sql` run on Supabase. Priority reorder confirmed: Stripe billing (Tasks 3+4) next, then React Native (Task 10), then OAuth (lowest). |

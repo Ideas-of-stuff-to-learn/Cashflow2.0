@@ -1,4 +1,5 @@
-<!-- last-verified: 86be875 2026-09-24 -->
+<!-- last-verified: 7e49833 2026-09-24 -->
+2026-09-24 | task: backlog update — check-in 1, task 17 done, daily log 23-24 Sep | safe-point: 7e498332e09247f8310211c3a0e5d70ece576022 | status: complete
 2026-09-24 | task: level-ceiling enforcement + email CC matrix + cancel emails | safe-point: e6ffe8b30d28f2553fd30df9a6e8bb485197a9dd | status: complete
 2026-09-24 | task: switch SMTP to port 587 STARTTLS (port 465 blocked on Render) | safe-point: 86be8755d0cba0ff7a80405f9c8823c2eb1cefeb | status: in-progress
 2026-09-24 | task: ProxyFix + remove default_limits to fix shared-IP rate limit bucket | safe-point: b09b9ce5f7a48198e6ba808d3078f22c09872e73 | status: complete
