@@ -57,17 +57,13 @@ export default function App() {
             .catch(() => setAuthState('login'));
     }, []);
 
-    function handleLoginSuccess(data) {
-        if (hasAdminAccess(data)) {
-            // data from login() doesn't include permissions/role in the same shape as /auth/me;
-            // re-fetch to get the full profile
-            getMe()
-                .then(me => { setUser(me); setAuthState('ok'); })
-                .catch(() => { setUser(data); setAuthState('denied'); });
-        } else {
-            setUser(data);
-            setAuthState('denied');
-        }
+    function handleLoginSuccess() {
+        getMe()
+            .then(me => {
+                setUser(me);
+                setAuthState(hasAdminAccess(me) ? 'ok' : 'denied');
+            })
+            .catch(() => setAuthState('login'));
     }
 
     async function handleLogout() {
